@@ -53,6 +53,15 @@ EnumClass parseEnumDeclaration(clang_types.CXCursor cursor, Context context) {
         .where((c) => c.rawValue.startsWith('-'))
         .isNotEmpty;
   } else {
+    // For C++ enums declared inside one or more namespaces, [qualifiedName] is
+    // the fully-qualified name (e.g. `outer::inner::Color`). At global scope it
+    // equals [enumName].
+    final qualifiedName = _qualifiedName(usr, enumName);
+    // The qualified name isn't a valid Dart identifier, so flatten the
+    // namespace path into a single name joined by `$`, e.g.
+    // `outer::inner::Color` becomes `outer$inner$Color`. Names at global scope
+    // are unaffected.
+    final dartName = _flattenNamespace(qualifiedName);
     logger.fine('++++ Adding Enum: ${cursor.completeStringRepr()}');
     enumClass = EnumClass(
       usr: usr,
@@ -61,8 +70,8 @@ EnumClass parseEnumDeclaration(clang_types.CXCursor cursor, Context context) {
         cursor,
         availability: apiAvailability.dartDoc,
       ),
-      originalName: enumName,
-      name: enumName,
+      originalName: qualifiedName,
+      name: dartName,
       nativeType: nativeType,
       context: context,
       apiAvailability: apiAvailability,
@@ -128,3 +137,26 @@ EnumClass parseEnumDeclaration(clang_types.CXCursor cursor, Context context) {
         apiAvailability: apiAvailability,
       );
 }
+
+/// Builds the fully-qualified C++ name of an enum from its [usr].
+///
+/// A USR like `c:@N@outer@N@inner@E@Color` yields `outer::inner::Color`. At
+/// global scope (no enclosing namespace) this just returns [leafName].
+String _qualifiedName(String usr, String leafName) {
+  // After the `c:` prefix, USR tokens alternate between a single-char kind
+  // marker (`N` for namespace, `E` for enum, etc.) and its name. Collect the
+  // names of the enclosing namespaces by stepping over each marker/name pair.
+  final parts = usr.split('@');
+  final namespaces = <String>[];
+  for (var i = 1; i + 1 < parts.length; i += 2) {
+    if (parts[i] == 'N') namespaces.add(parts[i + 1]);
+  }
+  if (namespaces.isEmpty) return leafName;
+  return [...namespaces, leafName].join('::');
+}
+
+/// Flattens a `::`-qualified C++ name into a single Dart identifier by joining
+/// the path segments with `$`, e.g. `outer::inner::Color` becomes
+/// `outer$inner$Color`.
+String _flattenNamespace(String qualifiedName) =>
+    qualifiedName.split('::').where((s) => s.isNotEmpty).join(r'$');

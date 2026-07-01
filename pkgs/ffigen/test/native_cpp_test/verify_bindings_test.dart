@@ -61,6 +61,28 @@ void main() {
           ),
         ],
       ),
+      'cpp_namespace_enum': FfiGenerator(
+        output: Output(
+          dart: DartOutput(
+            path: Uri.file('cpp_namespace_enum_test_bindings.dart'),
+          ),
+        ),
+        input: Input(
+          entryPoints: [
+            Uri.file(path.join(testDir.path, 'cpp_namespace_enum_test.h')),
+          ],
+          compilerOptions: defaultCppCompilerOptions,
+        ),
+        visitors: [
+          Visitor(
+            enumClass: (node) => node.isIncluded = {
+              'outer::Color',
+              'outer::inner::Color',
+              'other::Color',
+            }.contains(node.originalName),
+          ),
+        ],
+      ),
       'memory_edge_cases': FfiGenerator(
         output: Output(
           dart: DartOutput(path: Uri.file('memory_edge_cases_bindings.dart')),

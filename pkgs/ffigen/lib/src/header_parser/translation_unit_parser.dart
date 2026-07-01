@@ -61,6 +61,9 @@ Set<Binding> parseTranslationUnit(
           case clang_types.CXCursorKind.CXCursor_ClassDecl:
             addToBindings(bindings, parseClassDeclaration(context, cursor));
             break;
+          case clang_types.CXCursorKind.CXCursor_Namespace:
+            _visitNamespaceForEnums(context, cursor, bindings, headers);
+            break;
           default:
             logger.finer('rootCursorVisitor: CursorKind not implemented');
         }
@@ -85,6 +88,58 @@ void addToBindings(Set<Binding> bindings, Binding? b) {
     // This is a set, and hence will not have duplicates.
     bindings.add(b);
   }
+}
+
+/// Recurses into a C++ namespace, surfacing only enum declarations.
+///
+/// For now this is the only declaration kind generated from inside namespaces.
+// TODO: Dispatch ClassDecl, FunctionDecl, etc. here for full C++ namespace
+// support.
+void _visitNamespaceForEnums(
+  Context context,
+  clang_types.CXCursor namespaceCursor,
+  Set<Binding> bindings,
+  Map<String, bool> headers,
+) {
+  final logger = context.logger;
+  if (clang.clang_Cursor_isAnonymous(namespaceCursor) != 0) {
+    logger.fine('Skipping anonymous namespace.');
+    return;
+  }
+  namespaceCursor.visitChildren((cursor) {
+    final kind = clang.clang_getCursorKind(cursor);
+    // Bail out before logging anything about cursor kinds we don't handle:
+    // `completeStringRepr` computes the cursor's USR, which isn't meaningful
+    // for every kind found inside a namespace (e.g. destructors).
+    if (kind != clang_types.CXCursorKind.CXCursor_Namespace &&
+        kind != clang_types.CXCursorKind.CXCursor_EnumDecl) {
+      logger.finer('namespaceCursorVisitor: CursorKind not implemented');
+      return;
+    }
+    final file = cursor.sourceFileName();
+    if (file.isEmpty) return;
+    if (!(headers[file] ??= context.config.input.include(Uri.file(file)))) {
+      logger.finest(
+        'namespaceCursorVisitor:(not included) ${cursor.completeStringRepr()}',
+      );
+      return;
+    }
+    try {
+      logger.finest('namespaceCursorVisitor: ${cursor.completeStringRepr()}');
+      switch (kind) {
+        case clang_types.CXCursorKind.CXCursor_Namespace:
+          _visitNamespaceForEnums(context, cursor, bindings, headers);
+          break;
+        case clang_types.CXCursorKind.CXCursor_EnumDecl:
+          addToBindings(bindings, _getCodeGenTypeFromCursor(context, cursor));
+          break;
+      }
+    } catch (e, s) {
+      logger.severe(e);
+      logger.severe(s);
+      rethrow;
+    }
+  });
 }
 
 BindingType? _getCodeGenTypeFromCursor(
