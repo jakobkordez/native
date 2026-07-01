@@ -76,8 +76,11 @@ void main() {
         visitors: [
           Visitor(
             enumClass: (node) => node.isIncluded = {
+              'GlobalBox::State',
+              'GlobalPalette::Shade',
               'outer::Color',
               'outer::inner::Color',
+              'outer::Palette::Tone',
               'other::Color',
             }.contains(node.originalName),
           ),
