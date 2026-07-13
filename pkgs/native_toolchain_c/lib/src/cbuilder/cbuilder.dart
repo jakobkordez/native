@@ -52,6 +52,22 @@ class CBuilder extends CTool implements Builder {
 
   final BuildMode buildMode;
 
+  /// Whether to write a `compile_commands.json`
+  /// [Clang JSON Compilation Database](https://clang.llvm.org/docs/JSONCompilationDatabase.html)
+  /// to [BuildInput.outputDirectory].
+  ///
+  /// This lists, per source file, a synthesized `-c`/`/c` compilation
+  /// command (even for executables and dynamic libraries, which are
+  /// compiled and linked in a single invocation), for use by IDEs and tools
+  /// such as `clangd` that consume compilation databases.
+  ///
+  /// If a `compile_commands.json` already exists in the output directory
+  /// (for example because it is shared with another [CBuilder] invocation),
+  /// its entries are merged with the ones produced by this build.
+  ///
+  /// Defaults to `false`.
+  final bool generateCompileCommands;
+
   CBuilder.library({
     required super.name,
     super.packageName,
@@ -79,6 +95,7 @@ class CBuilder extends CTool implements Builder {
     super.linkModePreference,
     super.optimizationLevel = .o3,
     this.buildMode = .release,
+    this.generateCompileCommands = false,
   }) : super(type: OutputType.library);
 
   CBuilder.executable({
@@ -105,6 +122,7 @@ class CBuilder extends CTool implements Builder {
     super.cppLinkStdLib,
     super.optimizationLevel = .o3,
     this.buildMode = .release,
+    this.generateCompileCommands = false,
   }) : super(
          type: OutputType.executable,
          assetName: null,
@@ -220,6 +238,7 @@ class CBuilder extends CTool implements Builder {
       language: language,
       cppLinkStdLib: cppLinkStdLib,
       optimizationLevel: optimizationLevel,
+      generateCompileCommands: generateCompileCommands,
     );
     await task.run();
 

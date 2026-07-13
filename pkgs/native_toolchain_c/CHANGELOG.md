@@ -1,5 +1,10 @@
 ## 0.19.3
 
+- Added `CBuilder.generateCompileCommands`. When enabled, `CBuilder.run`
+  writes a `compile_commands.json`
+  [Clang JSON Compilation Database](https://clang.llvm.org/docs/JSONCompilationDatabase.html)
+  to the build output directory, listing a per-source compile command for
+  use by IDEs and tools such as `clangd`.
 - Fixed building with MSVC on Windows when a source, include, or output path
   contains a space (e.g. a user name with a space in the default pub cache
   location). The compiler and archiver are now invoked directly instead of

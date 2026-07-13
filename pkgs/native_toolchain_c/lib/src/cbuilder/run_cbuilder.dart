@@ -16,6 +16,7 @@ import '../native_toolchain/xcode.dart';
 import '../tool/tool_instance.dart';
 import '../tool/tool_resolver.dart';
 import '../utils/run_process.dart';
+import 'compile_commands.dart';
 import 'compiler_resolver.dart';
 import 'language.dart';
 import 'linker_options.dart';
@@ -54,6 +55,14 @@ class RunCBuilder {
   final String? cppLinkStdLib;
   final OptimizationLevel optimizationLevel;
 
+  /// Whether to write a `compile_commands.json` compilation database to
+  /// [outDir] describing how each of the [sources] is compiled.
+  final bool generateCompileCommands;
+
+  /// Entries collected while running, written out by [run] when
+  /// [generateCompileCommands] is `true`.
+  final _compileCommands = <CompileCommand>[];
+
   RunCBuilder({
     required this.input,
     required this.codeConfig,
@@ -76,6 +85,7 @@ class RunCBuilder {
     this.language = .c,
     this.cppLinkStdLib,
     required this.optimizationLevel,
+    this.generateCompileCommands = false,
   }) : outDir = input.outputDirectory,
        assert(
          [executable, dynamicLibrary, staticLibrary].whereType<Uri>().length ==
@@ -146,11 +156,16 @@ class RunCBuilder {
 
     if (tool.isClangLike || tool.isLdLike) {
       await runClangLike(tool: toolInstance_);
-      return;
     } else if (tool == cl) {
       await runCl(tool: toolInstance_);
     } else {
       throw UnimplementedError('This package does not know how to run $tool.');
+    }
+
+    // Linking-only invocations (from `CLinker`) compile nothing, so there is
+    // nothing to add to a compilation database.
+    if (generateCompileCommands && linkerOptions == null) {
+      await writeCompileCommands(outDir, _compileCommands, logger: logger);
     }
   }
 
@@ -209,6 +224,18 @@ class RunCBuilder {
           environment,
         );
         objectFiles.add(objectFile);
+        if (generateCompileCommands && linkerOptions == null) {
+          await _recordClangCompileCommand(
+            tool: tool,
+            architecture: architecture,
+            targetAndroidNdkApi: targetAndroidNdkApi,
+            targetIosSdk: targetIosSdk,
+            targetIOSVersion: targetIOSVersion,
+            targetMacOSVersion: targetMacOSVersion,
+            source: sourceFiles[i],
+            output: objectFile,
+          );
+        }
       }
       final isMacToElfCross =
           Platform.isMacOS &&
@@ -241,7 +268,136 @@ class RunCBuilder {
         dynamicLibrary != null ? outDir.resolveUri(dynamicLibrary!) : null,
         environment,
       );
+      if (generateCompileCommands && linkerOptions == null) {
+        // Executables and dynamic libraries are compiled and linked in a
+        // single compiler-driver invocation, so synthesize a per-source `-c`
+        // entry for each source instead of recording the combined command.
+        for (var i = 0; i < sourceFiles.length; i++) {
+          await _recordClangCompileCommand(
+            tool: tool,
+            architecture: architecture,
+            targetAndroidNdkApi: targetAndroidNdkApi,
+            targetIosSdk: targetIosSdk,
+            targetIOSVersion: targetIOSVersion,
+            targetMacOSVersion: targetMacOSVersion,
+            source: sourceFiles[i],
+            output: outDir.resolve('out$i.o'),
+          );
+        }
+      }
     }
+  }
+
+  /// Adds a [CompileCommand] compiling [source] to [output] to
+  /// [_compileCommands].
+  ///
+  /// The [output] object file is not necessarily produced on disk: for
+  /// executables and dynamic libraries, compiling and linking happens in a
+  /// single invocation, and this entry only serves the compilation database.
+  Future<void> _recordClangCompileCommand({
+    required ToolInstance tool,
+    required Architecture? architecture,
+    required int? targetAndroidNdkApi,
+    required IOSSdk? targetIosSdk,
+    required int? targetIOSVersion,
+    required int? targetMacOSVersion,
+    required String source,
+    required Uri output,
+  }) async {
+    final compileFlags = await _clangCompileFlags(
+      tool,
+      architecture,
+      targetAndroidNdkApi,
+      targetIosSdk,
+      targetIOSVersion,
+      targetMacOSVersion,
+    );
+    _compileCommands.add(
+      CompileCommand(
+        directory: outDir,
+        file: Uri.file(source),
+        output: output,
+        arguments: [
+          tool.uri.toFilePath(),
+          ...compileFlags,
+          '-c',
+          source,
+          '-o',
+          output.toFilePath(),
+        ],
+      ),
+    );
+  }
+
+  /// The compiler flags used to compile a single translation unit, shared
+  /// between the real invocation in [_compile] and the entries recorded by
+  /// [_recordClangCompileCommand].
+  ///
+  /// Excludes flags that only apply when linking (e.g. `-pie`, library
+  /// search paths, and output flags), since [CompileCommand]s describe `-c`
+  /// invocations.
+  Future<List<String>> _clangCompileFlags(
+    ToolInstance toolInstance,
+    Architecture? architecture,
+    int? targetAndroidNdkApi,
+    IOSSdk? targetIosSdk,
+    int? targetIOSVersion,
+    int? targetMacOSVersion,
+  ) async {
+    final context = ToolResolvingContext(logger: logger);
+    return [
+      if (codeConfig.targetOS == .android) ...[
+        '--target='
+            '${androidNdkClangTargetFlags[architecture]!}'
+            '${targetAndroidNdkApi!}',
+        '--sysroot=${androidSysroot(toolInstance).toFilePath()}',
+      ],
+      if (codeConfig.targetOS == .windows)
+        '--target=${clangWindowsTargetFlags[architecture]!}',
+      if (codeConfig.targetOS == .macOS)
+        '--target=${appleClangMacosTargetFlags[architecture]!}',
+      if (codeConfig.targetOS == .iOS)
+        '--target=${appleClangIosTargetFlags[architecture]![targetIosSdk]!}',
+      if (targetIOSVersion != null) '-mios-version-min=$targetIOSVersion',
+      if (targetMacOSVersion != null) '-mmacos-version-min=$targetMacOSVersion',
+      if (codeConfig.targetOS == .iOS) ...[
+        '-isysroot',
+        (await iosSdk(targetIosSdk!, context)).toFilePath(),
+      ],
+      if (codeConfig.targetOS == .macOS) ...[
+        '-isysroot',
+        (await macosSdk(context)).toFilePath(),
+      ],
+      if (pic != null)
+        if (toolInstance.tool.isClangLike &&
+            codeConfig.targetOS != .windows) ...[
+          if (pic!) ...[
+            if (dynamicLibrary != null) '-fPIC',
+            // Using PIC for static libraries allows them to be linked into
+            // any executable, but it is not necessarily the best option in
+            // terms of overhead. We would have to know whether the target
+            // into which the static library is linked is PIC, PIE or
+            // neither. Then we could use the same option for the static
+            // library.
+            if (staticLibrary != null) '-fPIC',
+            if (executable != null) '-fPIE',
+          ] else ...[
+            // Disable generation of any kind of position-independent code.
+            '-fno-PIC',
+            '-fno-PIE',
+          ],
+        ],
+      if (std != null) '-std=$std',
+      ?_clangSanitizers[codeConfig.sanitizer],
+      if (language == .cpp) ...['-x', 'c++'],
+      if (optimizationLevel != .unspecified) optimizationLevel.clangFlag(),
+      ...flags,
+      for (final MapEntry(key: name, :value) in defines.entries)
+        if (value == null) '-D$name' else '-D$name=$value',
+      for (final include in includes) '-I${include.toFilePath()}',
+      for (final forcedInclude in forcedIncludes)
+        '-include${forcedInclude.toFilePath()}',
+    ];
   }
 
   /// [toolInstance] is either a compiler or a linker.
@@ -414,20 +570,32 @@ class RunCBuilder {
     }
     final sourceFiles = sources.map((e) => e.toFilePath());
 
+    final compileFlags = _clCompileFlags();
+
+    if (generateCompileCommands && linkerOptions == null) {
+      for (final source in sources) {
+        final output = outDir.resolve(_objectFileName(source));
+        _compileCommands.add(
+          CompileCommand(
+            directory: outDir,
+            file: source,
+            output: output,
+            arguments: [
+              tool.uri.toFilePath(),
+              ...compileFlags,
+              '/c',
+              source.toFilePath(),
+              '/Fo${output.toFilePath()}',
+            ],
+          ),
+        );
+      }
+    }
+
     final result = await runProcess(
       executable: tool.uri,
       arguments: [
-        if (optimizationLevel != .unspecified) optimizationLevel.msvcFlag(),
-        if (std != null) '/std:$std',
-        if (codeConfig.sanitizer == Sanitizer.asan) '/Zi',
-        ?_msvcSanitizers[codeConfig.sanitizer],
-        if (language == .cpp) '/TP',
-        ...flags,
-        for (final MapEntry(key: name, :value) in defines.entries)
-          if (value == null) '/D$name' else '/D$name=$value',
-        for (final directory in includes) '/I${directory.toFilePath()}',
-        for (final forcedInclude in forcedIncludes)
-          '/FI${forcedInclude.toFilePath()}',
+        ...compileFlags,
         if (executable != null) ...[
           '/Fe:${outDir.resolveUri(executable!).toFilePath()}',
         ] else if (dynamicLibrary != null) ...[
@@ -487,6 +655,26 @@ class RunCBuilder {
 
     assert(result.exitCode == 0);
   }
+
+  /// The compiler flags used to compile a single translation unit with
+  /// `cl.exe`, shared between the real invocation in [runCl] and the
+  /// entries recorded for `compile_commands.json`.
+  ///
+  /// Excludes output and linking flags (`/Fe:`, `/link`, library paths, and
+  /// libraries), since [CompileCommand]s describe `/c` invocations.
+  List<String> _clCompileFlags() => [
+    if (optimizationLevel != .unspecified) optimizationLevel.msvcFlag(),
+    if (std != null) '/std:$std',
+    if (codeConfig.sanitizer == Sanitizer.asan) '/Zi',
+    ?_msvcSanitizers[codeConfig.sanitizer],
+    if (language == .cpp) '/TP',
+    ...flags,
+    for (final MapEntry(key: name, :value) in defines.entries)
+      if (value == null) '/D$name' else '/D$name=$value',
+    for (final directory in includes) '/I${directory.toFilePath()}',
+    for (final forcedInclude in forcedIncludes)
+      '/FI${forcedInclude.toFilePath()}',
+  ];
 
   /// The name of the object file `cl.exe /c` produces for [source]: the
   /// source file name with its extension replaced by `.obj`.
