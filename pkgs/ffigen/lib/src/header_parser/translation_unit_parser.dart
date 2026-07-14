@@ -23,7 +23,7 @@ Set<Binding> parseTranslationUnit(
   final logger = context.logger;
   final headers = <String, bool>{};
 
-  translationUnitCursor.visitChildren((cursor) {
+  void rootCursorVisitor(clang_types.CXCursor cursor) {
     final file = cursor.sourceFileName();
     if (file.isEmpty) return;
     if (headers[file] ??= context.config.input.include(Uri.file(file))) {
@@ -68,6 +68,12 @@ Set<Binding> parseTranslationUnit(
           case clang_types.CXCursorKind.CXCursor_Namespace:
             _visitNamespaceForNestedDecls(context, cursor, bindings, headers);
             break;
+          case clang_types.CXCursorKind.CXCursor_LinkageSpec:
+            // Declarations inside `extern "C" { ... }` blocks are wrapped in
+            // a LinkageSpec cursor when parsing in C++ mode. Recurse into it
+            // so they're dispatched like top-level declarations.
+            cursor.visitChildren(rootCursorVisitor);
+            break;
           default:
             logger.finer('rootCursorVisitor: CursorKind not implemented');
         }
@@ -81,7 +87,9 @@ Set<Binding> parseTranslationUnit(
         'rootCursorVisitor:(not included) ${cursor.completeStringRepr()}',
       );
     }
-  });
+  }
+
+  translationUnitCursor.visitChildren(rootCursorVisitor);
 
   return bindings;
 }
@@ -162,6 +170,10 @@ void _visitChildrenForNestedDecls(
         case clang_types.CXCursorKind.CXCursor_Namespace:
           _visitNamespaceForNestedDecls(context, cursor, bindings, headers);
           break;
+        case clang_types.CXCursorKind.CXCursor_LinkageSpec:
+          // Recurse into `extern "C" { ... }` blocks.
+          _visitChildrenForNestedDecls(context, cursor, bindings, headers);
+          break;
         case clang_types.CXCursorKind.CXCursor_UnionDecl:
         case clang_types.CXCursorKind.CXCursor_StructDecl:
           // Anonymous records are handled as members of their parent record,
@@ -209,6 +221,7 @@ bool _isIncludedCompound(
 /// generates bindings for them.
 bool _isNestedDeclScope(int kind) => switch (kind) {
   clang_types.CXCursorKind.CXCursor_Namespace ||
+  clang_types.CXCursorKind.CXCursor_LinkageSpec ||
   clang_types.CXCursorKind.CXCursor_UnionDecl ||
   clang_types.CXCursorKind.CXCursor_ClassDecl ||
   clang_types.CXCursorKind.CXCursor_StructDecl ||
@@ -230,13 +243,22 @@ void buildUsrCursorDefinitionMap(
   clang_types.CXCursor translationUnitCursor,
 ) {
   final logger = context.logger;
-  translationUnitCursor.visitChildren((cursor) {
+  void visitor(clang_types.CXCursor cursor) {
     try {
-      context.cursorIndex.saveDefinition(cursor);
+      if (clang.clang_getCursorKind(cursor) ==
+          clang_types.CXCursorKind.CXCursor_LinkageSpec) {
+        // Declarations inside `extern "C" { ... }` blocks are wrapped in a
+        // LinkageSpec cursor when parsing in C++ mode.
+        cursor.visitChildren(visitor);
+      } else {
+        context.cursorIndex.saveDefinition(cursor);
+      }
     } catch (e, s) {
       logger.severe(e);
       logger.severe(s);
       rethrow;
     }
-  });
+  }
+
+  translationUnitCursor.visitChildren(visitor);
 }
