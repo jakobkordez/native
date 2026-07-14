@@ -1,4 +1,4 @@
-// Copyright (c) 2021, the Dart project authors. Please see the AUTHORS file
+﻿// Copyright (c) 2021, the Dart project authors. Please see the AUTHORS file
 // for details. All rights reserved. Use of this source code is governed by a
 // BSD-style license that can be found in the LICENSE file.
 
@@ -20,6 +20,17 @@ Binding? parseVarDeclaration(Context context, clang_types.CXCursor cursor) {
   if (bindingsIndex.isSeenGlobalVar(usr)) {
     return bindingsIndex.getSeenGlobalVar(usr);
   }
+
+  // For C++ variables (and static data members) declared inside one or more
+  // scopes, [qualifiedName] is the fully-qualified name (e.g. `ns::nsVar` or
+  // `Box::member`). At file scope it equals [name].
+  final qualifiedName = qualifiedVarNameFromUsr(usr, name);
+
+  // C++ scope separators are not valid in Dart identifiers, so flatten the
+  // scope path into a single name joined by `$`, e.g. `ns::nsVar` becomes
+  // `ns$nsVar`. Names at file scope are unaffected. Users who want a different
+  // name can rename via a `Visitor`.
+  final dartName = flattenQualifiedName(qualifiedName);
 
   final cType = cursor.type();
 
@@ -67,8 +78,8 @@ Binding? parseVarDeclaration(Context context, clang_types.CXCursor cursor) {
   }
 
   final global = Global(
-    originalName: name,
-    name: name,
+    originalName: qualifiedName,
+    name: dartName,
     usr: usr,
     type: type,
     dartDoc: getCursorDocComment(context, cursor),

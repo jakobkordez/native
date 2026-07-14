@@ -102,14 +102,11 @@ void addToBindings(Set<Binding> bindings, Binding? b) {
   }
 }
 
-/// Recurses into a C++ namespace, surfacing enum, struct and union
-/// declarations.
-///
-/// For now these are the only declaration kinds generated from inside
-/// namespaces.
+/// Recurses into a C++ namespace, surfacing enum, struct, union and variable
+/// (including constant) declarations.
 // TODO: Dispatch ClassDecl, FunctionDecl, etc. here for full C++ namespace
 // support. Class declarations are currently visited only to find nested
-// enums, structs and unions.
+// enums, structs, unions and static data members.
 void _visitNamespaceForNestedDecls(
   Context context,
   clang_types.CXCursor namespaceCursor,
@@ -124,8 +121,9 @@ void _visitNamespaceForNestedDecls(
   _visitChildrenForNestedDecls(context, namespaceCursor, bindings, headers);
 }
 
-/// Recurses into a C++ record to surface enum, struct and union declarations
-/// nested inside it.
+/// Recurses into a C++ record to surface enum, struct and union declarations,
+/// and static data members (e.g. `static constexpr` constants), nested inside
+/// it.
 void _visitRecordForNestedDecls(
   Context context,
   clang_types.CXCursor recordCursor,
@@ -190,6 +188,12 @@ void _visitChildrenForNestedDecls(
         case clang_types.CXCursorKind.CXCursor_EnumDecl:
           addToBindings(bindings, _getCodeGenTypeFromCursor(context, cursor));
           break;
+        case clang_types.CXCursorKind.CXCursor_VarDecl:
+          // A namespace-scoped variable or a static data member (e.g. a
+          // `static constexpr` constant). Non-static instance fields are
+          // FieldDecl, not VarDecl, so they aren't surfaced here.
+          addToBindings(bindings, parseVarDeclaration(context, cursor));
+          break;
       }
     } catch (e, s) {
       logger.severe(e);
@@ -225,7 +229,8 @@ bool _isNestedDeclScope(int kind) => switch (kind) {
   clang_types.CXCursorKind.CXCursor_UnionDecl ||
   clang_types.CXCursorKind.CXCursor_ClassDecl ||
   clang_types.CXCursorKind.CXCursor_StructDecl ||
-  clang_types.CXCursorKind.CXCursor_EnumDecl => true,
+  clang_types.CXCursorKind.CXCursor_EnumDecl ||
+  clang_types.CXCursorKind.CXCursor_VarDecl => true,
   _ => false,
 };
 
