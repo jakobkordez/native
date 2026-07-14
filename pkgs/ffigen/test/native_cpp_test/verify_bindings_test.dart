@@ -86,6 +86,33 @@ void main() {
           ),
         ],
       ),
+      'cpp_scoped_struct': FfiGenerator(
+        output: Output(
+          dart: DartOutput(
+            path: Uri.file('cpp_scoped_struct_test_bindings.dart'),
+          ),
+        ),
+        input: Input(
+          entryPoints: [
+            Uri.file(path.join(testDir.path, 'cpp_scoped_struct_test.h')),
+          ],
+          compilerOptions: defaultCppCompilerOptions,
+        ),
+        visitors: [
+          Visitor(
+            struct: (node) => node.isIncluded = {
+              'GlobalBox',
+              'GlobalBox::Lid',
+              'outer::Point',
+              'outer::inner::Point',
+              'outer::Palette::Entry',
+              'other::Point',
+            }.contains(node.originalName),
+            union: (node) =>
+                node.isIncluded = node.originalName == 'other::Value',
+          ),
+        ],
+      ),
       'memory_edge_cases': FfiGenerator(
         output: Output(
           dart: DartOutput(path: Uri.file('memory_edge_cases_bindings.dart')),

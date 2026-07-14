@@ -36,7 +36,7 @@ Set<Binding> parseTranslationUnit(
           case clang_types.CXCursorKind.CXCursor_UnionDecl:
           case clang_types.CXCursorKind.CXCursor_StructDecl:
             addToBindings(bindings, _getCodeGenTypeFromCursor(context, cursor));
-            _visitRecordForEnums(context, cursor, bindings, headers);
+            _visitRecordForNestedDecls(context, cursor, bindings, headers);
             break;
           case clang_types.CXCursorKind.CXCursor_EnumDecl:
           case clang_types.CXCursorKind.CXCursor_ObjCInterfaceDecl:
@@ -63,10 +63,10 @@ Set<Binding> parseTranslationUnit(
             break;
           case clang_types.CXCursorKind.CXCursor_ClassDecl:
             addToBindings(bindings, parseClassDeclaration(context, cursor));
-            _visitRecordForEnums(context, cursor, bindings, headers);
+            _visitRecordForNestedDecls(context, cursor, bindings, headers);
             break;
           case clang_types.CXCursorKind.CXCursor_Namespace:
-            _visitNamespaceForEnums(context, cursor, bindings, headers);
+            _visitNamespaceForNestedDecls(context, cursor, bindings, headers);
             break;
           default:
             logger.finer('rootCursorVisitor: CursorKind not implemented');
@@ -94,12 +94,15 @@ void addToBindings(Set<Binding> bindings, Binding? b) {
   }
 }
 
-/// Recurses into a C++ namespace, surfacing only enum declarations.
+/// Recurses into a C++ namespace, surfacing enum, struct and union
+/// declarations.
 ///
-/// For now this is the only declaration kind generated from inside namespaces.
+/// For now these are the only declaration kinds generated from inside
+/// namespaces.
 // TODO: Dispatch ClassDecl, FunctionDecl, etc. here for full C++ namespace
-// support. Class declarations are currently visited only to find nested enums.
-void _visitNamespaceForEnums(
+// support. Class declarations are currently visited only to find nested
+// enums, structs and unions.
+void _visitNamespaceForNestedDecls(
   Context context,
   clang_types.CXCursor namespaceCursor,
   Set<Binding> bindings,
@@ -110,11 +113,12 @@ void _visitNamespaceForEnums(
     logger.fine('Skipping anonymous namespace.');
     return;
   }
-  _visitChildrenForNestedEnums(context, namespaceCursor, bindings, headers);
+  _visitChildrenForNestedDecls(context, namespaceCursor, bindings, headers);
 }
 
-/// Recurses into a C++ record to surface enum declarations nested inside it.
-void _visitRecordForEnums(
+/// Recurses into a C++ record to surface enum, struct and union declarations
+/// nested inside it.
+void _visitRecordForNestedDecls(
   Context context,
   clang_types.CXCursor recordCursor,
   Set<Binding> bindings,
@@ -125,10 +129,10 @@ void _visitRecordForEnums(
     logger.fine('Skipping anonymous record.');
     return;
   }
-  _visitChildrenForNestedEnums(context, recordCursor, bindings, headers);
+  _visitChildrenForNestedDecls(context, recordCursor, bindings, headers);
 }
 
-void _visitChildrenForNestedEnums(
+void _visitChildrenForNestedDecls(
   Context context,
   clang_types.CXCursor parentCursor,
   Set<Binding> bindings,
@@ -137,31 +141,39 @@ void _visitChildrenForNestedEnums(
   final logger = context.logger;
   parentCursor.visitChildren((cursor) {
     final kind = clang.clang_getCursorKind(cursor);
-    if (!_isNestedEnumScope(kind)) {
+    if (!_isNestedDeclScope(kind)) {
       // Bail out before logging anything: `completeStringRepr` computes the
       // cursor's USR, which isn't meaningful for every kind found inside a
       // namespace or record (e.g. destructors).
-      logger.finer('nestedEnumCursorVisitor: CursorKind not implemented');
+      logger.finer('nestedDeclCursorVisitor: CursorKind not implemented');
       return;
     }
     final file = cursor.sourceFileName();
     if (file.isEmpty) return;
     if (!(headers[file] ??= context.config.input.include(Uri.file(file)))) {
       logger.finest(
-        'nestedEnumCursorVisitor:(not included) ${cursor.completeStringRepr()}',
+        'nestedDeclCursorVisitor:(not included) ${cursor.completeStringRepr()}',
       );
       return;
     }
     try {
-      logger.finest('nestedEnumCursorVisitor: ${cursor.completeStringRepr()}');
+      logger.finest('nestedDeclCursorVisitor: ${cursor.completeStringRepr()}');
       switch (kind) {
         case clang_types.CXCursorKind.CXCursor_Namespace:
-          _visitNamespaceForEnums(context, cursor, bindings, headers);
+          _visitNamespaceForNestedDecls(context, cursor, bindings, headers);
           break;
         case clang_types.CXCursorKind.CXCursor_UnionDecl:
-        case clang_types.CXCursorKind.CXCursor_ClassDecl:
         case clang_types.CXCursorKind.CXCursor_StructDecl:
-          _visitRecordForEnums(context, cursor, bindings, headers);
+          // Anonymous records are handled as members of their parent record,
+          // not as top-level bindings.
+          if (clang.clang_Cursor_isAnonymous(cursor) == 0 &&
+              _isIncludedCompound(context, cursor, kind)) {
+            addToBindings(bindings, _getCodeGenTypeFromCursor(context, cursor));
+          }
+          _visitRecordForNestedDecls(context, cursor, bindings, headers);
+          break;
+        case clang_types.CXCursorKind.CXCursor_ClassDecl:
+          _visitRecordForNestedDecls(context, cursor, bindings, headers);
           break;
         case clang_types.CXCursorKind.CXCursor_EnumDecl:
           addToBindings(bindings, _getCodeGenTypeFromCursor(context, cursor));
@@ -175,9 +187,27 @@ void _visitChildrenForNestedEnums(
   });
 }
 
-/// Whether [_visitChildrenForNestedEnums] descends into cursors of [kind], or
+/// Whether the nested struct or union at [cursor] may be parsed at all.
+///
+/// Unlike the visitor filters that run after parsing, this check happens up
+/// front, because parsing a record also parses its methods and every type they
+/// mention. A record nested in an included system header (`std::` and friends)
+/// would drag in an unbounded amount of the C++ standard library, so nested
+/// records in system headers are never parsed. (Inclusion itself moved to the
+/// AST visitors, which cannot run this early — this location check preserves
+/// the old `config.structs.include(...)` guard's intent without a config
+/// query.) Enums are leaves, so they don't need the same treatment.
+bool _isIncludedCompound(
+  Context context,
+  clang_types.CXCursor cursor,
+  int kind,
+) {
+  return !cursor.isInSystemHeader();
+}
+
+/// Whether [_visitChildrenForNestedDecls] descends into cursors of [kind], or
 /// generates bindings for them.
-bool _isNestedEnumScope(int kind) => switch (kind) {
+bool _isNestedDeclScope(int kind) => switch (kind) {
   clang_types.CXCursorKind.CXCursor_Namespace ||
   clang_types.CXCursorKind.CXCursor_UnionDecl ||
   clang_types.CXCursorKind.CXCursor_ClassDecl ||
