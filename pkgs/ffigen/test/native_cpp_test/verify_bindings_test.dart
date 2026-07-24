@@ -102,6 +102,23 @@ void main() {
           'other::Color',
         }),
       ),
+      'cpp_opaque_class': FfiGenerator(
+        output: Output(
+          dartFile: Uri.file('cpp_opaque_class_test_bindings.dart'),
+        ),
+        headers: Headers(
+          entryPoints: [
+            Uri.file(path.join(testDir.path, 'cpp_opaque_class_test.h')),
+          ],
+          compilerOptions: ['-x', 'c++'],
+        ),
+        functions: Functions.includeSet({
+          'my_handle_create',
+          'my_handle_destroy',
+          'my_handle_clone',
+          'other_handle_create',
+        }),
+      ),
       'cpp_scoped_struct': FfiGenerator(
         output: Output(
           dartFile: Uri.file('cpp_scoped_struct_test_bindings.dart'),

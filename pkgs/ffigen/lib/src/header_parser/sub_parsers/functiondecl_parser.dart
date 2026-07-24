@@ -45,6 +45,7 @@ List<Func> parseFunctionDeclaration(
       :parameters,
       :hasIncompleteStruct,
       :hasUnimplementedType,
+      :unsupportedTypes,
     ) = parseParameters(
       context,
       cursor,
@@ -79,13 +80,18 @@ List<Func> parseFunctionDeclaration(
     }
 
     if (returnType.baseType is UnimplementedType || hasUnimplementedType) {
+      final unsupported = [
+        if (returnType.baseType is UnimplementedType)
+          "return type '${cursor.returnType().spelling()}'",
+        ...unsupportedTypes,
+      ].join(', ');
       logger.fine(
         '---- Removed Function, reason: unsupported return type or '
         'parameter type: ${cursor.completeStringRepr()}',
       );
       logger.warning(
-        "Skipped Function '$funcName', function has unsupported return type "
-        'or parameter type.',
+        "Skipped Function '$funcName', function has unsupported "
+        '$unsupported.',
       );
       // Returning null so that [addToBindings] function excludes this.
       return funcs;
@@ -148,6 +154,7 @@ List<Func> parseFunctionDeclaration(
   List<Parameter> parameters,
   bool hasIncompleteStruct,
   bool hasUnimplementedType,
+  List<String> unsupportedTypes,
 })
 parseParameters(
   Context context,
@@ -157,6 +164,7 @@ parseParameters(
   final parameters = <Parameter>[];
   var incompleteStructParameter = false;
   var unimplementedParameterType = false;
+  final unsupportedTypes = <String>[];
   final totalArgs = clang.clang_Cursor_getNumArguments(cursor);
   for (var i = 0; i < totalArgs; i++) {
     final paramCursor = clang.clang_Cursor_getArgument(cursor, i);
@@ -164,13 +172,17 @@ parseParameters(
       '===== parameter: ${paramCursor.completeStringRepr()}',
     );
     final paramType = paramCursor.toCodeGenType(context);
+    final paramName = paramCursor.spelling();
     if (paramType.isIncompleteCompound) {
       incompleteStructParameter = true;
     } else if (paramType.baseType is UnimplementedType) {
       context.logger.finer('Unimplemented type: ${paramType.baseType}');
       unimplementedParameterType = true;
+      unsupportedTypes.add(
+        "type '${paramCursor.type().spelling()}' of parameter "
+        '${paramName.isEmpty ? i : "'$paramName'"}',
+      );
     }
-    final paramName = paramCursor.spelling();
     final name = renameFn != null ? renameFn(paramName) : paramName;
     final objCConsumed = paramCursor.hasChildWithKind(
       clang_types.CXCursorKind.CXCursor_NSConsumed,
@@ -188,5 +200,6 @@ parseParameters(
     parameters: parameters,
     hasIncompleteStruct: incompleteStructParameter,
     hasUnimplementedType: unimplementedParameterType,
+    unsupportedTypes: unsupportedTypes,
   );
 }
