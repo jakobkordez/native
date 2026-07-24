@@ -143,6 +143,29 @@ void main() {
           ),
         ],
       ),
+      'cpp_opaque_class': FfiGenerator(
+        output: Output(
+          dart: DartOutput(
+            path: Uri.file('cpp_opaque_class_test_bindings.dart'),
+          ),
+        ),
+        input: Input(
+          entryPoints: [
+            Uri.file(path.join(testDir.path, 'cpp_opaque_class_test.h')),
+          ],
+          compilerOptions: defaultCppCompilerOptions,
+        ),
+        visitors: [
+          Visitor(
+            func: (node) => node.isIncluded = {
+              'my_handle_create',
+              'my_handle_destroy',
+              'my_handle_clone',
+              'other_handle_create',
+            }.contains(node.originalName),
+          ),
+        ],
+      ),
       'cpp_scoped_struct': FfiGenerator(
         output: Output(
           dart: DartOutput(
