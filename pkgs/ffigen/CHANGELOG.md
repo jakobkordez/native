@@ -9,6 +9,10 @@
   - Rename `Headers` to `Input`
   - Remove `libraryImports`, which was dead code
   - Remove `useSupportedTypedefs`, treating it as always true
+- Run `FfiGenerator.visitors` over the transitive closure of the parsed
+  bindings, rather than only the directly parsed ones. Declarations that are
+  only reachable as dependencies are now visited too, so they can be renamed
+  like any other declaration.
 - Minor Objective-C code generator and function type signature fixes.
 - Bump `package:code_assets` dependency to `^2.0.0`.
 

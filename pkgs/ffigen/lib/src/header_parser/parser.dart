@@ -185,16 +185,22 @@ List<String> _findObjectiveCSysroot() => [
 List<Binding> transformBindings(List<Binding> rawBindings, Context context) {
   final config = context.config;
 
-  final nodes = rawBindings.map((b) => b.toPublicAstNode()).nonNulls.toList();
-  for (final visitor in config.visitors) {
-    visitor.visitAll(nodes);
-  }
-
   final allBindings = visit(
     context,
     FindTransitiveDepsVisitation(),
     rawBindings,
   ).transitives;
+
+  // Visit the whole closure, not just [rawBindings], so that declarations only
+  // reachable as dependencies can be renamed too. [rawBindings] is unioned in
+  // because the closure skips anonymous nodes.
+  final nodes = <Binding>{
+    ...rawBindings,
+    ...allBindings,
+  }.map((b) => b.toPublicAstNode()).nonNulls.toList();
+  for (final visitor in config.visitors) {
+    visitor.visitAll(nodes);
+  }
 
   visit(context, CopyMethodsFromSuperTypesVisitation(), allBindings);
   visit(context, FixOverriddenMethodsVisitation(context), allBindings);
