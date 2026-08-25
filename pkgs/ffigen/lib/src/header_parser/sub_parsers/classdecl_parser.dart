@@ -147,6 +147,27 @@ void _parseAnyMethod(
     return;
   }
 
+  // The return type is held to the same standard as the parameters above: a
+  // type with no Dart mapping (a C++ reference, say) or an incomplete compound
+  // returned by value cannot be bound, and reaches the writer as a type that
+  // throws when it is asked for its Dart spelling. Drop the method here
+  // instead, the way parseFunctionDeclaration drops such a free function.
+  final returnType = clang
+      .clang_getCursorResultType(cursor)
+      .toCodeGenType(context);
+  if (returnType.baseType is UnimplementedType) {
+    logger.fine(
+      '  ---- Skipping method $methodName due to unsupported return type',
+    );
+    return;
+  }
+  if (returnType.isIncompleteCompound) {
+    logger.fine(
+      '  ---- Skipping method $methodName, incomplete struct returned by value',
+    );
+    return;
+  }
+
   final className = classDecl.originalName;
   final symbol = switch (kind) {
     CppMethodKind.constructor => '${className}_new',
@@ -158,9 +179,7 @@ void _parseAnyMethod(
     CppMethod(
       name: Symbol(symbol, SymbolKind.method),
       originalName: methodName,
-      returnType: clang
-          .clang_getCursorResultType(cursor)
-          .toCodeGenType(context),
+      returnType: returnType,
       parameters: parameters,
       isConstant: isConst,
       isStatic: isStatic,
