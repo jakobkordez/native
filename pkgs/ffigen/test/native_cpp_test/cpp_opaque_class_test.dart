@@ -16,6 +16,21 @@ void main() {
       expect(<OtherHandle>[], isA<List<ffi.Opaque>>());
     });
 
+    test('a defined class used through pointers is opaque as well', () {
+      // The definition is in the translation unit and its members cannot be
+      // modelled, but only pointers to it cross, so it is opaque like the
+      // forward-declared one rather than a type the bindings cannot express.
+      expect(<DefinedHandle>[], isA<List<ffi.Opaque>>());
+      expect(
+        defined_handle_create,
+        isA<ffi.Pointer<DefinedHandle> Function()>(),
+      );
+      expect(
+        defined_handle_destroy,
+        isA<void Function(ffi.Pointer<DefinedHandle>)>(),
+      );
+    });
+
     test('functions using pointers to a forward-declared class exist', () {
       // Signature checks on the tear-offs. The functions are never invoked,
       // so no native library is needed.

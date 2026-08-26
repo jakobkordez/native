@@ -4,6 +4,12 @@
 // ignore_for_file: type=lint, unused_import, unused_element, deprecated_member_use_from_same_package
 import 'dart:ffi' as ffi;
 
+@ffi.Native<ffi.Pointer<DefinedHandle> Function()>()
+external ffi.Pointer<DefinedHandle> defined_handle_create();
+
+@ffi.Native<ffi.Void Function(ffi.Pointer<DefinedHandle>)>()
+external void defined_handle_destroy(ffi.Pointer<DefinedHandle> h);
+
 @ffi.Native<ffi.Pointer<MyHandle> Function(ffi.Pointer<MyHandle>)>()
 external ffi.Pointer<MyHandle> my_handle_clone(ffi.Pointer<MyHandle> h);
 
@@ -15,6 +21,8 @@ external void my_handle_destroy(ffi.Pointer<MyHandle> h);
 
 @ffi.Native<ffi.Pointer<OtherHandle> Function()>()
 external ffi.Pointer<OtherHandle> other_handle_create();
+
+final class DefinedHandle extends ffi.Opaque {}
 
 final class MyHandle extends ffi.Opaque {}
 

@@ -162,6 +162,8 @@ void main() {
               'my_handle_destroy',
               'my_handle_clone',
               'other_handle_create',
+              'defined_handle_create',
+              'defined_handle_destroy',
             }.contains(node.originalName),
           ),
         ],

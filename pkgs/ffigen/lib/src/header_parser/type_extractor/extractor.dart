@@ -295,14 +295,21 @@ Type? _extractfromRecord(
     }
   }
 
-  // A C++ class without a definition in the translation unit is exactly as
-  // opaque as a definition-less struct, so treat it the same way. Classes with
-  // definitions are handled by the C++ class parser above.
-  final isDefinitionlessClass =
-      cursorKind == clang_types.CXCursorKind.CXCursor_ClassDecl &&
-      clang.clang_Cursor_isNull(clang.clang_getCursorDefinition(cursor)) != 0;
+  // Whatever the C++ class parser above did not take is handled like a
+  // struct: a `class` and a `struct` differ only in default access, and a
+  // class reached through a pointer is exactly as opaque as a
+  // definition-less struct. This is the path every class takes when C++
+  // support is off, and the one a class the C++ parser declined (an
+  // anonymous or unavailable one) takes when it is on. Without it such a
+  // class has no representation at all, and every function mentioning it is
+  // dropped from the bindings.
+  //
+  // This shares the caveat structs already have: members are read from the
+  // declaration's fields, so a polymorphic type's vtable pointer is not
+  // modeled and its size and field offsets are not to be relied on. Pointers
+  // to it, which is why a class reaches here at all, are unaffected.
   if (cursorKind == clang_types.CXCursorKind.CXCursor_StructDecl ||
-      isDefinitionlessClass) {
+      cursorKind == clang_types.CXCursorKind.CXCursor_ClassDecl) {
     final imported = context.config.importType(
       Declaration(usr: cursor.usr(), originalName: declSpelling),
     );
