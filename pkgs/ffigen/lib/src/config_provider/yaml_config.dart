@@ -241,6 +241,11 @@ final class YamlConfig {
       _enumsAsInt.shouldInclude(declaration.originalName);
   late YamlIncluder _enumsAsInt;
 
+  /// Whether to generate the given enum as an extension type over `int`.
+  bool enumShouldBeExtensionType(Declaration declaration) =>
+      _enumsAsExtensionType.shouldInclude(declaration.originalName);
+  late YamlIncluder _enumsAsExtensionType;
+
   /// Whether to generate the given unnamed enum as a series of int constants,
   /// rather than a real Dart enum.
   bool unnamedEnumsShouldBeInt(Declaration declaration) =>
@@ -580,7 +585,7 @@ final class YamlConfig {
               ..._includeExcludeProperties(),
               ..._renameProperties(),
               ..._memberRenameProperties(),
-              ..._enumIntProperties(),
+              ..._enumStyleProperties(),
             ],
             result: (node) {
               _enumClassDecl = declarationConfigExtractor(
@@ -589,6 +594,9 @@ final class YamlConfig {
               );
               _enumsAsInt =
                   (node.value as Map)[strings.enumAsInt] as YamlIncluder;
+              _enumsAsExtensionType =
+                  (node.value as Map)[strings.enumAsExtensionType]
+                      as YamlIncluder;
             },
           ),
         ),
@@ -1154,6 +1162,19 @@ final class YamlConfig {
     );
   }
 
+  List<HeterogeneousMapEntry> _enumStyleProperties() => [
+    HeterogeneousMapEntry(
+      key: strings.enumAsInt,
+      defaultValue: (node) => YamlIncluder.excludeByDefault(),
+      valueConfigSpec: _includeExcludeObject(),
+    ),
+    HeterogeneousMapEntry(
+      key: strings.enumAsExtensionType,
+      defaultValue: (node) => YamlIncluder.excludeByDefault(),
+      valueConfigSpec: _includeExcludeObject(),
+    ),
+  ];
+
   List<HeterogeneousMapEntry> _enumIntProperties() => [
     HeterogeneousMapEntry(
       key: strings.enumAsInt,
@@ -1340,6 +1361,8 @@ final class YamlConfigAstVisitor extends public_ast.Visitor {
     }
     if (config.enumShouldBeInt(_decl(node))) {
       node.style = EnumStyle.intConstants;
+    } else if (config.enumShouldBeExtensionType(_decl(node))) {
+      node.style = EnumStyle.extensionType;
     }
     node.silenceWarning = config.silenceEnumWarning;
   }

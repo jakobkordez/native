@@ -549,6 +549,28 @@ void main() {
       await _matchLib(library, 'enumclass_integers');
     });
 
+    test('enum_class as extension type', () async {
+      final context = makeContext();
+      final library = Library(
+        context: context,
+        header: '$licenseHeader\n',
+        bindings: transformBindings([
+          EnumClass(
+            context: context,
+            name: 'Options',
+            style: EnumStyle.extensionType,
+            enumConstants: [
+              EnumConstant(name: 'none', value: 0),
+              EnumConstant(name: 'read', value: 1),
+              EnumConstant(name: 'write', value: 2),
+              EnumConstant(name: 'readWrite', value: 3),
+            ],
+          ),
+        ], context),
+      );
+      await _matchLib(library, 'enumclass_extension_type');
+    });
+
     test('enum in structs and functions', () async {
       final context = makeContext();
       final enum1 = EnumClass(

@@ -143,6 +143,12 @@ enum EnumStyle {
   ///
   /// Useful when enum values are also used as bit masks.
   intConstants,
+
+  /// Generate the given enum as an extension type over `int`.
+  ///
+  /// The enum's constants are generated as static const values of the
+  /// extension type, with typed bitwise operators for combining flag values.
+  extensionType,
 }
 
 /// Configuration for C++.

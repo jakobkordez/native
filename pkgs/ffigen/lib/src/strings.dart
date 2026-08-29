@@ -103,6 +103,7 @@ const varArgFunctions = 'variadic-arguments';
 
 // Nested under `enums`
 const enumAsInt = 'as-int';
+const enumAsExtensionType = 'as-extension-type';
 
 // Nested under varArg entries
 const postfix = 'postfix';

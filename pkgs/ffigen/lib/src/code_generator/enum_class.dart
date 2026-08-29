@@ -42,6 +42,27 @@ import 'writer.dart';
 ///   }
 /// }
 /// ```
+///
+/// Enums generated with [EnumStyle.extensionType] are generated as extension
+/// types over `int` instead, which is useful for enums used as bit flags. For
+/// example, for the C enum -
+/// ```c
+/// enum Options {none = 0, read = 1, write = 2, read_write = 3};
+/// ```
+/// The generated dart code is
+///
+/// ```dart
+/// extension type const Options(int value) {
+///   static const Options none = Options(0);
+///   static const Options read = Options(1);
+///   static const Options write = Options(2);
+///   static const Options read_write = Options(3);
+///
+///   bool hasFlag(Options other) => (value & other.value) == other.value;
+///   Options operator |(Options other) => Options(value | other.value);
+///   ...
+/// }
+/// ```
 class EnumClass extends BindingType with HasLocalScope {
   /// Backing integer type for this enum.
   Type nativeType;
@@ -66,6 +87,17 @@ class EnumClass extends BindingType with HasLocalScope {
   final ApiAvailability? apiAvailability;
 
   bool isIncluded = false;
+
+  /// Names of members that FFIgen generates inside this enum's Dart
+  /// declaration, if any.
+  ///
+  /// These names are reserved in the enum's local scope so that enum constants
+  /// that would collide with them get renamed.
+  Set<String> get reservedMemberNames => switch (effectiveStyle) {
+    EnumStyle.dartEnum => const {'value', 'fromValue', 'toString'},
+    EnumStyle.extensionType => const {'value', 'hasFlag'},
+    EnumStyle.intConstants => const {},
+  };
 
   EnumClass({
     super.usr,
@@ -101,6 +133,41 @@ class EnumClass extends BindingType with HasLocalScope {
 
   void _writeIntegerConstants(StringBuffer s) {
     s.writeAll(enumConstants.map((c) => _formatValue(c, asInt: true)), '\n');
+  }
+
+  /// Writes the enum's constants as static consts of the extension type.
+  void _writeExtensionTypeConstants(StringBuffer s) {
+    if (enumConstants.isEmpty) return;
+    s.writeAll(enumConstants.map(_formatExtensionTypeConstant), '\n');
+    s.write(';\n\n');
+  }
+
+  String _formatExtensionTypeConstant(EnumConstant ec) {
+    final buffer = StringBuffer();
+    buffer.write(makeDartDoc(ec.dartDoc, indent: '  '));
+    buffer.write('  static const $name ${ec.name} = $name(${ec.value})');
+    return buffer.toString();
+  }
+
+  /// Writes the member declarations that make the extension type usable as bit
+  /// flags.
+  void _writeExtensionTypeMembers(StringBuffer s) {
+    s.write('''
+  /// Whether this value contains all the bits set in [other].
+  bool hasFlag($name other) => (value & other.value) == other.value;
+
+  /// Combines this value and [other] using bitwise-or.
+  $name operator |($name other) => $name(value | other.value);
+
+  /// Intersects this value and [other] using bitwise-and.
+  $name operator &($name other) => $name(value & other.value);
+
+  /// Exclusive-ors this value and [other].
+  $name operator ^($name other) => $name(value ^ other.value);
+
+  /// The bitwise complement of this value.
+  $name operator ~() => $name(~value);
+''');
   }
 
   /// Writes the enum declarations for all unique members.
@@ -224,11 +291,16 @@ class EnumClass extends BindingType with HasLocalScope {
     }
 
     _writeDartDoc(s);
-    if (enumConstants.isEmpty) {
+    if (enumConstants.isEmpty && effectiveStyle != EnumStyle.extensionType) {
       _writeEmptyEnum(s);
     } else if (effectiveStyle == EnumStyle.intConstants) {
       s.write('sealed class $name {\n');
       _writeIntegerConstants(s);
+      s.write('}\n\n');
+    } else if (effectiveStyle == EnumStyle.extensionType) {
+      s.write('extension type const $name(int value) {\n');
+      _writeExtensionTypeConstants(s);
+      _writeExtensionTypeMembers(s);
       s.write('}\n\n');
     } else {
       s.write('enum $name {\n');
@@ -292,9 +364,13 @@ class EnumClass extends BindingType with HasLocalScope {
     String value, {
     required bool objCRetain,
     String? objCEnclosingClass,
-  }) => sameDartAndFfiDartType
-      ? value
-      : '${getDartType(context)}.fromValue($value)';
+  }) {
+    if (sameDartAndFfiDartType) return value;
+    if (effectiveStyle == EnumStyle.extensionType) {
+      return '${getDartType(context)}($value)';
+    }
+    return '${getDartType(context)}.fromValue($value)';
+  }
 
   @override
   void visitChildren(Visitor visitor) {

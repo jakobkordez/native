@@ -89,13 +89,17 @@ abstract class Compound extends BindingType with HasLocalScope {
     return true;
   }
 
-  bool _isEnumDartStyleMember(CompoundMember member) {
+  /// Whether the member's Dart type is an enum that gets a converting
+  /// getter/setter pair, with the raw int stored in a separate `AsInt` field.
+  bool _isEnumConvertingMember(CompoundMember member) {
     final type = member.type;
-    return type is EnumClass && type.effectiveStyle == EnumStyle.dartEnum;
+    return type is EnumClass &&
+        (type.effectiveStyle == EnumStyle.dartEnum ||
+            type.effectiveStyle == EnumStyle.extensionType);
   }
 
   String _memberStorageName(CompoundMember member) {
-    if (_isEnumDartStyleMember(member)) {
+    if (_isEnumConvertingMember(member)) {
       return member.name;
     }
     return member.type.sameDartAndFfiDartType
@@ -104,7 +108,7 @@ abstract class Compound extends BindingType with HasLocalScope {
   }
 
   String _memberParameterType(CompoundMember member) {
-    if (_isEnumDartStyleMember(member)) {
+    if (_isEnumConvertingMember(member)) {
       return member.type.getDartType(context);
     }
     return member.type.getFfiDartType(context);
@@ -200,14 +204,17 @@ abstract class Compound extends BindingType with HasLocalScope {
           '${depth}external ${m.type.getFfiDartType(context)} $memberName;\n\n',
         );
       }
-      if (m.type case EnumClass(
-        :final effectiveStyle,
-      ) when effectiveStyle == EnumStyle.dartEnum) {
+      if (m.type case EnumClass(:final effectiveStyle)
+          when effectiveStyle == EnumStyle.dartEnum ||
+              effectiveStyle == EnumStyle.extensionType) {
         final enumName = m.type.getDartType(context);
         final memberName = m.name;
+        final getterConversion = effectiveStyle == EnumStyle.extensionType
+            ? '$enumName(${memberName}AsInt)'
+            : '$enumName.fromValue(${memberName}AsInt)';
         s.write(
           '$enumName get $memberName => '
-          '$enumName.fromValue(${memberName}AsInt);\n',
+          '$getterConversion;\n',
         );
         s.write(
           'set $memberName($enumName value) => '

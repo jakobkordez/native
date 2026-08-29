@@ -449,6 +449,45 @@ objc-interfaces:
       );
     });
 
+    test('YamlConfigAstVisitor sets extension type enum style', () {
+      final yamlConfig = YamlConfig.fromYaml(
+        loadYaml(r'''
+output: 'unused.dart'
+headers:
+  entry-points:
+    - 'unused.h'
+enums:
+  as-extension-type:
+    include:
+      - 'MyExtensionEnum'
+''')
+            as YamlMap,
+        createTestLogger(),
+      );
+
+      final generator = yamlConfig.configAdapter();
+      final context = testContext(generator);
+      final extensionEnum = EnumClass(
+        name: 'MyExtensionEnum',
+        originalName: 'MyExtensionEnum',
+        context: context,
+      );
+      final normalEnum = EnumClass(
+        name: 'MyNormalEnum',
+        originalName: 'MyNormalEnum',
+        context: context,
+      );
+      final nodes = <Binding>[
+        extensionEnum,
+        normalEnum,
+      ].map((binding) => binding.toPublicAstNode()).nonNulls.toList();
+
+      generator.visitors.first.visitAll(nodes);
+
+      expect((nodes[0] as public_ast.EnumClass).style, EnumStyle.extensionType);
+      expect((nodes[1] as public_ast.EnumClass).style, isNull);
+    });
+
     test('Visitor callback-based factory constructor', () {
       final context = testContext(
         FfiGenerator(
