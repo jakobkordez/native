@@ -43,6 +43,10 @@
 - Generate bindings for C++ structs and unions declared inside a namespace
   or a record, named the same way. Records nested in a system header, and
   scoped records when C++ class support is enabled, are not yet surfaced.
+- Generate Dart constants for C++ `constexpr` variables and `static
+  constexpr` data members declared inside a namespace or a record, named
+  the same way. Scoped variables that are not constants are read through
+  a mangled symbol, so they are not surfaced.
 - Bump `package:code_assets` dependency to `^2.0.0`.
 
 ## 21.0.0

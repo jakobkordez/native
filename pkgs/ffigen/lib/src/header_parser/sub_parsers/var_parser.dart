@@ -66,9 +66,15 @@ Binding? parseVarDeclaration(Context context, clang_types.CXCursor cursor) {
     return null;
   }
 
+  // A C++ variable or static data member declared inside a namespace or a
+  // record is named by its enclosing scopes, which have to be flattened to
+  // form a Dart identifier. Users who want a different name can rename via a
+  // `Visitor`.
+  final qualifiedName = qualifiedVarNameFromUsr(usr, name);
+
   final global = Global(
-    originalName: name,
-    name: name,
+    originalName: qualifiedName,
+    name: flattenQualifiedName(qualifiedName),
     usr: usr,
     type: type,
     dartDoc: getCursorDocComment(context, cursor),

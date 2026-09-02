@@ -62,6 +62,35 @@ void main() {
           ),
         ],
       ),
+      'cpp_constexpr': FfiGenerator(
+        output: Output(
+          dart: DartOutput(path: Uri.file('cpp_constexpr_test_bindings.dart')),
+        ),
+        input: Input(
+          entryPoints: [
+            Uri.file(path.join(testDir.path, 'cpp_constexpr_test.h')),
+          ],
+          compilerOptions: defaultCppCompilerOptions,
+        ),
+        visitors: [
+          Visitor(
+            // `constexpr` and `static constexpr` are parsed as const Globals.
+            global: (node) => node.isIncluded = {
+              'topInt',
+              'topDouble',
+              'topStr',
+              'topDerived',
+              'ns::nsInt',
+              'ns::inner::nsInt',
+              'ns::nsMutable',
+              'Box::memberInt',
+              'Box::memberDouble',
+              'Widget::classInt',
+              'scoped::Gadget::gadgetInt',
+            }.contains(node.originalName),
+          ),
+        ],
+      ),
       'cpp_extern_c': FfiGenerator(
         output: Output(
           dart: DartOutput(path: Uri.file('cpp_extern_c_test_bindings.dart')),

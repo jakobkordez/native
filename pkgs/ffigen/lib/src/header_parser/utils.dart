@@ -738,20 +738,35 @@ String _getWritableChar(int char, {bool utf8 = true}) {
 
 /// Builds the fully-qualified C++ name of a declaration from its [usr], e.g.
 /// `c:@N@outer@S@Palette@E@Tone` yields `outer::Palette::Tone`.
-String qualifiedNameFromUsr(String usr, String leafName) {
-  // After the `c:` prefix, USR tokens alternate between a single-char kind
-  // marker (`N` namespace, `S` class/struct, `U` union, `E` enum, ...) and its
-  // name. The last pair is the declaration itself, so it is skipped.
+String qualifiedNameFromUsr(String usr, String leafName) =>
+    // A type's USR ends in a kind marker and its name, e.g. `@E@Tone`.
+    _qualify(_scopesFromUsr(usr, trailingTokens: 2), leafName);
+
+/// Builds the fully-qualified C++ name of a variable (or static data member)
+/// from its [usr], e.g. `c:@N@ns@nsInt` yields `ns::nsInt`.
+String qualifiedVarNameFromUsr(String usr, String leafName) =>
+    // A variable's USR ends in a bare name with no kind marker before it. A
+    // const variable also carries a leading file token, e.g. `c:foo.h@N@ns@x`.
+    _qualify(_scopesFromUsr(usr, trailingTokens: 1), leafName);
+
+/// The names of the scopes enclosing a declaration whose [usr] ends in
+/// [trailingTokens] tokens describing the declaration itself.
+List<String> _scopesFromUsr(String usr, {required int trailingTokens}) {
+  // After the `c:`(+file) prefix, USR tokens alternate between a single-char
+  // kind marker (`N` namespace, `S` class/struct, `U` union, `E` enum, ...)
+  // and its name.
   final parts = usr.split('@');
   final scopes = <String>[];
-  for (var i = 1; i + 3 < parts.length; i += 2) {
+  for (var i = 1; i + trailingTokens + 1 < parts.length; i += 2) {
     if (parts[i] == 'N' || parts[i] == 'S' || parts[i] == 'U') {
       scopes.add(parts[i + 1]);
     }
   }
-  if (scopes.isEmpty) return leafName;
-  return [...scopes, leafName].join('::');
+  return scopes;
 }
+
+String _qualify(List<String> scopes, String leafName) =>
+    scopes.isEmpty ? leafName : [...scopes, leafName].join('::');
 
 /// Joins the segments of a `::`-qualified C++ name with `$`, so that it can be
 /// used as a Dart identifier, e.g. `outer::inner::Color` becomes

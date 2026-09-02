@@ -91,9 +91,9 @@ Set<Binding> parseTranslationUnit(
   return bindings;
 }
 
-/// Recurses into a C++ namespace or record, surfacing the enum, struct and
-/// union declarations nested inside it.
-// TODO: Dispatch VarDecl, FunctionDecl, etc. here for fuller C++ namespace
+/// Recurses into a C++ namespace or record, surfacing the enum, struct, union
+/// and constant declarations nested inside it.
+// TODO: Dispatch FunctionDecl, ClassDecl, etc. here for fuller C++ namespace
 // support.
 void _visitScopeForNestedDecls(
   Context context,
@@ -128,6 +128,21 @@ void _visitScopeForNestedDecls(
       switch (kind) {
         case clang_types.CXCursorKind.CXCursor_EnumDecl:
           addToBindings(bindings, _getCodeGenTypeFromCursor(context, cursor));
+          break;
+        case clang_types.CXCursorKind.CXCursor_VarDecl:
+          // A namespace-scoped variable or a static data member. Non-static
+          // fields are FieldDecl, so they don't arrive here.
+          final variable = parseVarDeclaration(context, cursor);
+          if (variable is Global && variable.constantValue == null) {
+            // Anything else is read through its symbol, which for a scoped C++
+            // variable is mangled and so does not match the generated name.
+            logger.fine(
+              '---- Removed Global, reason: not a constant: '
+              '${cursor.completeStringRepr()}',
+            );
+            break;
+          }
+          addToBindings(bindings, variable);
           break;
         case clang_types.CXCursorKind.CXCursor_UnionDecl:
         case clang_types.CXCursorKind.CXCursor_StructDecl:
@@ -176,7 +191,8 @@ bool _isNestedDeclScope(int kind) => switch (kind) {
   clang_types.CXCursorKind.CXCursor_UnionDecl ||
   clang_types.CXCursorKind.CXCursor_ClassDecl ||
   clang_types.CXCursorKind.CXCursor_StructDecl ||
-  clang_types.CXCursorKind.CXCursor_EnumDecl => true,
+  clang_types.CXCursorKind.CXCursor_EnumDecl ||
+  clang_types.CXCursorKind.CXCursor_VarDecl => true,
   _ => false,
 };
 
