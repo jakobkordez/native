@@ -37,6 +37,31 @@ void main() {
     ];
 
     final configs = <String, FfiGenerator>{
+      'cpp_namespace_enum': FfiGenerator(
+        output: Output(
+          dart: DartOutput(
+            path: Uri.file('cpp_namespace_enum_test_bindings.dart'),
+          ),
+        ),
+        input: Input(
+          entryPoints: [
+            Uri.file(path.join(testDir.path, 'cpp_namespace_enum_test.h')),
+          ],
+          compilerOptions: defaultCppCompilerOptions,
+        ),
+        visitors: [
+          Visitor(
+            enumClass: (node) => node.isIncluded = {
+              'GlobalBox::State',
+              'GlobalPalette::Shade',
+              'outer::Color',
+              'outer::inner::Color',
+              'outer::Palette::Tone',
+              'other::Color',
+            }.contains(node.originalName),
+          ),
+        ],
+      ),
       'cpp_extern_c': FfiGenerator(
         output: Output(
           dart: DartOutput(path: Uri.file('cpp_extern_c_test_bindings.dart')),
@@ -57,7 +82,10 @@ void main() {
             }.contains(node.originalName),
             struct: (node) => node.isIncluded = node.originalName == 'Pair',
             union: (node) => node.isIncluded = node.originalName == 'Number',
-            enumClass: (node) => node.isIncluded = node.originalName == 'Fruit',
+            enumClass: (node) => node.isIncluded = {
+              'Fruit',
+              'ns::Flag',
+            }.contains(node.originalName),
             global: (node) => node.isIncluded = node.originalName == 'counter',
           ),
         ],
@@ -83,6 +111,33 @@ void main() {
               'Animal',
               'FinalizerTestSubject',
             }.contains(node.originalName),
+          ),
+        ],
+      ),
+      'cpp_scoped_struct': FfiGenerator(
+        output: Output(
+          dart: DartOutput(
+            path: Uri.file('cpp_scoped_struct_test_bindings.dart'),
+          ),
+        ),
+        input: Input(
+          entryPoints: [
+            Uri.file(path.join(testDir.path, 'cpp_scoped_struct_test.h')),
+          ],
+          compilerOptions: defaultCppCompilerOptions,
+        ),
+        visitors: [
+          Visitor(
+            struct: (node) => node.isIncluded = {
+              'GlobalBox',
+              'GlobalBox::Lid',
+              'outer::Point',
+              'outer::inner::Point',
+              'outer::Palette::Entry',
+              'other::Point',
+            }.contains(node.originalName),
+            union: (node) =>
+                node.isIncluded = node.originalName == 'other::Value',
           ),
         ],
       ),
