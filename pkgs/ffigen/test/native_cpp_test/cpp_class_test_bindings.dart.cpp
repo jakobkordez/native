@@ -62,4 +62,8 @@ FFIGEN_EXPORT void FinalizerTestSubject_delete(FinalizerTestSubject* self) {
   delete self;
 }
 
-}
+FFIGEN_EXPORT int* _ffigen_global() {
+  return &global;
+}FFIGEN_EXPORT int _ffigen_outside(double d) {
+  return outside(d);
+}}

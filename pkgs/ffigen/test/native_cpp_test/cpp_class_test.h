@@ -2,7 +2,8 @@
 // for details. All rights reserved. Use of this source code is governed by a
 // BSD-style license that can be found in the LICENSE file.
 
-class Animal {
+class Animal
+{
 public:
     int age;
     Animal(int age);
@@ -18,3 +19,6 @@ public:
     int addAges(int otherAge, float scale);
     static int sum(int a, int b);
 };
+
+int outside(double d);
+extern int global;

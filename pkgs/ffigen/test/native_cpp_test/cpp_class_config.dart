@@ -23,6 +23,8 @@ FfiGenerator getConfig([Uri? packageRoot]) {
     cpp: const Cpp(),
     visitors: [
       Visitor(
+        func: (node) => node.isIncluded = true,
+        global: (node) => node.isIncluded = true,
         cppClass: (node) {
           const include = {'Animal', 'FinalizerTestSubject'};
           node.isIncluded = include.contains(node.originalName);

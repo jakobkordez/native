@@ -175,7 +175,11 @@ class Func extends LookUpBinding with HasLocalScope {
     final ffiArgDeclString = functionType.dartTypeParameters
         .map((p) => '${p.type.getFfiDartType(context)} ${p.name},\n')
         .join('');
-    final lookupName = useNameForLookup ? name : originalName;
+    final lookupName = useNameForLookup
+        ? name
+        : context.config.cpp != null
+        ? cppWrapperName
+        : originalName;
 
     final String dartReturnType;
     final String dartArgDeclString;
@@ -288,6 +292,33 @@ late final $funcVarName = $funcPointerName.asFunction<$dartType>($isLeafString);
     }
 
     return BindingString(type: BindingStringType.func, string: s.toString());
+  }
+
+  String get cppWrapperName => '_ffigen_$name';
+
+  @override
+  String? toCppBindingString(Writer w) {
+    if (functionType.varArgParameters.isNotEmpty) return null;
+
+    final context = w.context;
+    final returnType = functionType.returnType.getNativeType(context).trim();
+    final parameters = functionType.parameters
+        .map(
+          (parameter) =>
+              '${parameter.type.getNativeType(context).trim()} '
+              '${parameter.name}',
+        )
+        .join(', ');
+    final callArgs = functionType.parameters.map((p) => p.name).join(', ');
+    final returnPrefix = functionType.returnType == voidType ? '' : 'return ';
+    final returnSuffix = functionType.returnType is CppUniquePtrType
+        ? '.release()'
+        : '';
+
+    return '''
+FFIGEN_EXPORT $returnType $cppWrapperName($parameters) {
+  $returnPrefix$originalName($callArgs)$returnSuffix;
+}''';
   }
 
   @override

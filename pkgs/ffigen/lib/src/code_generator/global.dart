@@ -77,6 +77,8 @@ class Global extends LookUpBinding with HasLocalScope {
     final cType = (type is ConstantArray && !loadFromNativeAsset)
         ? (type as ConstantArray).child.getCType(context)
         : type.getCType(context);
+    final useCppWrapper = context.config.cpp != null;
+    final lookupName = useCppWrapper ? cppWrapperName : originalName;
 
     final ptrType = '${context.libs.prefix(ffiImport)}.Pointer<$cType>';
 
@@ -114,29 +116,43 @@ class Global extends LookUpBinding with HasLocalScope {
         s.writeln(makeArrayAnnotation(w, arr));
       }
 
-      final pointerName = type.sameDartAndFfiDartType
-          ? globalVarName
-          : context.rootScope.addPrivate('_$globalVarName');
+      final pointerName = context.rootScope.addPrivate('_$globalVarName');
 
       s
         ..writeln(
           makeNativeAnnotation(
             w,
-            nativeType: cType,
+            nativeType: '$ptrType Function()',
             dartName: pointerName,
-            nativeSymbolName: originalName,
+            nativeSymbolName: lookupName,
             isLeaf: false,
           ),
         )
-        ..write('external ');
-      if (constant) {
-        s.write('final ');
-      }
+        ..writeln('external $ptrType $pointerName();\n')
+        ..writeln(
+          'late final $ptrType _${globalVarName}Pointer = $pointerName();\n',
+        );
 
-      s.writeln('$ffiDartType $pointerName;\n');
-
-      if (!type.sameDartAndFfiDartType) {
-        generateConvertingGetterAndSetter(pointerName);
+      final pointerValue = '_${globalVarName}Pointer';
+      final baseTypealiasType = type.typealiasType;
+      if (baseTypealiasType is Compound) {
+        if (baseTypealiasType.isOpaque) {
+          s.write('$ptrType get $globalVarName => $pointerValue;\n\n');
+        } else {
+          s.write('$ffiDartType get $globalVarName => $pointerValue.ref;\n\n');
+        }
+      } else if (baseTypealiasType is ConstantArray) {
+        s.write('$ffiDartType get $globalVarName => $pointerValue;\n\n');
+      } else if (type.sameDartAndFfiDartType) {
+        s.write('$dartType get $globalVarName => $pointerValue.value;\n\n');
+        if (!constant) {
+          s.write(
+            'set $globalVarName($dartType value) =>'
+            '$pointerValue.value = value;\n\n',
+          );
+        }
+      } else {
+        generateConvertingGetterAndSetter('$pointerValue.value');
       }
 
       if (exposeSymbolAddress) {
@@ -148,7 +164,9 @@ class Global extends LookUpBinding with HasLocalScope {
 
       s.write(
         'late final $ptrType $pointerName = '
-        "$lookupFn<$cType>('$originalName');\n\n",
+        '$lookupFn<$ptrType Function(), '
+        '$ptrType Function()>('
+        "'$lookupName')();\n\n",
       );
       final baseTypealiasType = type.typealiasType;
       if (baseTypealiasType is Compound) {
@@ -182,6 +200,20 @@ class Global extends LookUpBinding with HasLocalScope {
     }
 
     return BindingString(type: BindingStringType.global, string: s.toString());
+  }
+
+  String get cppWrapperName => '_ffigen_$name';
+
+  @override
+  String? toCppBindingString(Writer w) {
+    if (isConst) return null;
+
+    final context = w.context;
+    final nativeType = type.getNativeType(context).trim();
+    return '''
+FFIGEN_EXPORT $nativeType* $cppWrapperName() {
+  return &$originalName;
+}''';
   }
 
   @override

@@ -26,3 +26,6 @@ int Animal::addAges(int otherAge, float scale) { return (age + otherAge) * scale
 
 int Animal::sum(int a, int b) { return a + b; }
 
+int outside(double d) { return static_cast<int>(d * 2); }
+
+int global = 7;
