@@ -147,6 +147,8 @@ FfiGenerator getConfig([Uri? packageRoot]) {
             'clang_getCursorSemanticParent',
             'clang_CXXMethod_isConst',
             'clang_CXXMethod_isStatic',
+            'clang_CXXMethod_isVirtual',
+            'clang_CXXRecord_isAbstract',
             'clang_getCXXAccessSpecifier',
             'clang_getCursorAvailability',
             'clang_getCursorPlatformAvailability',

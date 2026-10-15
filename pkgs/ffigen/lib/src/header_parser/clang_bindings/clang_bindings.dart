@@ -49,6 +49,33 @@ class Clang {
   late final _clang_CXXMethod_isStatic = _clang_CXXMethod_isStaticPtr
       .asFunction<int Function(CXCursor)>();
 
+  /// Determine if a C++ member function or member function template is
+  /// explicitly declared 'virtual' or if it overrides a virtual method from
+  /// one of the base classes.
+  int clang_CXXMethod_isVirtual(CXCursor C) {
+    return _clang_CXXMethod_isVirtual(C);
+  }
+
+  late final _clang_CXXMethod_isVirtualPtr =
+      _lookup<ffi.NativeFunction<ffi.UnsignedInt Function(CXCursor)>>(
+        'clang_CXXMethod_isVirtual',
+      );
+  late final _clang_CXXMethod_isVirtual = _clang_CXXMethod_isVirtualPtr
+      .asFunction<int Function(CXCursor)>();
+
+  /// Determine if a C++ record is abstract, i.e. whether a class or struct
+  /// has a pure virtual member function.
+  int clang_CXXRecord_isAbstract(CXCursor C) {
+    return _clang_CXXRecord_isAbstract(C);
+  }
+
+  late final _clang_CXXRecord_isAbstractPtr =
+      _lookup<ffi.NativeFunction<ffi.UnsignedInt Function(CXCursor)>>(
+        'clang_CXXRecord_isAbstract',
+      );
+  late final _clang_CXXRecord_isAbstract = _clang_CXXRecord_isAbstractPtr
+      .asFunction<int Function(CXCursor)>();
+
   /// If cursor is a statement declaration tries to evaluate the
   /// statement and if its variable, tries to evaluate its initializer,
   /// into its corresponding type.

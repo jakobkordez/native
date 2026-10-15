@@ -9,6 +9,7 @@ import 'package:path/path.dart' as path;
 import 'package:test/test.dart';
 
 import '../test_utils.dart';
+import 'cpp_access_config.dart' as cpp_access_config;
 import 'cpp_class_config.dart' as cpp_class_config;
 import 'cpp_constexpr_config.dart' as cpp_constexpr_config;
 import 'cpp_extern_c_config.dart' as cpp_extern_c_config;
@@ -44,6 +45,7 @@ void main() {
 
     final packageRoot = Uri.file(path.join(packagePathForTests, ''));
     final configs = <String, FfiGenerator>{
+      'cpp_access': cpp_access_config.getConfig(packageRoot),
       'cpp_class': cpp_class_config.getConfig(packageRoot),
       'cpp_constexpr': cpp_constexpr_config.getConfig(packageRoot),
       'cpp_extern_c': cpp_extern_c_config.getConfig(packageRoot),

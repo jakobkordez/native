@@ -140,6 +140,25 @@ class CppClass extends BindingType with HasLocalScope {
   /// are silently ignored by the parser.
   final List<CppClass> bases;
 
+  /// Whether the class has pure virtual methods that it doesn't override, so
+  /// it can't be instantiated, and gets no constructors.
+  final bool isAbstract;
+
+  /// Whether the destructor can be called from outside of the class, that is,
+  /// it's public and not deleted.
+  final bool hasPublicDestructor;
+
+  /// Whether the bindings can `delete` an object through a pointer to this
+  /// class.
+  ///
+  /// This needs a public destructor, which also has to be virtual if the class
+  /// has virtual methods, since the object could then be of a subclass.
+  ///
+  /// Otherwise there's no `delete` glue function, so a Dart object can only
+  /// own its pointer through a custom finalizer, and its constructors return
+  /// objects that don't own their pointers.
+  final bool isDeletable;
+
   CppClass({
     super.usr,
     super.originalName,
@@ -149,6 +168,9 @@ class CppClass extends BindingType with HasLocalScope {
     required this.methods,
     required this.fields,
     this.bases = const [],
+    this.isAbstract = false,
+    this.hasPublicDestructor = true,
+    this.isDeletable = true,
   });
 
   /// The prefix of the C glue functions generated for this class's methods.
@@ -211,11 +233,15 @@ class $name implements $implementsClause {
   $ptrVoid _ptr;
 ''');
 
-    s.write('''
+    if (isDeletable) {
+      s.write('''
   static final _defaultFinalizer = $ffiPrefix.NativeFinalizer(
     $ffiPrefix.Native.addressOf<$ffiPrefix.NativeFunction<$ffiPrefix.Void Function($ptrVoid)>>($deleteGlue),
   );
 
+''');
+    }
+    s.write('''
   /// The finalizer currently attached for this instance, or [null] if this
   /// object does not own its pointer.
   $ffiPrefix.NativeFinalizer? _activeFinalizer;
@@ -226,6 +252,9 @@ class $name implements $implementsClause {
     $ffiPrefix.NativeFunction<$ffiPrefix.Void Function($ptrVoid)>
   >? _activeFinalizerFn;
 
+''');
+    if (isDeletable) {
+      s.write('''
   $name.fromPointer(this._ptr, {bool takeOwnership = false}) {
     if (takeOwnership) {
       _defaultFinalizer.attach(this, _ptr.cast(), detach: this);
@@ -271,6 +300,53 @@ class $name implements $implementsClause {
     _activeFinalizerFn = fnPtr;
   }
 
+''');
+    } else {
+      final reason = hasPublicDestructor
+          ? "its destructor isn't virtual, although it has virtual methods"
+          : "its destructor isn't public";
+      s.write('''
+  /// Wraps [_ptr], without taking ownership of it. To take ownership, call
+  /// [retainOwnership] with a custom finalizer.
+  ///
+  /// The bindings can't delete a pointer to `$originalName`, since
+  /// $reason.
+  $name.fromPointer(this._ptr);
+
+  /// Attaches [customFinalizer] so this object takes ownership of the
+  /// underlying C++ pointer. [customFinalizerFn] is the native function that
+  /// [customFinalizer] calls, which [dispose] calls directly.
+  ///
+  /// Both are required, since the bindings can't delete this object.
+  ///
+  /// Throws an [ArgumentError] if either is missing. Throws a [StateError] if
+  /// the object has already been disposed, or if this object already owns
+  /// the pointer.
+  void retainOwnership([
+    $ffiPrefix.NativeFinalizer? customFinalizer,
+    $ffiPrefix.Pointer<
+      $ffiPrefix.NativeFunction<$ffiPrefix.Void Function($ptrVoid)>
+    >? customFinalizerFn,
+  ]) {
+    if (_ptr == $ffiPrefix.nullptr) {
+      throw StateError('This object has already been disposed.');
+    }
+    if (_activeFinalizer != null) {
+      throw StateError('This object already owns its pointer.');
+    }
+    if (customFinalizer == null || customFinalizerFn == null) {
+      throw ArgumentError(
+          'The bindings cannot delete this object, so both customFinalizer '
+          'and customFinalizerFn must be provided.');
+    }
+    customFinalizer.attach(this, _ptr.cast(), detach: this);
+    _activeFinalizer = customFinalizer;
+    _activeFinalizerFn = customFinalizerFn;
+  }
+
+''');
+    }
+    s.write('''
   /// Detaches the finalizer so this object releases ownership of the
   /// underlying C++ pointer. The caller becomes responsible for freeing
   /// the memory.
@@ -323,9 +399,18 @@ class $name implements $implementsClause {
           .join(', ');
 
       final body = localVars.wrapWithCleanups(
-        'return $name.fromPointer($privateName($callArgs), '
-        'takeOwnership: true);',
+        isDeletable
+            ? 'return $name.fromPointer($privateName($callArgs), '
+                  'takeOwnership: true);'
+            : 'return $name.fromPointer($privateName($callArgs));',
       );
+      if (!isDeletable) {
+        s.write('''
+
+  /// The returned object doesn't own its pointer, since the bindings can't
+  /// delete it. See [retainOwnership].
+''');
+      }
       s.write('''
   factory $ctorName($dartParams) {
     ${localVars.generateDeclarations()}
@@ -453,13 +538,15 @@ class $name implements $implementsClause {
         ffiParams: ffiParams,
       );
     }
-    writeNativeDecl(
-      symbol: deleteSymbol,
-      glue: deleteGlue,
-      cType: '$ffiPrefix.Void Function($ptrVoid)',
-      ffiReturn: 'void',
-      ffiParams: '$ptrVoid self',
-    );
+    if (isDeletable) {
+      writeNativeDecl(
+        symbol: deleteSymbol,
+        glue: deleteGlue,
+        cType: '$ffiPrefix.Void Function($ptrVoid)',
+        ffiReturn: 'void',
+        ffiParams: '$ptrVoid self',
+      );
+    }
 
     return BindingString(
       type: BindingStringType.cppClass,
@@ -544,7 +631,9 @@ FFIGEN_EXPORT $returnTypeString $symbol($params) {
         })
         .join('\n\n');
 
-    return '$methodBindings\n\n$deleteWrapper\n\n';
+    return isDeletable
+        ? '$methodBindings\n\n$deleteWrapper\n\n'
+        : '$methodBindings\n\n';
   }
 
   @override

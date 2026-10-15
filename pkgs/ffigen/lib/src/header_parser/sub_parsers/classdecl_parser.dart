@@ -57,6 +57,9 @@ CppClass? parseClassDeclaration(Context context, clang_types.CXCursor cursor) {
     '${cursor.completeStringRepr()}',
   );
 
+  final destructor = _destructorOf(cursor);
+  final hasPublicDestructor =
+      destructor.access == clang_types.CX_CXXAccessSpecifier.CX_CXXPublic;
   final cppClass = CppClass(
     usr: usr,
     dartDoc: getCursorDocComment(
@@ -70,16 +73,32 @@ CppClass? parseClassDeclaration(Context context, clang_types.CXCursor cursor) {
     methods: <CppMethod>[],
     fields: <CppMember>[],
     bases: <CppClass>[],
+    isAbstract: clang.clang_CXXRecord_isAbstract(cursor) != 0,
+    hasPublicDestructor: hasPublicDestructor,
+    isDeletable:
+        hasPublicDestructor &&
+        (destructor.isVirtual || !_isPolymorphic(cursor)),
   );
 
   context.bindingsIndex.addCppClassToSeen(usr, cppClass);
 
   cursor.visitChildren((child) {
-    final kind = clang.clang_getCursorKind(child);
-    if (kind == clang_types.CXCursorKind.CXCursor_CXXMethod) {
-      _parseAnyMethod(context, child, cppClass, CppMethodKind.method);
-    } else if (kind == clang_types.CXCursorKind.CXCursor_Constructor) {
-      _parseAnyMethod(context, child, cppClass, CppMethodKind.constructor);
+    final kind = switch (child.kind) {
+      clang_types.CXCursorKind.CXCursor_CXXMethod => CppMethodKind.method,
+      clang_types.CXCursorKind.CXCursor_Constructor =>
+        CppMethodKind.constructor,
+      _ => null,
+    };
+    if (kind == null) return;
+    if (!_isCallable(child)) {
+      logger.fine(
+        '  ---- Skipping non-public or deleted ${kind.name} '
+        '${child.spelling()}',
+      );
+    } else if (kind == CppMethodKind.constructor && cppClass.isAbstract) {
+      logger.fine('  ---- Skipping constructor of abstract class');
+    } else {
+      _parseAnyMethod(context, child, cppClass, kind);
     }
   });
 
@@ -141,6 +160,84 @@ bool _isRecordKind(int kind) =>
     kind == clang_types.CXCursorKind.CXCursor_StructDecl ||
     kind == clang_types.CXCursorKind.CXCursor_UnionDecl;
 
+/// Whether the member function at [cursor] can be called from outside of its
+/// class, which the generated glue functions need to do.
+///
+/// It has to be public, and not deleted, which libclang reports as
+/// unavailable.
+bool _isCallable(clang_types.CXCursor cursor) =>
+    clang.clang_getCXXAccessSpecifier(cursor) ==
+        clang_types.CX_CXXAccessSpecifier.CX_CXXPublic &&
+    clang.clang_getCursorAvailability(cursor) !=
+        clang_types.CXAvailabilityKind.CXAvailability_NotAvailable;
+
+/// The access of the destructor of the class at [cursor], and whether it's
+/// virtual.
+///
+/// libclang doesn't expose an implicit destructor, so its properties are
+/// derived from the bases. A deleted destructor is reported as private, since
+/// nothing can call it.
+({int access, bool isVirtual}) _destructorOf(clang_types.CXCursor cursor) {
+  final declared = cursor.findChildWithKind(
+    clang_types.CXCursorKind.CXCursor_Destructor,
+  );
+  if (declared != null) {
+    return (
+      access:
+          clang.clang_getCursorAvailability(declared) ==
+              clang_types.CXAvailabilityKind.CXAvailability_NotAvailable
+          ? clang_types.CX_CXXAccessSpecifier.CX_CXXPrivate
+          : clang.clang_getCXXAccessSpecifier(declared),
+      isVirtual: clang.clang_CXXMethod_isVirtual(declared) != 0,
+    );
+  }
+
+  // An implicit destructor is public, but it's deleted if it can't call the
+  // destructor of a base, and it's virtual if the destructor of a base is.
+  var access = clang_types.CX_CXXAccessSpecifier.CX_CXXPublic;
+  var isVirtual = false;
+  for (final base in _baseDefinitions(cursor)) {
+    final baseDestructor = _destructorOf(base);
+    if (baseDestructor.access ==
+        clang_types.CX_CXXAccessSpecifier.CX_CXXPrivate) {
+      access = clang_types.CX_CXXAccessSpecifier.CX_CXXPrivate;
+    }
+    isVirtual = isVirtual || baseDestructor.isVirtual;
+  }
+  return (access: access, isVirtual: isVirtual);
+}
+
+/// Whether the class at [cursor] declares or inherits a virtual method.
+bool _isPolymorphic(clang_types.CXCursor cursor) =>
+    cursor.findChildWhere(
+          (child) => switch (child.kind) {
+            clang_types.CXCursorKind.CXCursor_CXXMethod ||
+            clang_types.CXCursorKind.CXCursor_Destructor ||
+            clang_types.CXCursorKind.CXCursor_ConversionFunction =>
+              clang.clang_CXXMethod_isVirtual(child) != 0,
+            _ => false,
+          },
+        ) !=
+        null ||
+    _baseDefinitions(cursor).any(_isPolymorphic);
+
+/// The definitions of the direct bases of the class at [cursor], whatever
+/// their access.
+List<clang_types.CXCursor> _baseDefinitions(clang_types.CXCursor cursor) {
+  final bases = <clang_types.CXCursor>[];
+  cursor.visitChildren((child) {
+    if (child.kind != clang_types.CXCursorKind.CXCursor_CXXBaseSpecifier) {
+      return;
+    }
+    final declaration = clang.clang_getTypeDeclaration(
+      clang.clang_getCursorType(child),
+    );
+    final definition = clang.clang_getCursorDefinition(declaration);
+    bases.add(definition.isNull ? declaration : definition);
+  });
+  return bases;
+}
+
 void _parseAnyMethod(
   Context context,
   clang_types.CXCursor cursor,
@@ -179,6 +276,12 @@ void _parseAnyMethod(
       '  ---- Skipping method $methodName due to unsupported parameter type',
     );
     return;
+  } else if (!parameters.every((p) => _canPassByValue(p.type))) {
+    logger.fine(
+      '  ---- Skipping method $methodName, class passed by value can\'t be '
+      'destroyed',
+    );
+    return;
   }
 
   final cxReturnType = clang.clang_getCursorResultType(cursor);
@@ -191,6 +294,12 @@ void _parseAnyMethod(
   } else if (returnType.isIncompleteCompound) {
     logger.fine(
       '  ---- Skipping method $methodName, incomplete struct returned by value',
+    );
+    return;
+  } else if (!_canReturnByValue(returnType)) {
+    logger.fine(
+      '  ---- Skipping method $methodName, class returned by value can\'t be '
+      'deleted',
     );
     return;
   }
@@ -220,6 +329,24 @@ void _parseAnyMethod(
     ),
   );
 }
+
+/// Whether a glue function can pass [type] by value.
+///
+/// The parameter is a copy of a C++ class, which the glue function destroys
+/// when the call ends.
+bool _canPassByValue(Type type) => switch (type.typealiasType) {
+  final CppClass c => !c.isAbstract && c.hasPublicDestructor,
+  _ => true,
+};
+
+/// Whether a glue function can return [type] by value.
+///
+/// The glue function returns a C++ class by copying it to the heap, for the
+/// Dart object to own, and delete.
+bool _canReturnByValue(Type type) => switch (type.typealiasType) {
+  final CppClass c => !c.isAbstract && c.isDeletable,
+  _ => true,
+};
 
 /// Whether [type] is a pointer to const at any level, like `const T*` or
 /// `T* const*`.

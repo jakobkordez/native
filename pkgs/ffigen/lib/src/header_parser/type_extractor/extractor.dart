@@ -350,6 +350,15 @@ Type _extractUniquePtrType(
   final innerType = getCodeGenType(context, innerCXType);
 
   if (innerType is CppClass) {
+    if (!innerType.isDeletable) {
+      logger.fine(
+        '  unique_ptr<${innerType.originalName}> deletes a class that the '
+        'bindings can\'t delete. Skipping.',
+      );
+      return UnimplementedType(
+        'unique_ptr of a class that the bindings can\'t delete',
+      );
+    }
     logger.fine(
       '  unique_ptr<${innerType.originalName}> is an owned CppUniquePtrType',
     );

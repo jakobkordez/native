@@ -30,6 +30,19 @@
   `const T* get() const`, which failed to compile.
 - Fix the C++ glue for inherited methods hidden by a method of the same name in
   a subclass, which called the wrong overload or failed to compile.
+- Only generate bindings for C++ methods and constructors that are public and
+  not deleted. Protected, private and deleted ones made the glue fail to
+  compile.
+- Don't generate constructors for abstract C++ classes, including classes that
+  inherit pure virtual methods without overriding them.
+- Don't generate the `delete` glue function for a C++ class whose destructor
+  isn't public, or isn't virtual although the class has virtual methods, since
+  deleting it through a pointer to the class is an error or undefined
+  behavior. Its Dart class has no default finalizer: `fromPointer` can't take
+  ownership, constructors return objects that don't own their pointers, and
+  `retainOwnership` needs a custom finalizer. Methods that would have to delete
+  the class, by returning it by value or in a `std::unique_ptr`, or destroy it,
+  by taking it by value, are skipped.
 
 ## 23.0.0
 
