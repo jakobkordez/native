@@ -123,12 +123,6 @@ Compound? _parseCompoundDeclaration(
   final size = cursor.type().size();
   final sizeInBytes = size >= 0 ? size : null;
 
-  // For C++ compounds declared inside one or more scopes, [qualifiedName] is
-  // the fully-qualified name (e.g. `outer::Point` or `Outer::Inner`). At
-  // global scope it equals [declName].
-  final qualifiedName = declName.isEmpty
-      ? declName
-      : qualifiedNameFromUsr(usr, declName);
   final Compound compound;
   if (declName.isEmpty) {
     compound = constructor(
@@ -145,19 +139,15 @@ Compound? _parseCompoundDeclaration(
       sizeInBytes: sizeInBytes,
     );
   } else {
+    final qualifiedName = qualifiedNameFromCursor(cursor, declName);
     context.logger.fine(
       '++++ Adding $className: Name: $qualifiedName, '
       '${cursor.completeStringRepr()}',
     );
-    // C++ scope separators are not valid in Dart identifiers, so flatten the
-    // scope path into a single name joined by `$`, e.g. `outer::inner::Point`
-    // becomes `outer$inner$Point`. Names at global scope are unaffected. Users
-    // who want a different name can rename via a `Visitor`.
-    final dartName = flattenQualifiedName(qualifiedName);
     compound = constructor(
       usr: usr,
       originalName: qualifiedName,
-      name: dartName,
+      name: flattenQualifiedName(qualifiedName),
       dartDoc: getCursorDocComment(
         context,
         cursor,

@@ -41,7 +41,9 @@ Typealias parseTypedefDeclaration(
 
   if (bindingsIndex.isSeenUnsupportedTypealias(usr)) {
     // Do not process unsupported typealiases again.
-  } else if (s is UnimplementedType) {
+  } else if (s.baseType is UnimplementedType) {
+    // Also covers a pointer to an unimplemented type, e.g. a typedef to a
+    // function pointer whose parameters include an unsupported type.
     logger.fine(
       "Skipped Typedef '$name': "
       'Unimplemented type referred.',
@@ -82,5 +84,10 @@ Typealias parseTypedefDeclaration(
     bindingsIndex.addTypealiasToSeen(usr, type);
     return type;
   }
-  return Typealias.anonymous(usr: usr, name: name, type: s);
+  return Typealias.anonymous(
+    usr: usr,
+    name: name,
+    type: s,
+    dartDoc: getCursorDocComment(context, cursor),
+  );
 }

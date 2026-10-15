@@ -16,6 +16,7 @@ import 'writer.dart';
 
 /// A simple Typealias, Expands to -
 ///
+/// <!-- no-source-file -->
 /// ```dart
 /// typedef $name = $type;
 /// );
@@ -83,7 +84,14 @@ class Typealias extends BindingType {
     required String usr,
     required String name,
     required Type type,
-  }) : this._(usr: usr, name: name, type: type, isAnonymous: true);
+    String? dartDoc,
+  }) : this._(
+         usr: usr,
+         name: name,
+         type: type,
+         dartDoc: dartDoc,
+         isAnonymous: true,
+       );
 
   Typealias._({
     super.usr,
@@ -215,6 +223,21 @@ class Typealias extends BindingType {
 
   @override
   String? generateRetain(String value) => type.generateRetain(value);
+
+  @override
+  String getExternCType(Context context, {String varName = ''}) =>
+      type.getExternCType(context, varName: varName);
+
+  @override
+  bool get sameNativeAndExternCType => type.sameNativeAndExternCType;
+
+  @override
+  String convertExternCTypeToNativeType(Context context, String value) =>
+      type.convertExternCTypeToNativeType(context, value);
+
+  @override
+  String convertNativeTypeToExternCType(Context context, String value) =>
+      type.convertNativeTypeToExternCType(context, value);
 
   @override
   String cacheKey() => type.cacheKey();

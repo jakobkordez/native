@@ -121,6 +121,19 @@ extension CXCursorExt on clang_types.CXCursor {
     return res;
   }
 
+  /// The [Declaration] handed to `importType` for this cursor.
+  ///
+  /// A C++ type nested in a namespace or record is named by its qualified
+  /// name, matching the `originalName` of the binding a `Visitor` would see.
+  /// Anonymous cursors keep an empty name.
+  Declaration declaration() {
+    final leaf = spelling();
+    return Declaration(
+      usr: usr(),
+      originalName: leaf.isEmpty ? '' : qualifiedNameFromCursor(this, leaf),
+    );
+  }
+
   /// Returns the kind int from [clang_types.CXCursorKind].
   int kind() {
     return clang.clang_getCursorKind(this);
@@ -739,53 +752,40 @@ String _getWritableChar(int char, {bool utf8 = true}) {
   return String.fromCharCode(char);
 }
 
-/// Builds the fully-qualified C++ name of a declaration from its [usr].
+/// Builds the fully-qualified C++ name of the declaration at [cursor] by
+/// walking its semantic parents, e.g. an enum `Tone` nested in `struct
+/// Palette` in `namespace outer` yields `outer::Palette::Tone`.
 ///
-/// A USR like `c:@N@outer@S@Palette@E@Tone` yields
-/// `outer::Palette::Tone`. At global scope (no enclosing namespace or class)
-/// this just returns [leafName].
-String qualifiedNameFromUsr(String usr, String leafName) {
-  // After the `c:` prefix, USR tokens alternate between a single-char kind
-  // marker (`N` for namespace, `S` for class/struct, `U` for union, `E` for
-  // enum, etc.) and its name. Collect the names of the enclosing scopes by
-  // stepping over each marker/name pair, skipping the last pair which is the
-  // declaration itself.
-  final parts = usr.split('@');
-  final scopes = <String>[];
-  for (var i = 1; i + 3 < parts.length; i += 2) {
-    if (parts[i] == 'N' || parts[i] == 'S' || parts[i] == 'U') {
-      scopes.add(parts[i + 1]);
-    }
+/// Anonymous scopes and `extern "C"` blocks contribute no segment. The walk
+/// stops at the first parent that is not a namespace or record, so a type
+/// declared at global scope or inside a function yields [leafName] alone.
+String qualifiedNameFromCursor(clang_types.CXCursor cursor, String leafName) {
+  var name = leafName;
+  var parent = clang.clang_getCursorSemanticParent(cursor);
+  while (clang.clang_Cursor_isNull(parent) == 0 &&
+      _isNameScope(clang.clang_getCursorKind(parent))) {
+    final spelling = parent.spelling();
+    if (spelling.isNotEmpty) name = '$spelling::$name';
+    parent = clang.clang_getCursorSemanticParent(parent);
   }
-  if (scopes.isEmpty) return leafName;
-  return [...scopes, leafName].join('::');
+  return name;
 }
 
-/// Builds the fully-qualified C++ name of a variable (or static data member)
-/// from its [usr].
-///
-/// Unlike [qualifiedNameFromUsr], a variable's USR ends in a bare name token
-/// with no preceding kind marker, e.g. `c:@N@ns@nsInt` or `c:@S@Box@memberInt`
-/// (const variables also carry a leading file token, e.g.
-/// `c:foo.h@N@ns@nsInt`). These yield `ns::nsInt` and `Box::memberInt`
-/// respectively. At file scope (no enclosing namespace or class) this just
-/// returns [leafName].
-String qualifiedVarNameFromUsr(String usr, String leafName) {
-  // Scope markers/names sit between the `c:`(+file) prefix (parts[0]) and the
-  // trailing leaf token (parts.last), alternating marker/name.
-  final parts = usr.split('@');
-  final scopes = <String>[];
-  for (var i = 1; i + 1 < parts.length; i += 2) {
-    if (parts[i] == 'N' || parts[i] == 'S' || parts[i] == 'U') {
-      scopes.add(parts[i + 1]);
-    }
-  }
-  if (scopes.isEmpty) return leafName;
-  return [...scopes, leafName].join('::');
-}
+/// Whether a cursor of [kind] is a scope that qualifies the names declared
+/// inside it (or, for `extern "C"`, is transparent to them).
+bool _isNameScope(int kind) => switch (kind) {
+  clang_types.CXCursorKind.CXCursor_Namespace ||
+  clang_types.CXCursorKind.CXCursor_LinkageSpec ||
+  clang_types.CXCursorKind.CXCursor_StructDecl ||
+  clang_types.CXCursorKind.CXCursor_ClassDecl ||
+  clang_types.CXCursorKind.CXCursor_UnionDecl ||
+  clang_types.CXCursorKind.CXCursor_ClassTemplate ||
+  clang_types.CXCursorKind.CXCursor_ClassTemplatePartialSpecialization => true,
+  _ => false,
+};
 
-/// Flattens a `::`-qualified C++ name into a single Dart identifier by joining
-/// the path segments with `$`, e.g. `outer::inner::Color` becomes
+/// Joins the segments of a `::`-qualified C++ name with `$`, so that it can be
+/// used as a Dart identifier, e.g. `outer::inner::Color` becomes
 /// `outer$inner$Color`.
 String flattenQualifiedName(String qualifiedName) =>
-    qualifiedName.split('::').where((s) => s.isNotEmpty).join(r'$');
+    qualifiedName.replaceAll('::', r'$');

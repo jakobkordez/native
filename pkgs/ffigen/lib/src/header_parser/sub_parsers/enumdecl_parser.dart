@@ -53,16 +53,8 @@ EnumClass parseEnumDeclaration(clang_types.CXCursor cursor, Context context) {
         .where((c) => c.rawValue.startsWith('-'))
         .isNotEmpty;
   } else {
-    // For C++ enums declared inside one or more scopes, [qualifiedName] is the
-    // fully-qualified name (e.g. `outer::inner::Color` or
-    // `outer::Class::Color`). At global scope it equals [enumName].
-    final qualifiedName = qualifiedNameFromUsr(usr, enumName);
-    // C++ scope separators are not valid in Dart identifiers, so flatten the
-    // scope path into a single name joined by `$`, e.g. `outer::inner::Color`
-    // becomes `outer$inner$Color`. Names at global scope are unaffected. Users
-    // who want a different name can rename via a `Visitor`.
-    final dartName = flattenQualifiedName(qualifiedName);
     logger.fine('++++ Adding Enum: ${cursor.completeStringRepr()}');
+    final qualifiedName = qualifiedNameFromCursor(cursor, enumName);
     enumClass = EnumClass(
       usr: usr,
       dartDoc: getCursorDocComment(
@@ -71,7 +63,7 @@ EnumClass parseEnumDeclaration(clang_types.CXCursor cursor, Context context) {
         availability: apiAvailability.dartDoc,
       ),
       originalName: qualifiedName,
-      name: dartName,
+      name: flattenQualifiedName(qualifiedName),
       nativeType: nativeType,
       context: context,
       apiAvailability: apiAvailability,

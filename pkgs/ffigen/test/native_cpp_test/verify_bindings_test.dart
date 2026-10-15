@@ -9,6 +9,16 @@ import 'package:path/path.dart' as path;
 import 'package:test/test.dart';
 
 import '../test_utils.dart';
+import 'cpp_class_config.dart' as cpp_class_config;
+import 'cpp_constexpr_config.dart' as cpp_constexpr_config;
+import 'cpp_extern_c_config.dart' as cpp_extern_c_config;
+import 'cpp_filter_rename_config.dart' as cpp_filter_rename_config;
+import 'cpp_inheritance_config.dart' as cpp_inheritance_config;
+import 'cpp_namespace_enum_config.dart' as cpp_namespace_enum_config;
+import 'cpp_opaque_class_config.dart' as cpp_opaque_class_config;
+import 'cpp_pod_config.dart' as cpp_pod_config;
+import 'cpp_scoped_struct_config.dart' as cpp_scoped_struct_config;
+import 'memory_edge_cases_config.dart' as memory_edge_cases_config;
 import 'util.dart';
 
 void main() {
@@ -29,244 +39,28 @@ void main() {
             .toList()
           ..sort();
 
-    final defaultCppCompilerOptions = [
-      '-x',
-      'c++',
-      '-std=c++17',
-      if (Platform.isMacOS) ...['-isysroot', macSdkPath],
-    ];
-
+    final packageRoot = Uri.file(path.join(packagePathForTests, ''));
     final configs = <String, FfiGenerator>{
-      'cpp_class': FfiGenerator(
-        output: Output(
-          dart: DartOutput(path: Uri.file('cpp_class_test_bindings.dart')),
-          style: const NativeExternalBindings(
-            assetId: 'package:ffigen/cpp_test',
-          ),
-        ),
-        input: Input(
-          entryPoints: [
-            Uri.file(path.join(testDir.path, 'cpp_class_test.h')),
-            Uri.file(path.join(testDir.path, 'finalizer_test_subject.h')),
-          ],
-          compilerOptions: defaultCppCompilerOptions,
-        ),
-        cpp: const Cpp(),
-        visitors: [
-          Visitor(
-            cppClass: (node) => node.isIncluded = {
-              'Animal',
-              'FinalizerTestSubject',
-            }.contains(node.originalName),
-          ),
-        ],
-      ),
-      'cpp_constexpr': FfiGenerator(
-        output: Output(
-          dart: DartOutput(path: Uri.file('cpp_constexpr_test_bindings.dart')),
-        ),
-        input: Input(
-          entryPoints: [
-            Uri.file(path.join(testDir.path, 'cpp_constexpr_test.h')),
-          ],
-          compilerOptions: defaultCppCompilerOptions,
-        ),
-        visitors: [
-          Visitor(
-            // `constexpr` / `static constexpr` variables are parsed as
-            // const Globals.
-            global: (node) => node.isIncluded = {
-              'topInt',
-              'topDouble',
-              'topStr',
-              'topDerived',
-              'ns::nsInt',
-              'ns::inner::nsInt',
-              'Box::memberInt',
-              'Box::memberDouble',
-              'Widget::classInt',
-              'scoped::Gadget::gadgetInt',
-            }.contains(node.originalName),
-          ),
-        ],
-      ),
-      'cpp_extern_c': FfiGenerator(
-        output: Output(
-          dart: DartOutput(path: Uri.file('cpp_extern_c_test_bindings.dart')),
-        ),
-        input: Input(
-          entryPoints: [
-            Uri.file(path.join(testDir.path, 'cpp_extern_c_test.h')),
-          ],
-          compilerOptions: defaultCppCompilerOptions,
-        ),
-        visitors: [
-          Visitor(
-            func: (node) => node.isIncluded = {
-              'add',
-              'deep',
-              'reset',
-              'outside',
-            }.contains(node.originalName),
-            struct: (node) => node.isIncluded = node.originalName == 'Pair',
-            union: (node) => node.isIncluded = node.originalName == 'Number',
-            enumClass: (node) => node.isIncluded = {
-              'Fruit',
-              'ns::Flag',
-            }.contains(node.originalName),
-            global: (node) => node.isIncluded = node.originalName == 'counter',
-          ),
-        ],
-      ),
-      'cpp_namespace_enum': FfiGenerator(
-        output: Output(
-          dart: DartOutput(
-            path: Uri.file('cpp_namespace_enum_test_bindings.dart'),
-          ),
-        ),
-        input: Input(
-          entryPoints: [
-            Uri.file(path.join(testDir.path, 'cpp_namespace_enum_test.h')),
-          ],
-          compilerOptions: defaultCppCompilerOptions,
-        ),
-        visitors: [
-          Visitor(
-            enumClass: (node) => node.isIncluded = {
-              'GlobalBox::State',
-              'GlobalPalette::Shade',
-              'outer::Color',
-              'outer::inner::Color',
-              'outer::Palette::Tone',
-              'other::Color',
-            }.contains(node.originalName),
-          ),
-        ],
-      ),
-      'cpp_opaque_class': FfiGenerator(
-        output: Output(
-          dart: DartOutput(
-            path: Uri.file('cpp_opaque_class_test_bindings.dart'),
-          ),
-        ),
-        input: Input(
-          entryPoints: [
-            Uri.file(path.join(testDir.path, 'cpp_opaque_class_test.h')),
-          ],
-          compilerOptions: defaultCppCompilerOptions,
-        ),
-        visitors: [
-          Visitor(
-            func: (node) => node.isIncluded = {
-              'my_handle_create',
-              'my_handle_destroy',
-              'my_handle_clone',
-              'other_handle_create',
-              'defined_handle_create',
-              'defined_handle_destroy',
-            }.contains(node.originalName),
-          ),
-        ],
-      ),
-      'cpp_scoped_struct': FfiGenerator(
-        output: Output(
-          dart: DartOutput(
-            path: Uri.file('cpp_scoped_struct_test_bindings.dart'),
-          ),
-        ),
-        input: Input(
-          entryPoints: [
-            Uri.file(path.join(testDir.path, 'cpp_scoped_struct_test.h')),
-          ],
-          compilerOptions: defaultCppCompilerOptions,
-        ),
-        visitors: [
-          Visitor(
-            struct: (node) => node.isIncluded = {
-              'GlobalBox',
-              'GlobalBox::Lid',
-              'outer::Point',
-              'outer::inner::Point',
-              'outer::Palette::Entry',
-              'other::Point',
-            }.contains(node.originalName),
-            union: (node) =>
-                node.isIncluded = node.originalName == 'other::Value',
-          ),
-        ],
-      ),
-      'memory_edge_cases': FfiGenerator(
-        output: Output(
-          dart: DartOutput(path: Uri.file('memory_edge_cases_bindings.dart')),
-          style: const NativeExternalBindings(
-            assetId: 'package:ffigen/cpp_test',
-          ),
-        ),
-        input: Input(
-          entryPoints: [
-            Uri.file(path.join(testDir.path, 'memory_edge_cases.h')),
-          ],
-          compilerOptions: defaultCppCompilerOptions,
-        ),
-        cpp: const Cpp(),
-        visitors: [
-          Visitor(
-            cppClass: (node) => node.isIncluded = {
-              'Node',
-              'NodeManager',
-              'NodeContainer',
-            }.contains(node.originalName),
-          ),
-        ],
-      ),
-      'cpp_inheritance': FfiGenerator(
-        output: Output(
-          dart: DartOutput(
-            path: Uri.file('cpp_inheritance_test_bindings.dart'),
-          ),
-          style: const NativeExternalBindings(
-            assetId: 'package:ffigen/cpp_test',
-          ),
-        ),
-        input: Input(
-          entryPoints: [
-            Uri.file(path.join(testDir.path, 'cpp_inheritance_test.h')),
-          ],
-          compilerOptions: defaultCppCompilerOptions,
-        ),
-        cpp: const Cpp(),
-        visitors: [
-          Visitor(
-            cppClass: (node) => node.isIncluded = {
-              'Shape',
-              'Drawable',
-              'Circle',
-              'ColoredCircle',
-              'Square',
-              'AccessBase',
-              'PublicDerived',
-              'ProtectedDerived',
-              'PrivateDerived',
-              'OverloadBase',
-              'OverloadDerived',
-              'DiamondBase',
-              'DiamondLeft',
-              'DiamondRight',
-              'DiamondDerived',
-            }.contains(node.originalName),
-          ),
-        ],
-      ),
+      'cpp_class': cpp_class_config.getConfig(packageRoot),
+      'cpp_constexpr': cpp_constexpr_config.getConfig(packageRoot),
+      'cpp_extern_c': cpp_extern_c_config.getConfig(packageRoot),
+      'cpp_filter_rename': cpp_filter_rename_config.getConfig(packageRoot),
+      'cpp_pod': cpp_pod_config.getConfig(packageRoot),
+      'memory_edge_cases': memory_edge_cases_config.getConfig(packageRoot),
+      'cpp_inheritance': cpp_inheritance_config.getConfig(packageRoot),
+      'cpp_namespace_enum': cpp_namespace_enum_config.getConfig(packageRoot),
+      'cpp_opaque_class': cpp_opaque_class_config.getConfig(packageRoot),
+      'cpp_scoped_struct': cpp_scoped_struct_config.getConfig(packageRoot),
     };
 
     for (final testFile in testFiles) {
       final configName = testFile.replaceFirst('_test.dart', '');
-      test('verifyBindings for $testFile', () {
+      test('verifyBindings for $testFile', () async {
         final config = configs[configName];
         if (config == null) {
           fail('No FfiGenerator config registered for $testFile in `configs`.');
         }
-        verifyBindings(config);
+        await verifyBindings(config);
       });
     }
   });

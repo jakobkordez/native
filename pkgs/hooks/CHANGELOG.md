@@ -1,3 +1,8 @@
+## 2.2.1-wip
+
+- Track header dependencies in the C build examples so header changes trigger
+  recompilation.
+
 ## 2.2.0
 
 - Add `ProtocolExtension.setupLogger`, which the hooks runner calls to provide

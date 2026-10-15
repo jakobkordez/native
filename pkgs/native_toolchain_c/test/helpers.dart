@@ -3,6 +3,7 @@
 // BSD-style license that can be found in the LICENSE file.
 
 import 'dart:async';
+import 'dart:convert';
 import 'dart:ffi';
 import 'dart:io';
 import 'dart:math' as math;
@@ -398,12 +399,14 @@ final objdumpFileFormatAndroid = {
 
 final objdumpFileFormatMacOS = {
   Architecture.arm64: 'mach-o arm64',
+  Architecture.arm64e: 'mach-o arm64',
   Architecture.x64: 'mach-o 64-bit x86-64',
 };
 
 // Don't include 'mach-o' or 'Mach-O', different spelling is used.
 final objdumpFileFormatIOS = {
   Architecture.arm64: 'arm64',
+  Architecture.arm64e: 'arm64',
   Architecture.x64: '64-bit x86-64',
 };
 
@@ -521,7 +524,7 @@ Future<void> expectMachineArchitecture(
 }
 
 List<Architecture> supportedArchitecturesFor(OS targetOS) => switch (targetOS) {
-  .macOS || .iOS => [.arm64, .x64],
+  .macOS || .iOS => [.arm64, .arm64e, .x64],
   .windows => [
     // TODO(https://github.com/dart-lang/native/issues/170): Support arm64.
     // Architecture.arm64,
@@ -537,3 +540,54 @@ List<Architecture> iOSSupportedArchitecturesFor(IOSSdk iosSdk) =>
       .iPhoneSimulator => supportedArchitecturesFor(OS.iOS),
       IOSSdk() => throw UnimplementedError(),
     };
+
+/// A [LocalProcessManager] that sets `NoDefaultCurrentDirectoryInExePath` for
+/// every process it spawns.
+///
+/// With that variable set, cmd.exe doesn't search the working directory for
+/// bare command names.
+class NoDefaultCurrentDirectoryInExePathProcessManager
+    extends LocalProcessManager {
+  const NoDefaultCurrentDirectoryInExePathProcessManager();
+
+  static Map<String, String> _environment(Map<String, String>? environment) => {
+    ...?environment,
+    'NoDefaultCurrentDirectoryInExePath': '1',
+  };
+
+  @override
+  Future<Process> start(
+    List<Object> command, {
+    String? workingDirectory,
+    Map<String, String>? environment,
+    bool includeParentEnvironment = true,
+    bool runInShell = false,
+    ProcessStartMode mode = ProcessStartMode.normal,
+  }) => super.start(
+    command,
+    workingDirectory: workingDirectory,
+    environment: _environment(environment),
+    includeParentEnvironment: includeParentEnvironment,
+    runInShell: runInShell,
+    mode: mode,
+  );
+
+  @override
+  Future<ProcessResult> run(
+    List<Object> command, {
+    String? workingDirectory,
+    Map<String, String>? environment,
+    bool includeParentEnvironment = true,
+    bool runInShell = false,
+    Encoding? stdoutEncoding = systemEncoding,
+    Encoding? stderrEncoding = systemEncoding,
+  }) => super.run(
+    command,
+    workingDirectory: workingDirectory,
+    environment: _environment(environment),
+    includeParentEnvironment: includeParentEnvironment,
+    runInShell: runInShell,
+    stdoutEncoding: stdoutEncoding,
+    stderrEncoding: stderrEncoding,
+  );
+}

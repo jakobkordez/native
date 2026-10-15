@@ -37,13 +37,8 @@ void main(List<String> args) async {
         ? <String>[
             '-isysroot',
             sdkPath(codeConfig),
-            if (codeConfig.targetArchitecture == Architecture.arm64) ...[
-              '-arch',
-              'arm64e',
-            ] else ...[
-              '-target',
-              toTargetTriple(codeConfig),
-            ],
+            '-target',
+            toTargetTriple(codeConfig),
             minOSVersion(codeConfig),
           ]
         : <String>[];
@@ -62,14 +57,15 @@ void main(List<String> args) async {
 
     // Build all C++ test files. Works on all platforms.
     final cppTestDir = input.packageRoot.resolve('test/native_cpp_test/');
-    final cppFiles = _findFiles(cppTestDir, '.cpp')
-        .map(
-          (uri) => p.relative(
-            uri.toFilePath(),
-            from: input.packageRoot.toFilePath(),
-          ),
-        )
-        .toList();
+    final cppFiles =
+        [..._findFiles(cppTestDir, '.cpp'), ..._findFiles(cppTestDir, '.h')]
+            .map(
+              (uri) => p.relative(
+                uri.toFilePath(),
+                from: input.packageRoot.toFilePath(),
+              ),
+            )
+            .toList();
     await CBuilder.library(
       name: 'cpp_test',
       assetName: 'cpp_test',
@@ -303,21 +299,18 @@ class CustomBuilder {
       '-emit-library',
     ];
 
+    final arch = _codeConfig.targetArchitecture == Architecture.x64
+        ? 'x86_64'
+        : 'arm64';
     final String target;
     if (_codeConfig.targetOS == OS.iOS) {
       final version = _codeConfig.iOS.targetVersion;
-      final arch = _codeConfig.targetArchitecture == Architecture.x64
-          ? 'x86_64'
-          : 'arm64';
       final sdk = _codeConfig.iOS.targetSdk == IOSSdk.iPhoneOS
           ? 'ios'
           : 'ios-simulator';
       target = '$arch-apple-$sdk$version';
     } else {
       final version = _codeConfig.macOS.targetVersion;
-      final arch = _codeConfig.targetArchitecture == Architecture.x64
-          ? 'x86_64'
-          : 'arm64';
       target = '$arch-apple-macosx$version';
     }
 
@@ -329,7 +322,7 @@ class CustomBuilder {
         '-emit-objc-header-path',
         outputHeader.toFilePath(),
         '-target',
-        'arm64e-apple-macosx$version',
+        '$arch-apple-macosx$version',
         '-o',
         outputLib.toFilePath(),
       ]);

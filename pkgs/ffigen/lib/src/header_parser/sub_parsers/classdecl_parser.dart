@@ -139,19 +139,22 @@ void _parseAnyMethod(
       kind == CppMethodKind.method &&
       clang.clang_CXXMethod_isConst(cursor) != 0;
 
-  final parameters = _parseParameters(context, cursor, classDecl);
-  if (parameters == null) {
+  final (
+    :parameters,
+    :hasIncompleteStruct,
+    :hasUnimplementedType,
+    unsupportedTypes: _,
+  ) = parseParameters(
+    context,
+    cursor,
+  );
+  if (hasIncompleteStruct || hasUnimplementedType) {
     logger.fine(
       '  ---- Skipping method $methodName due to unsupported parameter type',
     );
     return;
   }
 
-  // The return type is held to the same standard as the parameters above: a
-  // type with no Dart mapping (a C++ reference, say) or an incomplete compound
-  // returned by value cannot be bound, and reaches the writer as a type that
-  // throws when it is asked for its Dart spelling. Drop the method here
-  // instead, the way parseFunctionDeclaration drops such a free function.
   final returnType = clang
       .clang_getCursorResultType(cursor)
       .toCodeGenType(context);
@@ -160,8 +163,7 @@ void _parseAnyMethod(
       '  ---- Skipping method $methodName due to unsupported return type',
     );
     return;
-  }
-  if (returnType.isIncompleteCompound) {
+  } else if (returnType.isIncompleteCompound) {
     logger.fine(
       '  ---- Skipping method $methodName, incomplete struct returned by value',
     );
@@ -177,7 +179,8 @@ void _parseAnyMethod(
   logger.fine('  ++++ ${kind.name}: $methodName (const=$isConst)');
   methods.add(
     CppMethod(
-      name: Symbol(symbol, SymbolKind.method),
+      name: Symbol(methodName, SymbolKind.method),
+      cBindingSymbol: Symbol(symbol, SymbolKind.method),
       originalName: methodName,
       returnType: returnType,
       parameters: parameters,
@@ -186,18 +189,4 @@ void _parseAnyMethod(
       kind: kind,
     ),
   );
-}
-
-List<Parameter>? _parseParameters(
-  Context context,
-  clang_types.CXCursor cursor,
-  Declaration classDecl,
-) {
-  final logger = context.logger;
-  final parsed = parseParameters(context, cursor);
-  if (parsed.hasIncompleteStruct || parsed.hasUnimplementedType) {
-    logger.fine('  Unsupported parameter type');
-    return null;
-  }
-  return parsed.parameters;
 }

@@ -10,6 +10,7 @@ import 'dart:io';
 
 import 'package:ffi/ffi.dart';
 import 'package:ffigen/ffigen.dart';
+import 'package:ffigen/src/config_provider/config.dart';
 import 'package:ffigen/src/header_parser.dart' show parse;
 import 'package:leak_tracker/leak_tracker.dart' as leak_tracker;
 import 'package:logging/logging.dart';
@@ -22,15 +23,11 @@ import 'package:path/path.dart' as p;
 import '../test_utils.dart';
 
 void verifyBindings(
-  String testName, {
+  FfiGenerator config, {
   Logger? logger,
   bool Function(String expected, String actual)? dartVerify,
   bool Function(String expected, String actual)? objCVerify,
 }) {
-  final thisDir = p.join(packagePathForTests, 'test', 'native_objc_test');
-  final configFile = p.join(thisDir, '${testName}_config.yaml');
-
-  final config = testConfigFromPath(configFile, logger: logger);
   final context = testContext(config);
   final library = parse(context);
 

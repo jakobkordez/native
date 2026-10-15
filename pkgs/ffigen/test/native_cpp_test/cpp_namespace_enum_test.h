@@ -2,6 +2,9 @@
 // for details. All rights reserved. Use of this source code is governed by a
 // BSD-style license that can be found in the LICENSE file.
 
+// Enums declared inside a namespace or a record are named by their enclosing
+// scopes, flattened with `$` to form a Dart identifier.
+
 namespace outer {
 // Unscoped enum in a single namespace.
 enum Color { red, green, blue };
@@ -34,3 +37,8 @@ struct GlobalBox {
   // Scoped enum nested inside a struct at global scope.
   enum class State { closed = 30, open = 31 };
 };
+
+// An anonymous namespace, whose contents must be skipped.
+namespace {
+enum Hidden { hiddenValue = 1 };
+}  // namespace

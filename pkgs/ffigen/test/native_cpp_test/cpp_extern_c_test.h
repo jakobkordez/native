@@ -2,6 +2,10 @@
 // for details. All rights reserved. Use of this source code is governed by a
 // BSD-style license that can be found in the LICENSE file.
 
+// Declarations inside an `extern "C"` block are wrapped in a LinkageSpec
+// cursor when parsing in C++ mode, and must be dispatched like top-level
+// declarations rather than skipped.
+
 extern "C" {
 
 enum Fruit { apple = 1, banana = 2 };

@@ -25,12 +25,11 @@ const jacksonPreamble = '// Generated from jackson-core which is licensed under'
 
 const testName = 'jackson_core_test';
 final thirdPartyDir = join('test', testName, 'third_party');
-const deps = ['com.fasterxml.jackson.core:jackson-core:2.13.4'];
+const deps = ['com.fasterxml.jackson.core:jackson-core:2.13.5'];
 
 JniGenerator getConfig({
   String? root,
   bool generateFullVersion = false,
-  bool useAsm = false,
   SummarizerBackend? backend,
 }) {
   final rootDir = root ?? thirdPartyDir;
@@ -48,7 +47,7 @@ JniGenerator getConfig({
         sourceDir: Uri.directory(join(thirdPartyDir, 'java')),
         jarDir: Uri.directory(join(thirdPartyDir, 'jar')),
       ),
-      backend: backend ?? (useAsm ? SummarizerBackend.asm : null),
+      backend: backend,
     ),
     output: Output(
       dart: DartOutput(

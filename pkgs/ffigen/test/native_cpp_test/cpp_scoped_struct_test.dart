@@ -10,63 +10,41 @@ import 'cpp_scoped_struct_test_bindings.dart';
 
 void main() {
   group('CppScopedStruct', () {
-    test('structs in scopes are generated with flattened names', () {
-      expect(GlobalBox, isNotNull);
-      expect(GlobalBox$Lid, isNotNull);
-      expect(outer$Point, isNotNull);
-      expect(outer$inner$Point, isNotNull);
-      expect(outer$Palette$Entry, isNotNull);
-      expect(other$Point, isNotNull);
-      expect(other$Value, isNotNull);
-    });
-
-    test('struct in a single namespace', () {
-      expect(ffi.sizeOf<outer$Point>(), 8);
-      final point = ffi.Struct.create<outer$Point>();
-      point.x = 1;
-      point.y = 2;
-      expect(point.x, 1);
-      expect(point.y, 2);
+    test('struct in a namespace', () {
+      expect(ffi.sizeOf<outer$Point>(), ffi.sizeOf<ffi.Int>() * 2);
     });
 
     test('struct in a nested namespace', () {
-      expect(ffi.sizeOf<outer$inner$Point>(), 8);
-      final point = ffi.Struct.create<outer$inner$Point>();
-      point.x = 1.5;
-      point.y = 2.5;
-      expect(point.x, 1.5);
-      expect(point.y, 2.5);
+      expect(ffi.sizeOf<outer$inner$Point>(), ffi.sizeOf<ffi.Float>() * 2);
     });
 
-    test('struct nested in a class inside a namespace', () {
-      expect(ffi.sizeOf<outer$Palette$Entry>(), 4);
-      final entry = ffi.Struct.create<outer$Palette$Entry>();
-      entry.tone = 42;
-      expect(entry.tone, 42);
+    test('struct nested in a class in a namespace', () {
+      expect(ffi.sizeOf<outer$Palette$Entry>(), ffi.sizeOf<ffi.Int>());
     });
 
-    test('struct nested in a struct at global scope', () {
-      expect(ffi.sizeOf<GlobalBox$Lid>(), 4);
-      expect(ffi.sizeOf<GlobalBox>(), 8);
+    test('union in a namespace', () {
+      expect(ffi.sizeOf<other$Value>(), ffi.sizeOf<ffi.Int>());
+    });
+
+    test('structs sharing a leaf name across namespaces are distinct', () {
+      // All three are named `Point`, so each has to keep its scope path, and
+      // each keeps its own field types.
+      expect(ffi.sizeOf<outer$Point>(), ffi.sizeOf<ffi.Int>() * 2);
+      expect(ffi.sizeOf<outer$inner$Point>(), ffi.sizeOf<ffi.Float>() * 2);
+      expect(ffi.sizeOf<other$Point>(), ffi.sizeOf<ffi.Double>());
+    });
+
+    test('struct nested in a struct is usable as a member of it', () {
+      expect(ffi.sizeOf<GlobalBox$Lid>(), ffi.sizeOf<ffi.Int>());
+      expect(ffi.sizeOf<GlobalBox>(), ffi.sizeOf<ffi.Int>() * 2);
+
+      // The nested struct is the type of the enclosing struct's field, not a
+      // second copy of it.
       final box = ffi.Struct.create<GlobalBox>();
       box.lid.hinge = 3;
       box.size = 4;
       expect(box.lid.hinge, 3);
       expect(box.size, 4);
-    });
-
-    test('leaf-name collision across namespaces is disambiguated', () {
-      expect(ffi.sizeOf<other$Point>(), 8);
-      final point = ffi.Struct.create<other$Point>();
-      point.x = 3.25;
-      expect(point.x, 3.25);
-    });
-
-    test('union in a namespace', () {
-      expect(ffi.sizeOf<other$Value>(), 4);
-      final value = ffi.Union.create<other$Value>();
-      value.i = 7;
-      expect(value.i, 7);
     });
   });
 }

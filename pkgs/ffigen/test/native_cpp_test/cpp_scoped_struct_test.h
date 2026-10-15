@@ -2,6 +2,9 @@
 // for details. All rights reserved. Use of this source code is governed by a
 // BSD-style license that can be found in the LICENSE file.
 
+// Structs and unions declared inside a namespace or a record are named by
+// their enclosing scopes, flattened with `$` to form a Dart identifier.
+
 namespace outer {
 // Struct in a single namespace.
 struct Point {

@@ -152,14 +152,16 @@ Type getCodeGenType(
       return BooleanType();
     case clang_types.CXTypeKind.CXType_Attributed:
     case clang_types.CXTypeKind.CXType_Unexposed:
-      // For attributed types, the modified type is the underlying type. Other
-      // unexposed types (e.g. a C++ type referenced through a
-      // using-declaration, like `std::uint16_t`) have no modified type;
-      // resolve those via their canonical type instead.
+      // Attributed types carry the type they modify; other unexposed types
+      // (e.g. a using-declared C++ type) have none, so use the canonical type.
       var innerCxType = clang.clang_Type_getModifiedType(cxtype);
       if (innerCxType.kind == clang_types.CXTypeKind.CXType_Invalid) {
         final canonical = clang.clang_getCanonicalType(cxtype);
-        if (canonical.kind != cxtype.kind) innerCxType = canonical;
+        // Recursion guard: a type that is already canonical (e.g. a dependent
+        // template type) would otherwise resolve to itself forever.
+        if (clang.clang_equalTypes(canonical, cxtype) == 0) {
+          innerCxType = canonical;
+        }
       }
       final innerType = getCodeGenType(
         context,
@@ -182,7 +184,7 @@ Type getCodeGenType(
       final imported = context.config.importType(
         Declaration(usr: '', originalName: typeSpellKey),
       );
-      if (imported != null) return imported;
+      if (imported != null) return ImportedType.fromPublic(imported);
       if (cxTypeKindToImportedTypes.containsKey(typeSpellKey)) {
         return cxTypeKindToImportedTypes[typeSpellKey]!;
       } else {
@@ -203,10 +205,8 @@ Type? _createTypeFromCursor(
   final logger = context.logger;
   final config = context.config;
   final usr = cursor.usr();
-  final imported = context.config.importType(
-    Declaration(usr: usr, originalName: cursor.spelling()),
-  );
-  if (imported != null) return imported;
+  final imported = context.config.importType(cursor.declaration());
+  if (imported != null) return ImportedType.fromPublic(imported);
   switch (cxtype.kind) {
     case clang_types.CXTypeKind.CXType_Typedef:
       final spelling = clang.clang_getTypedefName(cxtype).toStringAndDispose();
@@ -219,7 +219,9 @@ Type? _createTypeFromCursor(
       final importedTypedef = context.config.importType(
         Declaration(usr: usr, originalName: spelling),
       );
-      if (importedTypedef != null) return importedTypedef;
+      if (importedTypedef != null) {
+        return ImportedType.fromPublic(importedTypedef);
+      }
       // Get name from supported typedef name.
       if (suportedTypedefToSuportedNativeType.containsKey(spelling)) {
         logger.fine('  Type Mapped from supported typedef');
@@ -278,49 +280,35 @@ Type? _extractfromRecord(
   final config = context.config;
   logger.fine('${_padding}_extractfromRecord: ${cursor.completeStringRepr()}');
 
-  final declSpelling = cursor.spelling();
   final cursorKind = clang.clang_getCursorKind(cursor);
+
+  final isClassOrStruct =
+      cursorKind == clang_types.CXCursorKind.CXCursor_ClassDecl ||
+      cursorKind == clang_types.CXCursorKind.CXCursor_StructDecl;
 
   if (config.cpp != null) {
     final seenCppClass = context.bindingsIndex.getSeenCppClass(cursor.usr());
-    if (seenCppClass != null) {
-      return seenCppClass;
-    }
-    if (cursorKind == clang_types.CXCursorKind.CXCursor_ClassDecl ||
-        cursorKind == clang_types.CXCursorKind.CXCursor_StructDecl) {
+    if (seenCppClass != null) return seenCppClass;
+
+    final hasDefinition =
+        clang.clang_Cursor_isNull(clang.clang_getCursorDefinition(cursor)) == 0;
+    final isPodType = clang.clang_isPODType(cxtype) == 1;
+    // Only non-POD records get the C++ class treatment; a POD record has a
+    // layout the plain struct parser models correctly, so it is parsed as a
+    // C struct below no matter which keyword declared it.
+    if (isClassOrStruct && hasDefinition && !isPodType) {
       final cppClass = parseClassDeclaration(context, cursor);
-      if (cppClass != null) {
-        return cppClass;
-      }
+      if (cppClass != null) return cppClass;
     }
   }
 
-  // Whatever the C++ class parser above did not take is handled like a
-  // struct: a `class` and a `struct` differ only in default access, and a
-  // class reached through a pointer is exactly as opaque as a
-  // definition-less struct. This is the path every class takes when C++
-  // support is off, and the one a class the C++ parser declined (an
-  // anonymous or unavailable one) takes when it is on. Without it such a
-  // class has no representation at all, and every function mentioning it is
-  // dropped from the bindings.
-  //
-  // This shares the caveat structs already have: members are read from the
-  // declaration's fields, so a polymorphic type's vtable pointer is not
-  // modeled and its size and field offsets are not to be relied on. Pointers
-  // to it, which is why a class reaches here at all, are unaffected.
-  if (cursorKind == clang_types.CXCursorKind.CXCursor_StructDecl ||
-      cursorKind == clang_types.CXCursorKind.CXCursor_ClassDecl) {
-    final imported = context.config.importType(
-      Declaration(usr: cursor.usr(), originalName: declSpelling),
-    );
-    if (imported != null) return imported;
-    return parseStructDeclaration(cursor, context);
-  } else if (cursorKind == clang_types.CXCursorKind.CXCursor_UnionDecl) {
-    final imported = context.config.importType(
-      Declaration(usr: cursor.usr(), originalName: declSpelling),
-    );
-    if (imported != null) return imported;
-    return parseUnionDeclaration(cursor, context);
+  final isUnion = cursorKind == clang_types.CXCursorKind.CXCursor_UnionDecl;
+  if (isClassOrStruct || isUnion) {
+    final imported = context.config.importType(cursor.declaration());
+    if (imported != null) return ImportedType.fromPublic(imported);
+    return isUnion
+        ? parseUnionDeclaration(cursor, context)
+        : parseStructDeclaration(cursor, context);
   }
 
   logger.fine(

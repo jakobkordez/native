@@ -1,4 +1,12 @@
-## 1.0.0-wip
+## 1.0.1
+
+- The YAML configuration format is deprecated and will be removed in a future release.
+- Report an empty entry under `classes` in the config file as a config error
+  instead of failing with a type error.
+- Generate links to method-specific Javadocs for Maven dependencies when
+  source Javadocs are unavailable.
+
+## 1.0.0
 
 - **Breaking Change**: Restructured Dart `Config` API to align with
   `package:ffigen`. The YAML format has not changed.

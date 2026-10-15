@@ -1,4 +1,41 @@
-## 22.0.0-wip
+## 23.0.0
+
+- The YAML configuration format is deprecated and will be removed in a future
+  release.
+- Added `Input.appendCompilerOptions` to allow appending custom compiler
+  options to default options instead of replacing them. Removed
+  `defaultCompilerOpts` from the public API, since it is now redundant and was
+  always a hack.
+- Remove internal details from the public API of `ImportedType`.
+- Default to C++17 compiler options when C++ bindings are enabled.
+- Preserve documentation comments on same-name typedefs when generating the
+  underlying type binding.
+- Fix [a bug](https://github.com/dart-lang/native/issues/3592) where functions
+  using pointers to a C++ class were skipped unless C++ support was configured:
+  `class` declarations are now treated like structs, and with C++ support on,
+  the C++ class wrapper vs. plain struct decision is made by POD-ness rather
+  than by the `class`/`struct` keyword.
+- Fix a bug where a C++ type named through a using-declaration (e.g.
+  `std::uint16_t`) was left unresolved, which dropped every function that
+  mentioned it from the bindings. Such types now resolve through their
+  canonical type.
+- Generate bindings for declarations inside C++ `extern "C" { ... }`
+  blocks, which were previously skipped entirely.
+- Generate bindings for C++ enums declared inside a namespace or a record.
+  Their Dart name is the scope path flattened with `$`, e.g.
+  `outer::inner::Color` becomes `outer$inner$Color`, and `originalName` is
+  the qualified C++ name, so a `Visitor` or `importType` can filter or rename
+  by it.
+- Generate bindings for C++ structs, classes and unions declared inside a
+  namespace or a record, named the same way. Scoped records are not yet
+  surfaced when C++ class support is enabled.
+- Allow `package:cli_util` versions `0.5.x` and `0.6.x`.
+- Fix a crash during code generation when a typedef refers to a function
+  pointer with an unsupported parameter type (e.g. a C++ reference). Such
+  typedefs are now skipped like other unsupported typedefs, so struct members
+  and functions using them are dropped instead of crashing the writer.
+
+## 22.0.0
 
 - __Breaking change__: Major overhaul of Dart config API:
   - Replace various callback based config elements with a `Visitor` pattern.
@@ -21,6 +58,9 @@
       `TypealiasInclude` enum (`never`, `ifUsed`, `always`).
   - Consolidate `imported` fields and `importedTypesByUsr` into
     `FfiGenerator.importType`, switching it to a callback pattern
+  - Add `importFromSymbolFile` and `importFromSymbolFiles` utils, which load
+    symbol YAML files, and return functions that can be passed directly to
+    `FfiGenerator.importType`.
   - Replace `Output.dartFile` with `DartOutput`, to prepare for upcoming
     [multi-file output format](https://github.com/dart-lang/native/issues/2683).
   - Deleted many now empty sub-config classes

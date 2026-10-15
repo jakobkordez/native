@@ -1,3 +1,7 @@
+## 1.1.2-wip
+
+- Track header dependencies in the native code test project.
+
 ## 1.1.1
 
 - Fix quadratic deserialization performance and index corruption in

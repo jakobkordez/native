@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2021, the Dart project authors. Please see the AUTHORS file
+// Copyright (c) 2021, the Dart project authors. Please see the AUTHORS file
 // for details. All rights reserved. Use of this source code is governed by a
 // BSD-style license that can be found in the LICENSE file.
 
@@ -8,8 +8,15 @@ import '../../context.dart';
 import '../clang_bindings/clang_bindings.dart' as clang_types;
 import '../utils.dart';
 
-/// Parses a global variable
-Binding? parseVarDeclaration(Context context, clang_types.CXCursor cursor) {
+/// Parses a global variable.
+///
+/// When [nested], the variable is declared in a C++ namespace or record, and
+/// is only bound if it has a constant value.
+Binding? parseVarDeclaration(
+  Context context,
+  clang_types.CXCursor cursor, {
+  bool nested = false,
+}) {
   final logger = context.logger;
   final config = context.config;
   final nativeOutputStyle = config.output.style is NativeExternalBindings;
@@ -24,7 +31,7 @@ Binding? parseVarDeclaration(Context context, clang_types.CXCursor cursor) {
   // For C++ variables (and static data members) declared inside one or more
   // scopes, [qualifiedName] is the fully-qualified name (e.g. `ns::nsVar` or
   // `Box::member`). At file scope it equals [name].
-  final qualifiedName = qualifiedVarNameFromUsr(usr, name);
+  final qualifiedName = qualifiedNameFromCursor(cursor, name);
 
   // C++ scope separators are not valid in Dart identifiers, so flatten the
   // scope path into a single name joined by `$`, e.g. `ns::nsVar` becomes
@@ -58,6 +65,17 @@ Binding? parseVarDeclaration(Context context, clang_types.CXCursor cursor) {
         break;
     }
     clang.clang_EvalResult_dispose(evalResult);
+  }
+
+  // A nested variable without a constant value would be looked up by its
+  // qualified name, which is not its (mangled) symbol name.
+  // TODO(https://github.com/dart-lang/native/issues/3667): Bind these too.
+  if (nested && constantValue == null) {
+    logger.fine(
+      '---- Removed Global, reason: nested non-constant: '
+      '${cursor.completeStringRepr()}',
+    );
+    return null;
   }
 
   logger.fine('++++ Adding Global: ${cursor.completeStringRepr()}');
