@@ -9,6 +9,7 @@ export 'code_generator/binding.dart';
 export 'code_generator/compound.dart';
 export 'code_generator/constant.dart';
 export 'code_generator/cpp_class.dart';
+export 'code_generator/cpp_std_string.dart';
 export 'code_generator/enum_class.dart';
 export 'code_generator/func.dart';
 export 'code_generator/func_type.dart';

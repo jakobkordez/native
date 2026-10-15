@@ -147,6 +147,7 @@ void _parseAnyMethod(
   ) = parseParameters(
     context,
     cursor,
+    cppGlue: true,
   );
   if (hasIncompleteStruct || hasUnimplementedType) {
     logger.fine(
@@ -157,7 +158,7 @@ void _parseAnyMethod(
 
   final returnType = clang
       .clang_getCursorResultType(cursor)
-      .toCodeGenType(context);
+      .toCodeGenType(context, cppGlue: true);
   if (returnType.baseType is UnimplementedType) {
     logger.fine(
       '  ---- Skipping method $methodName due to unsupported return type',

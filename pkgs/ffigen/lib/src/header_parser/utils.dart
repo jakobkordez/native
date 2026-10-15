@@ -152,8 +152,15 @@ extension CXCursorExt on clang_types.CXCursor {
   }
 
   /// Get code_gen [Type] representation of [clang_types.CXType].
-  Type toCodeGenType(Context context) {
-    return getCodeGenType(context, type(), originalCursor: this);
+  ///
+  /// See [getCodeGenType] for [cppGlue].
+  Type toCodeGenType(Context context, {bool cppGlue = false}) {
+    return getCodeGenType(
+      context,
+      type(),
+      originalCursor: this,
+      cppGlue: cppGlue,
+    );
   }
 
   /// for debug: returns [spelling] [kind] [kindSpelling] type typeSpelling.
@@ -414,11 +421,16 @@ String? removeRawCommentMarkups(String? string) {
 
 extension CXTypeExt on clang_types.CXType {
   /// Get code_gen [Type] representation of [clang_types.CXType].
-  Type toCodeGenType(Context context, {bool supportNonInlineArray = false}) {
+  Type toCodeGenType(
+    Context context, {
+    bool supportNonInlineArray = false,
+    bool cppGlue = false,
+  }) {
     return getCodeGenType(
       context,
       this,
       supportNonInlineArray: supportNonInlineArray,
+      cppGlue: cppGlue,
     );
   }
 

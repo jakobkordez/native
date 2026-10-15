@@ -26,6 +26,10 @@ const _padding = '  ';
 const maxRecursionDepth = 5;
 
 /// Converts cxtype to a typestring code_generator can accept.
+///
+/// [cppGlue] is whether [cxtype] is a parameter or return type of a C++ method
+/// or constructor. Those are called through generated C++ glue, which can
+/// convert some types, like `std::string`, that are unsupported elsewhere.
 Type getCodeGenType(
   Context context,
   clang_types.CXType cxtype, {
@@ -34,10 +38,18 @@ Type getCodeGenType(
   /// parameter names in function types.
   clang_types.CXCursor? originalCursor,
   bool supportNonInlineArray = false,
+  bool cppGlue = false,
 }) {
   context.logger.fine(
     '${_padding}getCodeGenType ${cxtype.completeStringRepr()}',
   );
+
+  // This sees through type sugar by itself, so it comes before the elaborated
+  // types are unwrapped.
+  if (context.config.cpp != null) {
+    final stdString = _extractStdString(context, cxtype, cppGlue: cppGlue);
+    if (stdString != null) return stdString;
+  }
 
   // Special case: Elaborated types just refer to another type.
   if (cxtype.kind == clang_types.CXTypeKind.CXType_Elaborated) {
@@ -351,6 +363,70 @@ Type _extractUniquePtrType(
   return UnimplementedType(
     'unique_ptr inner type is not a supported C++ class',
   );
+}
+
+/// Returns the type for [cxtype] if it is a `std::string` or a reference to
+/// one, or null otherwise.
+///
+/// The check is on the canonical type, so it also covers aliases of
+/// `std::string`, like `using Name = std::string;`.
+Type? _extractStdString(
+  Context context,
+  clang_types.CXType cxtype, {
+  required bool cppGlue,
+}) {
+  final isLValueReference =
+      cxtype.kind == clang_types.CXTypeKind.CXType_LValueReference;
+  final isReference =
+      isLValueReference ||
+      cxtype.kind == clang_types.CXTypeKind.CXType_RValueReference;
+  final stringType = clang.clang_getCanonicalType(
+    isReference ? clang.clang_getPointeeType(cxtype) : cxtype,
+  );
+  if (!_isStdString(stringType)) return null;
+
+  if (!cppGlue) {
+    return UnimplementedType(
+      'std::string is only supported by C++ methods and constructors',
+    );
+  }
+  // The callee could modify the string through a mutable reference, which
+  // would not be reflected in the Dart String.
+  if (isLValueReference && !stringType.isConstQualified) {
+    return UnimplementedType('Mutable reference to std::string');
+  }
+  return context.cppStdStringType;
+}
+
+/// Whether the canonical type [cxtype] is `std::string`, that is,
+/// `std::basic_string<char, std::char_traits<char>, std::allocator<char>>`.
+bool _isStdString(clang_types.CXType cxtype) {
+  if (cxtype.kind != clang_types.CXTypeKind.CXType_Record ||
+      clang.clang_Type_getNumTemplateArguments(cxtype) != 3) {
+    return false;
+  }
+  bool isStdDecl(clang_types.CXType type, String name) {
+    final decl = clang.clang_getTypeDeclaration(type);
+    // Standard libraries declare these in an inline namespace inside `std`,
+    // like `std::__1` (libc++) or `std::__cxx11` (libstdc++), or in `std`
+    // itself (MSVC).
+    return decl.spelling() == name && decl.usr().startsWith('c:@N@std@');
+  }
+
+  final charType = clang.clang_Type_getTemplateArgumentAsType(cxtype, 0);
+  final isChar =
+      charType.kind == clang_types.CXTypeKind.CXType_Char_S ||
+      charType.kind == clang_types.CXTypeKind.CXType_Char_U;
+  return isChar &&
+      isStdDecl(cxtype, 'basic_string') &&
+      isStdDecl(
+        clang.clang_Type_getTemplateArgumentAsType(cxtype, 1),
+        'char_traits',
+      ) &&
+      isStdDecl(
+        clang.clang_Type_getTemplateArgumentAsType(cxtype, 2),
+        'allocator',
+      );
 }
 
 // Used for function pointer arguments.

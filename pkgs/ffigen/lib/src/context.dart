@@ -24,6 +24,7 @@ class Context {
   final savedMacros = <String, Macro>{};
   final unnamedEnumConstants = <UnnamedEnumConstant>[];
   late final ObjCBuiltInFunctions objCBuiltInFunctions;
+  late final cppStdStringType = CppStdStringType(this);
   bool hasSourceErrors = false;
   final reportedCommentRanges = <((String, int), (String, int))>{};
   final libs = LibraryImports();

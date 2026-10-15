@@ -284,10 +284,14 @@ class $name implements $implementsClause {
           )
           .join(', ');
 
+      final body = localVars.wrapWithCleanups(
+        'return $name.fromPointer($privateName($callArgs), '
+        'takeOwnership: true);',
+      );
       s.write('''
   factory $name($dartParams) {
     ${localVars.generateDeclarations()}
-    return $name.fromPointer($privateName($callArgs), takeOwnership: true);
+    $body
   }
 ''');
     }
@@ -319,7 +323,9 @@ class $name implements $implementsClause {
       );
 
       final hasReturn = method.returnType != voidType;
-      final callLine = hasReturn ? 'return $returnExpr;' : '$returnExpr;';
+      final callLine = localVars.wrapWithCleanups(
+        hasReturn ? 'return $returnExpr;' : '$returnExpr;',
+      );
 
       if (method.isStatic) {
         s.write('''\

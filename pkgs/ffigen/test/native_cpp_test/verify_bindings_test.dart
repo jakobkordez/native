@@ -18,6 +18,7 @@ import 'cpp_namespace_enum_config.dart' as cpp_namespace_enum_config;
 import 'cpp_opaque_class_config.dart' as cpp_opaque_class_config;
 import 'cpp_pod_config.dart' as cpp_pod_config;
 import 'cpp_scoped_struct_config.dart' as cpp_scoped_struct_config;
+import 'cpp_std_string_config.dart' as cpp_std_string_config;
 import 'memory_edge_cases_config.dart' as memory_edge_cases_config;
 import 'util.dart';
 
@@ -51,6 +52,7 @@ void main() {
       'cpp_namespace_enum': cpp_namespace_enum_config.getConfig(packageRoot),
       'cpp_opaque_class': cpp_opaque_class_config.getConfig(packageRoot),
       'cpp_scoped_struct': cpp_scoped_struct_config.getConfig(packageRoot),
+      'cpp_std_string': cpp_std_string_config.getConfig(packageRoot),
     };
 
     for (final testFile in testFiles) {

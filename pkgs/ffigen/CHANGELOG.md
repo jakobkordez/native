@@ -1,3 +1,11 @@
+## 23.1.0-wip
+
+- Support `std::string` in the parameters and return types of C++ methods and
+  constructors, passed by value, by const reference or by rvalue reference.
+  Dart code sees them as `String`s, converted to and from the `std::string` as
+  UTF-8 by the generated C++ glue. Free functions, mutable references and
+  pointers to `std::string` are still unsupported.
+
 ## 23.0.0
 
 - The YAML configuration format is deprecated and will be removed in a future

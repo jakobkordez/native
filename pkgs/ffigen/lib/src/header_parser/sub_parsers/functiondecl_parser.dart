@@ -125,6 +125,7 @@ parseParameters(
   Context context,
   clang_types.CXCursor cursor, {
   String Function(String)? renameFn,
+  bool cppGlue = false,
 }) {
   final parameters = <Parameter>[];
   var incompleteStructParameter = false;
@@ -136,7 +137,7 @@ parseParameters(
     context.logger.finer(
       '===== parameter: ${paramCursor.completeStringRepr()}',
     );
-    final paramType = paramCursor.toCodeGenType(context);
+    final paramType = paramCursor.toCodeGenType(context, cppGlue: cppGlue);
     final spelling = paramCursor.spelling();
     if (paramType.isIncompleteCompound) {
       incompleteStructParameter = true;

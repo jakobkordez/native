@@ -142,6 +142,7 @@ class SelfImportedType extends Type {
 }
 
 const ffiImport = LibraryImport('ffi', 'dart:ffi');
+const convertImport = LibraryImport('convert', 'dart:convert');
 const ffiPkgImport = LibraryImport('pkg_ffi', 'package:ffi/ffi.dart');
 const metaImport = LibraryImport('meta', 'package:meta/meta.dart');
 const objcPkgImport = LibraryImport(
