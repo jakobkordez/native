@@ -30,19 +30,19 @@ FFIGEN_EXPORT int farm_Creature_getLegs(const farm::Creature* self) {
 }
 
 FFIGEN_EXPORT int farm_Creature_getAge(const farm::Creature* self) {
-  return self->getAge();
+  return static_cast<const zoo::Creature*>(self)->getAge();
 }
 
 FFIGEN_EXPORT void farm_Creature_setAge(farm::Creature* self, int age) {
-  self->setAge(age);
+  static_cast<zoo::Creature*>(self)->setAge(age);
 }
 
 FFIGEN_EXPORT zoo::Position farm_Creature_getPosition(const farm::Creature* self) {
-  return self->getPosition();
+  return static_cast<const zoo::Creature*>(self)->getPosition();
 }
 
 FFIGEN_EXPORT void farm_Creature_moveTo(farm::Creature* self, zoo::Position position) {
-  self->moveTo(position);
+  static_cast<zoo::Creature*>(self)->moveTo(position);
 }
 
 FFIGEN_EXPORT int farm_Creature_sum(int a, int b) {
@@ -50,7 +50,7 @@ FFIGEN_EXPORT int farm_Creature_sum(int a, int b) {
 }
 
 FFIGEN_EXPORT zoo::Creature* farm_Creature_olderBy(const farm::Creature* self, int years) {
-  return new zoo::Creature(self->olderBy(years));
+  return new zoo::Creature(static_cast<const zoo::Creature*>(self)->olderBy(years));
 }
 
 FFIGEN_EXPORT zoo::Creature* farm_Creature_create(int age) {
@@ -106,19 +106,19 @@ FFIGEN_EXPORT int zoo_Dog_bark(const zoo::Dog* self) {
 }
 
 FFIGEN_EXPORT int zoo_Dog_getAge(const zoo::Dog* self) {
-  return self->getAge();
+  return static_cast<const zoo::Creature*>(self)->getAge();
 }
 
 FFIGEN_EXPORT void zoo_Dog_setAge(zoo::Dog* self, int age) {
-  self->setAge(age);
+  static_cast<zoo::Creature*>(self)->setAge(age);
 }
 
 FFIGEN_EXPORT zoo::Position zoo_Dog_getPosition(const zoo::Dog* self) {
-  return self->getPosition();
+  return static_cast<const zoo::Creature*>(self)->getPosition();
 }
 
 FFIGEN_EXPORT void zoo_Dog_moveTo(zoo::Dog* self, zoo::Position position) {
-  self->moveTo(position);
+  static_cast<zoo::Creature*>(self)->moveTo(position);
 }
 
 FFIGEN_EXPORT int zoo_Dog_sum(int a, int b) {
@@ -126,7 +126,7 @@ FFIGEN_EXPORT int zoo_Dog_sum(int a, int b) {
 }
 
 FFIGEN_EXPORT zoo::Creature* zoo_Dog_olderBy(const zoo::Dog* self, int years) {
-  return new zoo::Creature(self->olderBy(years));
+  return new zoo::Creature(static_cast<const zoo::Creature*>(self)->olderBy(years));
 }
 
 FFIGEN_EXPORT zoo::Creature* zoo_Dog_create(int age) {

@@ -149,6 +149,14 @@ void _parseAnyMethod(
 ) {
   final logger = context.logger;
   final methodName = cursor.spelling();
+  final dartName = _dartMethodName(
+    methodName,
+    clang.clang_Cursor_getNumArguments(cursor),
+  );
+  if (dartName == null) {
+    logger.fine('  ---- Skipping unsupported operator $methodName');
+    return;
+  }
   final isStatic =
       kind == CppMethodKind.constructor ||
       clang.clang_CXXMethod_isStatic(cursor) != 0;
@@ -173,9 +181,8 @@ void _parseAnyMethod(
     return;
   }
 
-  final returnType = clang
-      .clang_getCursorResultType(cursor)
-      .toCodeGenType(context, cppGlue: true);
+  final cxReturnType = clang.clang_getCursorResultType(cursor);
+  final returnType = cxReturnType.toCodeGenType(context, cppGlue: true);
   if (returnType.baseType is UnimplementedType) {
     logger.fine(
       '  ---- Skipping method $methodName due to unsupported return type',
@@ -188,23 +195,124 @@ void _parseAnyMethod(
     return;
   }
 
-  final prefix = cppClass.cSymbolPrefix;
-  final symbol = switch (kind) {
-    CppMethodKind.constructor => '${prefix}_new',
-    CppMethodKind.method => '${prefix}_$methodName',
+  // NameCppMethodsVisitation picks the final names, once all the overloads
+  // are known.
+  final name = switch (kind) {
+    CppMethodKind.constructor => '',
+    CppMethodKind.method => dartName,
   };
 
   logger.fine('  ++++ ${kind.name}: $methodName (const=$isConst)');
   cppClass.methods.add(
     CppMethod(
-      name: Symbol(methodName, SymbolKind.method),
-      cBindingSymbol: Symbol(symbol, SymbolKind.method),
+      name: Symbol(name, SymbolKind.method),
+      cBindingSymbol: Symbol(
+        '${cppClass.cSymbolPrefix}_${name.isEmpty ? 'new' : name}',
+        SymbolKind.method,
+      ),
       originalName: methodName,
       returnType: returnType,
       parameters: parameters,
       isConstant: isConst,
       isStatic: isStatic,
       kind: kind,
+      returnsPointerToConst: _isPointerToConst(cxReturnType),
     ),
   );
 }
+
+/// Whether [type] is a pointer to const at any level, like `const T*` or
+/// `T* const*`.
+bool _isPointerToConst(clang_types.CXType type) {
+  for (
+    var t = clang.clang_getCanonicalType(type);
+    t.kind == clang_types.CXTypeKind.CXType_Pointer;
+    t = clang.clang_getPointeeType(t)
+  ) {
+    if (clang.clang_getPointeeType(t).isConstQualified) return true;
+  }
+  return false;
+}
+
+/// The Dart name of the C++ method [spelling], which takes [numParams]
+/// parameters, or null if it's an operator that isn't supported.
+///
+/// An operator can't keep its C++ name, like `operator==`, so it's named after
+/// the operation instead, like `operatorEqual`.
+String? _dartMethodName(String spelling, int numParams) {
+  final match = _operatorPattern.matchAsPrefix(spelling);
+  if (match == null) return spelling;
+  final op = match[1]!;
+  final name =
+      switch (numParams) {
+        0 => _unaryOperatorNames[op],
+        1 => _postfixOperatorNames[op],
+        _ => null,
+      } ??
+      _operatorNames[op];
+  return name == null ? null : 'operator$name';
+}
+
+/// Matches `operator==`, `operator new` etc, but not a method that's merely
+/// named starting with "operator", like `operators`.
+final _operatorPattern = RegExp(r'operator(?![\w$])\s*(.*)');
+
+/// The names of the C++ operators that can be bound, after the `operator`
+/// prefix.
+///
+/// The allocation operators (`new`, `delete`, `new[]` and `delete[]`) and
+/// `co_await` are left out.
+const _operatorNames = {
+  '+': 'Plus',
+  '-': 'Minus',
+  '*': 'Multiply',
+  '/': 'Divide',
+  '%': 'Modulo',
+  '^': 'BitwiseXor',
+  '&': 'BitwiseAnd',
+  '|': 'BitwiseOr',
+  '~': 'BitwiseNot',
+  '!': 'LogicalNot',
+  '&&': 'LogicalAnd',
+  '||': 'LogicalOr',
+  '<<': 'ShiftLeft',
+  '>>': 'ShiftRight',
+  '==': 'Equal',
+  '!=': 'NotEqual',
+  '<': 'Less',
+  '<=': 'LessEqual',
+  '>': 'Greater',
+  '>=': 'GreaterEqual',
+  '<=>': 'Compare',
+  '=': 'Assign',
+  '+=': 'PlusAssign',
+  '-=': 'MinusAssign',
+  '*=': 'MultiplyAssign',
+  '/=': 'DivideAssign',
+  '%=': 'ModuloAssign',
+  '^=': 'BitwiseXorAssign',
+  '&=': 'BitwiseAndAssign',
+  '|=': 'BitwiseOrAssign',
+  '<<=': 'ShiftLeftAssign',
+  '>>=': 'ShiftRightAssign',
+  '++': 'Increment',
+  '--': 'Decrement',
+  ',': 'Comma',
+  '->': 'Arrow',
+  '->*': 'ArrowStar',
+  '()': 'Call',
+  '[]': 'Subscript',
+};
+
+/// The names of operators that are unary when they take no parameters, and
+/// binary otherwise.
+const _unaryOperatorNames = {
+  '+': 'UnaryPlus',
+  '-': 'Negate',
+  '*': 'Dereference',
+  '&': 'AddressOf',
+};
+
+/// The names of the postfix increment and decrement operators, which take a
+/// dummy `int` parameter to tell them apart from the prefix ones.
+const _postfixOperatorNames = {'++': 'PostIncrement', '--': 'PostDecrement'};

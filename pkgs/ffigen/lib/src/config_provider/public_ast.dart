@@ -604,6 +604,14 @@ class CppMethod extends NamedNode {
   @override
   String get originalName => _method.originalName;
 
+  /// The Dart name of this method.
+  ///
+  /// For a constructor, this is the name of the Dart constructor, and an empty
+  /// name means the unnamed constructor.
+  ///
+  /// A method that overrides, or is inherited from, a method of the parent's
+  /// first base class shares its name with that method, so renaming one
+  /// renames both. Otherwise the Dart class wouldn't implement its base.
   @override
   String get name => _method.name.oldName;
 

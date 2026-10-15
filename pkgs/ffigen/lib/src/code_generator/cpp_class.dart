@@ -17,7 +17,15 @@ enum CppMethodKind { constructor, method }
 
 /// A method or constructor belonging to a C++ class.
 class CppMethod extends AstNode with HasLocalScope {
-  final Symbol name;
+  /// The Dart name of this method.
+  ///
+  /// For a constructor, this is the name of the Dart constructor, and an empty
+  /// name means the unnamed constructor.
+  ///
+  /// A method that overrides, or was copied from, a method of the class's
+  /// first base class shares that method's [Symbol], so both get the same
+  /// name. See `NameCppMethodsVisitation`.
+  Symbol name;
   final Symbol cBindingSymbol;
   final String originalName;
 
@@ -26,7 +34,15 @@ class CppMethod extends AstNode with HasLocalScope {
   final bool isConstant;
   final bool isStatic;
   final CppMethodKind kind;
+
+  /// The base class that declares this method, if it was copied from a base.
   final CppClass? originatingClass;
+
+  /// Whether the C++ return type is a pointer to const, like `const T*`.
+  ///
+  /// The glue function returns a pointer to non-const, because Dart has no
+  /// notion of const, so it has to cast the const away.
+  final bool returnsPointerToConst;
 
   bool isIncluded = true;
 
@@ -40,15 +56,18 @@ class CppMethod extends AstNode with HasLocalScope {
     this.isStatic = false,
     this.kind = CppMethodKind.method,
     this.originatingClass,
+    this.returnsPointerToConst = false,
   });
 
   bool get isConstructor => kind == .constructor;
+
+  bool get isUnnamedConstructor => isConstructor && name.oldName.isEmpty;
 
   CppMethod cloneForClass(CppClass targetClass, CppClass baseClass) {
     return CppMethod(
       name: name.clone(),
       cBindingSymbol: Symbol(
-        '${targetClass.cSymbolPrefix}_$originalName',
+        '${targetClass.cSymbolPrefix}_${name.oldName}',
         SymbolKind.method,
       ),
       originalName: originalName,
@@ -57,15 +76,26 @@ class CppMethod extends AstNode with HasLocalScope {
       isConstant: isConstant,
       isStatic: isStatic,
       kind: kind,
-      originatingClass: baseClass,
+      originatingClass: originatingClass ?? baseClass,
+      returnsPointerToConst: returnsPointerToConst,
     );
   }
 
-  String signatureKey() {
+  String _overloadKey() {
     final paramTypes = parameters.map((p) => p.type.cacheKey()).join(',');
-    final constSuffix = isConstant ? ' const' : '';
-    return '$originalName($paramTypes)$constSuffix';
+    return '$originalName($paramTypes)';
   }
+
+  String signatureKey() => '${_overloadKey()}${isConstant ? ' const' : ''}';
+
+  /// Whether this is the const overload of [other], which is otherwise the
+  /// same method.
+  bool isConstTwinOf(CppMethod other) =>
+      isConstant &&
+      !other.isConstant &&
+      !isStatic &&
+      !other.isStatic &&
+      _overloadKey() == other._overloadKey();
 
   @override
   void visit(Visitation visitation) => visitation.visitCppMethod(this);
@@ -275,6 +305,7 @@ class $name implements $implementsClause {
     for (final ctor in constructors) {
       final glueName = ctor.cBindingSymbol.name;
       final privateName = '_$glueName';
+      final ctorName = ctor.isUnnamedConstructor ? name : '$name.${ctor.name}';
 
       final dartParams = dartParamList(ctor.parameters);
       final localVars = LocalVariables(ctor.localScope);
@@ -296,7 +327,7 @@ class $name implements $implementsClause {
         'takeOwnership: true);',
       );
       s.write('''
-  factory $name($dartParams) {
+  factory $ctorName($dartParams) {
     ${localVars.generateDeclarations()}
     $body
   }
@@ -482,15 +513,26 @@ FFIGEN_EXPORT void ${Namer.cSafeName('${name}_delete')}($originalName* self) {
               final constPrefix = method.isConstant ? 'const ' : '';
               final selfType = '$constPrefix$originalName';
               params = ['$selfType* self', ...otherParams].join(', ');
+              // A method of the same name declared in this class would hide
+              // a method copied from a base class, so call the copied method
+              // through a pointer to the base.
+              final receiver = switch (method.originatingClass) {
+                final base? =>
+                  'static_cast<$constPrefix${base.originalName}*>(self)',
+                null => 'self',
+              };
               final methodName = method.originalName;
-              callExpr = 'self->$methodName($callArgs)';
+              callExpr = '$receiver->$methodName($callArgs)';
             }
 
             if (method.returnType == voidType) {
               body = '$callExpr;';
             } else {
+              final result = method.returnsPointerToConst
+                  ? 'const_cast<$returnTypeString>($callExpr)'
+                  : callExpr;
               final returnExpr = method.returnType
-                  .convertNativeTypeToExternCType(context, callExpr);
+                  .convertNativeTypeToExternCType(context, result);
               body = 'return $returnExpr;';
             }
           }

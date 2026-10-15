@@ -12,6 +12,24 @@
   prefixed with the scope path joined by `_`, e.g. `zoo_Keeper_Badge_new`.
   Classes nested in a private or protected section of another class are
   skipped, since the glue can't name them.
+- Support overloaded C++ methods and constructors. Overloads after the first
+  get a `$1`, `$2`, etc suffix, in declaration order, and constructors after
+  the first become named constructors `new$1`, `new$2`, etc. A const method
+  that has a non-const overload with the same parameters, like
+  `properties() const` next to `properties()`, gets a `Const` suffix instead,
+  so the plain name calls the non-const overload. A method that overrides, or
+  is inherited from, a base class method keeps the base method's name. For the
+  first base class, renaming one of them in a visitor renames both.
+- Generate bindings for C++ operator methods, named after the operation, e.g.
+  `operator==` becomes `operatorEqual`, `operator[]` becomes
+  `operatorSubscript` and `operator()` becomes `operatorCall`. Operators that
+  are unary or binary depending on their parameters get separate names, e.g.
+  `operatorNegate` and `operatorMinus` for `operator-`. The allocation
+  operators (`new`, `delete`, etc) are skipped.
+- Fix the C++ glue for methods returning a pointer to const, like
+  `const T* get() const`, which failed to compile.
+- Fix the C++ glue for inherited methods hidden by a method of the same name in
+  a subclass, which called the wrong overload or failed to compile.
 
 ## 23.0.0
 

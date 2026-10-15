@@ -27,6 +27,7 @@ import '../visitor/find_transitive_deps.dart';
 import '../visitor/fix_overridden_methods.dart';
 import '../visitor/list_bindings.dart';
 import '../visitor/mark_imports.dart';
+import '../visitor/name_cpp_methods.dart';
 import '../visitor/opaque_compounds.dart';
 import '../visitor/sorter.dart';
 import 'clang_bindings/clang_bindings.dart' as clang_types;
@@ -195,6 +196,7 @@ List<Binding> transformBindings(List<Binding> rawBindings, Context context) {
 
   visit(context, CopyTypealiasDocsVisitation(), almostAllBindings);
   visit(context, CopyMethodsFromSuperTypesVisitation(), almostAllBindings);
+  visit(context, NameCppMethodsVisitation(), almostAllBindings);
   visit(context, FixOverriddenMethodsVisitation(context), almostAllBindings);
 
   final publicNodes = almostAllBindings

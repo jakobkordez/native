@@ -17,6 +17,7 @@ import 'cpp_inheritance_config.dart' as cpp_inheritance_config;
 import 'cpp_namespace_class_config.dart' as cpp_namespace_class_config;
 import 'cpp_namespace_enum_config.dart' as cpp_namespace_enum_config;
 import 'cpp_opaque_class_config.dart' as cpp_opaque_class_config;
+import 'cpp_overload_config.dart' as cpp_overload_config;
 import 'cpp_pod_config.dart' as cpp_pod_config;
 import 'cpp_scoped_struct_config.dart' as cpp_scoped_struct_config;
 import 'cpp_std_string_config.dart' as cpp_std_string_config;
@@ -53,6 +54,7 @@ void main() {
       'cpp_namespace_class': cpp_namespace_class_config.getConfig(packageRoot),
       'cpp_namespace_enum': cpp_namespace_enum_config.getConfig(packageRoot),
       'cpp_opaque_class': cpp_opaque_class_config.getConfig(packageRoot),
+      'cpp_overload': cpp_overload_config.getConfig(packageRoot),
       'cpp_scoped_struct': cpp_scoped_struct_config.getConfig(packageRoot),
       'cpp_std_string': cpp_std_string_config.getConfig(packageRoot),
     };
