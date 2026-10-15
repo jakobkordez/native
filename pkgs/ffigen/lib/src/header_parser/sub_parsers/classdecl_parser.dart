@@ -4,7 +4,6 @@
 
 import '../../code_generator.dart';
 import '../../code_generator/scope.dart';
-import '../../config_provider/config_types.dart';
 import '../../context.dart';
 import '../clang_bindings/clang_bindings.dart' as clang_types;
 import '../utils.dart';
@@ -40,16 +39,22 @@ CppClass? parseClassDeclaration(Context context, clang_types.CXCursor cursor) {
     return null;
   }
 
-  final apiAvailability = ApiAvailability.fromCursor(cursor, context);
-  if (apiAvailability.availability == Availability.none) {
-    logger.info('Omitting deprecated C++ class $className');
+  final qualifiedName = qualifiedNameFromCursor(cursor, className);
+
+  if (!_isAccessible(cursor)) {
+    logger.fine('Skipping non-public nested C++ class $qualifiedName.');
     return null;
   }
 
-  final decl = Declaration(usr: usr, originalName: className);
+  final apiAvailability = ApiAvailability.fromCursor(cursor, context);
+  if (apiAvailability.availability == Availability.none) {
+    logger.info('Omitting deprecated C++ class $qualifiedName');
+    return null;
+  }
 
   logger.fine(
-    '++++ Adding C++ Class: Name: $className, ${cursor.completeStringRepr()}',
+    '++++ Adding C++ Class: Name: $qualifiedName, '
+    '${cursor.completeStringRepr()}',
   );
 
   final cppClass = CppClass(
@@ -59,8 +64,8 @@ CppClass? parseClassDeclaration(Context context, clang_types.CXCursor cursor) {
       cursor,
       availability: apiAvailability.dartDoc,
     ),
-    originalName: className,
-    name: className,
+    originalName: qualifiedName,
+    name: flattenQualifiedName(qualifiedName),
     context: context,
     methods: <CppMethod>[],
     fields: <CppMember>[],
@@ -72,21 +77,9 @@ CppClass? parseClassDeclaration(Context context, clang_types.CXCursor cursor) {
   cursor.visitChildren((child) {
     final kind = clang.clang_getCursorKind(child);
     if (kind == clang_types.CXCursorKind.CXCursor_CXXMethod) {
-      _parseAnyMethod(
-        context,
-        child,
-        decl,
-        cppClass.methods,
-        CppMethodKind.method,
-      );
+      _parseAnyMethod(context, child, cppClass, CppMethodKind.method);
     } else if (kind == clang_types.CXCursorKind.CXCursor_Constructor) {
-      _parseAnyMethod(
-        context,
-        child,
-        decl,
-        cppClass.methods,
-        CppMethodKind.constructor,
-      );
+      _parseAnyMethod(context, child, cppClass, CppMethodKind.constructor);
     }
   });
 
@@ -123,11 +116,35 @@ List<CppClass> _parsePublicBases(Context context, clang_types.CXCursor cursor) {
   return bases;
 }
 
+/// Whether the class at [cursor] can be named from outside of it, which the
+/// generated glue functions need to do.
+///
+/// A class nested in a private or protected section of another class can't be,
+/// and neither can anything nested in it.
+bool _isAccessible(clang_types.CXCursor cursor) {
+  for (
+    var c = cursor;
+    _isRecordKind(clang.clang_getCursorKind(c));
+    c = clang.clang_getCursorSemanticParent(c)
+  ) {
+    final access = clang.clang_getCXXAccessSpecifier(c);
+    if (access == clang_types.CX_CXXAccessSpecifier.CX_CXXPrivate ||
+        access == clang_types.CX_CXXAccessSpecifier.CX_CXXProtected) {
+      return false;
+    }
+  }
+  return true;
+}
+
+bool _isRecordKind(int kind) =>
+    kind == clang_types.CXCursorKind.CXCursor_ClassDecl ||
+    kind == clang_types.CXCursorKind.CXCursor_StructDecl ||
+    kind == clang_types.CXCursorKind.CXCursor_UnionDecl;
+
 void _parseAnyMethod(
   Context context,
   clang_types.CXCursor cursor,
-  Declaration classDecl,
-  List<CppMethod> methods,
+  CppClass cppClass,
   CppMethodKind kind,
 ) {
   final logger = context.logger;
@@ -171,14 +188,14 @@ void _parseAnyMethod(
     return;
   }
 
-  final className = classDecl.originalName;
+  final prefix = cppClass.cSymbolPrefix;
   final symbol = switch (kind) {
-    CppMethodKind.constructor => '${className}_new',
-    CppMethodKind.method => '${className}_$methodName',
+    CppMethodKind.constructor => '${prefix}_new',
+    CppMethodKind.method => '${prefix}_$methodName',
   };
 
   logger.fine('  ++++ ${kind.name}: $methodName (const=$isConst)');
-  methods.add(
+  cppClass.methods.add(
     CppMethod(
       name: Symbol(methodName, SymbolKind.method),
       cBindingSymbol: Symbol(symbol, SymbolKind.method),

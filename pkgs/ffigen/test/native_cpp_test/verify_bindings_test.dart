@@ -14,6 +14,7 @@ import 'cpp_constexpr_config.dart' as cpp_constexpr_config;
 import 'cpp_extern_c_config.dart' as cpp_extern_c_config;
 import 'cpp_filter_rename_config.dart' as cpp_filter_rename_config;
 import 'cpp_inheritance_config.dart' as cpp_inheritance_config;
+import 'cpp_namespace_class_config.dart' as cpp_namespace_class_config;
 import 'cpp_namespace_enum_config.dart' as cpp_namespace_enum_config;
 import 'cpp_opaque_class_config.dart' as cpp_opaque_class_config;
 import 'cpp_pod_config.dart' as cpp_pod_config;
@@ -49,6 +50,7 @@ void main() {
       'cpp_pod': cpp_pod_config.getConfig(packageRoot),
       'memory_edge_cases': memory_edge_cases_config.getConfig(packageRoot),
       'cpp_inheritance': cpp_inheritance_config.getConfig(packageRoot),
+      'cpp_namespace_class': cpp_namespace_class_config.getConfig(packageRoot),
       'cpp_namespace_enum': cpp_namespace_enum_config.getConfig(packageRoot),
       'cpp_opaque_class': cpp_opaque_class_config.getConfig(packageRoot),
       'cpp_scoped_struct': cpp_scoped_struct_config.getConfig(packageRoot),

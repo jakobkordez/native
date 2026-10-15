@@ -48,7 +48,7 @@ class CppMethod extends AstNode with HasLocalScope {
     return CppMethod(
       name: name.clone(),
       cBindingSymbol: Symbol(
-        '${targetClass.originalName}_$originalName',
+        '${targetClass.cSymbolPrefix}_$originalName',
         SymbolKind.method,
       ),
       originalName: originalName,
@@ -120,6 +120,13 @@ class CppClass extends BindingType with HasLocalScope {
     required this.fields,
     this.bases = const [],
   });
+
+  /// The prefix of the C glue functions generated for this class's methods.
+  ///
+  /// [originalName] is the qualified C++ name, so for a class declared inside
+  /// a namespace or a record the scope separators are replaced to form a C
+  /// identifier, e.g. `outer::Animal` becomes `outer_Animal`.
+  String get cSymbolPrefix => originalName.replaceAll('::', '_');
 
   @override
   public_ast.AstNode? toPublicAstNode() => public_ast.CppClass(this);
@@ -435,15 +442,17 @@ class $name implements $implementsClause {
     String paramDecl(Parameter p) =>
         p.type.getExternCType(context, varName: p.name).trim();
 
+    // The Dart side looks these functions up by their C-safe names, so define
+    // them under the same names.
     final deleteWrapper =
         '''
-FFIGEN_EXPORT void ${name}_delete($originalName* self) {
+FFIGEN_EXPORT void ${Namer.cSafeName('${name}_delete')}($originalName* self) {
   delete self;
 }''';
 
     final methodBindings = methods
         .map((method) {
-          final symbol = method.cBindingSymbol.name;
+          final symbol = Namer.cSafeName(method.cBindingSymbol.name);
 
           final returnTypeString = method.isConstructor
               ? '$originalName*'

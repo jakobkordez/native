@@ -57,7 +57,7 @@ Set<Binding> parseTranslationUnit(
           // A nested anonymous record is handled as a member of its parent
           // record, not as a binding of its own.
           final isAnonymous = clang.clang_Cursor_isAnonymous(cursor) != 0;
-          if (!nested || (!isAnonymous && _mayParseNestedCompound(context))) {
+          if (!nested || !isAnonymous) {
             addToBindings(bindings, _getCodeGenTypeFromCursor(context, cursor));
           }
           if (!isAnonymous) visitNested(cursor);
@@ -128,13 +128,6 @@ const _nestedDeclKinds = {
   clang_types.CXCursorKind.CXCursor_EnumDecl,
   clang_types.CXCursorKind.CXCursor_VarDecl,
 };
-
-/// Whether a nested record may be parsed.
-///
-/// With C++ class support on, records become `CppClass`es, which are still
-/// named by their leaf name alone, so scoped ones would collide. They are
-/// skipped until `CppClass` gets a qualified name.
-bool _mayParseNestedCompound(Context context) => context.config.cpp == null;
 
 /// Adds to binding if unseen and not null.
 void addToBindings(Set<Binding> bindings, Binding? b) {

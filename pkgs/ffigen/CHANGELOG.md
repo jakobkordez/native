@@ -5,6 +5,13 @@
   Dart code sees them as `String`s, converted to and from the `std::string` as
   UTF-8 by the generated C++ glue. Free functions, mutable references and
   pointers to `std::string` are still unsupported.
+- Generate C++ class bindings for classes declared inside a namespace or a
+  record. Like scoped structs and enums, their Dart name is the scope path
+  flattened with `$`, e.g. `zoo::Keeper::Badge` becomes `zoo$Keeper$Badge`,
+  and `originalName` is the qualified C++ name. Their C glue functions are
+  prefixed with the scope path joined by `_`, e.g. `zoo_Keeper_Badge_new`.
+  Classes nested in a private or protected section of another class are
+  skipped, since the glue can't name them.
 
 ## 23.0.0
 
