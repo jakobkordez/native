@@ -258,6 +258,9 @@ class ObjCObjectPointerWithProtocols extends ObjCObjectPointer {
 ///
 /// Returned pointers are unowned by default. The developer must call
 /// `retainOwnership()` explicitly  if ownership has been transferred.
+///
+/// A pointer returned by an instance method is borrowed from the object the
+/// method was called on. See [convertReturnedToDartType].
 class CppClassPointerType extends PointerType {
   final CppClass cppClass;
 
@@ -285,6 +288,8 @@ class CppClassPointerType extends PointerType {
   @override
   bool get sameDartAndFfiDartType => false;
 
+  // Throws if the object, or the object it's borrowed from, has been disposed,
+  // rather than passing a null or dangling pointer.
   @override
   String convertDartTypeToFfiDartType(
     Context context,
@@ -292,7 +297,7 @@ class CppClassPointerType extends PointerType {
     required bool objCRetain,
     required bool objCAutorelease,
     required LocalVariables localVariables,
-  }) => '$value._ptr';
+  }) => '$value._alivePtr';
 
   @override
   String convertFfiDartTypeToDartType(
@@ -301,6 +306,22 @@ class CppClassPointerType extends PointerType {
     required bool objCRetain,
     String? objCEnclosingClass,
   }) => '${cppClass.name}.fromPointer($value)';
+
+  /// Converts [value], which a C++ method returned, to a Dart object.
+  ///
+  /// [isOwnerAlive] is a tear-off of the `_isAlive` method of the Dart object
+  /// that the method was called on, or null for a static method. The returned
+  /// object borrows the pointer from that object: it keeps the object from
+  /// being garbage collected, and becomes unusable once the object is
+  /// disposed. It can still take ownership of the pointer, which ends the
+  /// borrow.
+  String convertReturnedToDartType(
+    Context context,
+    String value, {
+    required String? isOwnerAlive,
+  }) => isOwnerAlive == null
+      ? convertFfiDartTypeToDartType(context, value, objCRetain: false)
+      : '${cppClass.name}._borrowed($value, $isOwnerAlive)';
 
   @override
   String toString() => '${cppClass.name}*';
@@ -337,6 +358,14 @@ class CppUniquePtrType extends CppClassPointerType {
     String? objCEnclosingClass,
   }) => '${cppClass.name}.fromPointer($value, takeOwnership: true)';
 
+  // The caller owns a returned unique_ptr, so it isn't borrowed.
+  @override
+  String convertReturnedToDartType(
+    Context context,
+    String value, {
+    required String? isOwnerAlive,
+  }) => convertFfiDartTypeToDartType(context, value, objCRetain: false);
+
   @override
   bool get sameNativeAndExternCType => false;
 
@@ -353,4 +382,59 @@ class CppUniquePtrType extends CppClassPointerType {
 
   @override
   String cacheKey() => 'unique_ptr<${cppClass.cacheKey()}>';
+}
+
+/// An lvalue reference to a C++ class, like `T&` or `const T&`.
+///
+/// Only C++ methods and constructors can take or return one, because their
+/// glue passes it as a pointer.
+///
+/// A returned reference is borrowed, like a returned [CppClassPointerType],
+/// but the Dart object can never take ownership of it.
+class CppClassReferenceType extends CppClassPointerType {
+  /// Whether this is a reference to const, like `const T&`.
+  final bool isConst;
+
+  CppClassReferenceType(super.cppClass, {required this.isConst});
+
+  @override
+  String getNativeType(Context context, {String varName = ''}) =>
+      '${isConst ? 'const ' : ''}${cppClass.originalName}& $varName';
+
+  @override
+  String getExternCType(Context context, {String varName = ''}) =>
+      '${cppClass.originalName}* $varName';
+
+  @override
+  bool get sameNativeAndExternCType => false;
+
+  @override
+  String convertExternCTypeToNativeType(Context context, String value) =>
+      '*$value';
+
+  // std::addressof, because the class could overload the unary operator&.
+  @override
+  String convertNativeTypeToExternCType(Context context, String value) =>
+      'std::addressof($value)';
+
+  @override
+  String convertFfiDartTypeToDartType(
+    Context context,
+    String value, {
+    required bool objCRetain,
+    String? objCEnclosingClass,
+  }) => convertReturnedToDartType(context, value, isOwnerAlive: null);
+
+  @override
+  String convertReturnedToDartType(
+    Context context,
+    String value, {
+    required String? isOwnerAlive,
+  }) => '${cppClass.name}._borrowed($value, $isOwnerAlive, isReference: true)';
+
+  @override
+  String toString() => '${isConst ? 'const ' : ''}${cppClass.name}&';
+
+  @override
+  String cacheKey() => '${isConst ? 'const ' : ''}${cppClass.cacheKey()}&';
 }

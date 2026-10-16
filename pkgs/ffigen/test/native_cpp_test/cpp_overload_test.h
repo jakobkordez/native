@@ -56,8 +56,8 @@ class Experiment {
   virtual int32_t describe() const;
   virtual int32_t describe(int32_t detail) const;
 
-  // Operators. The ones taking or returning a reference to a class are
-  // skipped, since references to classes aren't supported.
+  // Operators. The ones returning a reference to a primitive are skipped,
+  // since only references to classes are supported.
   bool operator==(const Experiment& other) const;
   bool operator==(int32_t id) const;
   bool operator!=(const Experiment& other) const;

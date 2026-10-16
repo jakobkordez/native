@@ -68,8 +68,24 @@ void main() {
       expect(experiment.operatorCall(4), 12);
       expect(experiment.operatorCall$1(4, 1), 13);
       expect(experiment.operatorLogicalNot(), isFalse);
-      expect(experiment.operatorEqual(3), isTrue);
-      expect(experiment.operatorEqual(4), isFalse);
+      expect(experiment.operatorEqual$1(3), isTrue);
+      expect(experiment.operatorEqual$1(4), isFalse);
+
+      final same = lab$Experiment.new$1(3);
+      final larger = lab$Experiment.new$1(9);
+      expect(experiment.operatorEqual(same), isTrue);
+      expect(experiment.operatorNotEqual(larger), isTrue);
+      expect(experiment.operatorLess(larger), isTrue);
+
+      // Returns a reference to the receiver.
+      final assigned = same.operatorAssign(larger);
+      expect(assigned.getId(), 9);
+      expect(same.getId(), 9);
+      expect(assigned.dispose, throwsStateError);
+      same.operatorIncrement().operatorIncrement();
+      expect(same.getId(), 11);
+      same.dispose();
+      larger.dispose();
 
       final sum = experiment.operatorPlus(2);
       final difference = experiment.operatorMinus(2);

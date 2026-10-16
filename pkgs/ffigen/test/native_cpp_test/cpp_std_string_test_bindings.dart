@@ -25,7 +25,20 @@ class StringBox implements ffi.Finalizable {
   ffi.Pointer<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>?
   _activeFinalizerFn;
 
-  StringBox.fromPointer(this._ptr, {bool takeOwnership = false}) {
+  /// Whether the object that this one is borrowed from is still alive, or
+  /// null if this object isn't borrowed from another object.
+  ///
+  /// This is a tear-off of that object's [_isAlive], so it also keeps that
+  /// object, which owns the C++ object, from being garbage collected while
+  /// this one is reachable.
+  bool Function()? _isOwnerAlive;
+
+  /// Whether this object wraps a C++ reference, which it can't take
+  /// ownership of.
+  final bool _isReference;
+
+  StringBox.fromPointer(this._ptr, {bool takeOwnership = false})
+    : _isReference = false {
     if (takeOwnership) {
       _defaultFinalizer.attach(this, _ptr.cast(), detach: this);
       _activeFinalizer = _defaultFinalizer;
@@ -43,18 +56,25 @@ class StringBox implements ffi.Finalizable {
   ///
   /// Both [customFinalizer] and [customFinalizerFn] must be provided together.
   ///
-  /// Throws a [StateError] if the object has already been disposed, or if
-  /// this object already owns the pointer.
+  /// If this object is borrowed from another object, it no longer depends on
+  /// that object afterwards.
+  ///
+  /// Throws a [StateError] if the object, or the object it's borrowed from,
+  /// has already been disposed, if this object already owns the pointer, or
+  /// if it wraps a C++ reference.
   void retainOwnership([
     ffi.NativeFinalizer? customFinalizer,
     ffi.Pointer<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>?
     customFinalizerFn,
   ]) {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
+    final ptr = _alivePtr;
     if (_activeFinalizer != null) {
       throw StateError('This object already owns its pointer.');
+    }
+    if (_isReference) {
+      throw StateError(
+        "This object wraps a C++ reference, so it can't own its pointer.",
+      );
     }
     if ((customFinalizer == null) != (customFinalizerFn == null)) {
       throw ArgumentError(
@@ -67,9 +87,38 @@ class StringBox implements ffi.Finalizable {
         ffi.Native.addressOf<
           ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>
         >(_StringBox_delete);
-    fin.attach(this, _ptr.cast(), detach: this);
+    fin.attach(this, ptr.cast(), detach: this);
     _activeFinalizer = fin;
     _activeFinalizerFn = fnPtr;
+    _isOwnerAlive = null;
+  }
+
+  /// Wraps [_ptr], which another object owns, without taking ownership of it.
+  ///
+  /// [_isOwnerAlive] is a tear-off of the [_isAlive] method of the object
+  /// that this one is borrowed from, or null if it isn't borrowed from an
+  /// object. [isReference] is whether [_ptr] comes from a C++ reference.
+  StringBox._borrowed(this._ptr, this._isOwnerAlive, {bool isReference = false})
+    : _isReference = isReference;
+
+  /// Whether neither this object, nor the object it's borrowed from, if any,
+  /// has been disposed.
+  bool _isAlive() => _ptr != ffi.nullptr && (_isOwnerAlive?.call() ?? true);
+
+  /// [_ptr], for passing to C++.
+  ///
+  /// Throws a [StateError] if this object, or the object it's borrowed from,
+  /// has been disposed, rather than letting C++ use a dangling pointer.
+  ffi.Pointer<ffi.Void> get _alivePtr {
+    if (_ptr == ffi.nullptr) {
+      throw StateError('This object has already been disposed.');
+    }
+    if (_isOwnerAlive?.call() == false) {
+      throw StateError(
+        'The object that this object is borrowed from has been disposed.',
+      );
+    }
+    return _ptr;
   }
 
   /// Detaches the finalizer so this object releases ownership of the
@@ -114,63 +163,42 @@ class StringBox implements ffi.Finalizable {
     }
   }
   String get() {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
-
-    return _stdStringToDart(_StringBox_get(_ptr));
+    return _stdStringToDart(_StringBox_get(_alivePtr));
   }
 
   String ref() {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
-
-    return _stdStringToDart(_StringBox_ref(_ptr));
+    return _stdStringToDart(_StringBox_ref(_alivePtr));
   }
 
   void set(String value) {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
     final _$$value = _stdStringFromDart(value);
     try {
-      _StringBox_set(_ptr, _$$value);
+      _StringBox_set(_alivePtr, _$$value);
     } finally {
       _stdStringDelete(_$$value);
     }
   }
 
   void append(String suffix) {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
     final _$$suffix = _stdStringFromDart(suffix);
     try {
-      _StringBox_append(_ptr, _$$suffix);
+      _StringBox_append(_alivePtr, _$$suffix);
     } finally {
       _stdStringDelete(_$$suffix);
     }
   }
 
   void prepend(String prefix) {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
     final _$$prefix = _stdStringFromDart(prefix);
     try {
-      _StringBox_prepend(_ptr, _$$prefix);
+      _StringBox_prepend(_alivePtr, _$$prefix);
     } finally {
       _stdStringDelete(_$$prefix);
     }
   }
 
   String alias() {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
-
-    return _stdStringToDart(_StringBox_alias(_ptr));
+    return _stdStringToDart(_StringBox_alias(_alivePtr));
   }
 
   static String repeat(String value, int times) {
@@ -183,11 +211,7 @@ class StringBox implements ffi.Finalizable {
   }
 
   int size() {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
-
-    return _StringBox_size(_ptr);
+    return _StringBox_size(_alivePtr);
   }
 
   void dispose() {

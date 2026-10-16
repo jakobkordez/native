@@ -325,7 +325,11 @@ void _parseAnyMethod(
       isConstant: isConst,
       isStatic: isStatic,
       kind: kind,
-      returnsPointerToConst: _isPointerToConst(cxReturnType),
+      // The glue returns a reference to a class as a pointer.
+      returnsPointerToConst: switch (returnType.typealiasType) {
+        CppClassReferenceType(:final isConst) => isConst,
+        _ => _isPointerToConst(cxReturnType),
+      },
     ),
   );
 }

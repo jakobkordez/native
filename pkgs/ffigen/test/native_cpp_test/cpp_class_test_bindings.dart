@@ -24,7 +24,20 @@ class Animal implements ffi.Finalizable {
   ffi.Pointer<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>?
   _activeFinalizerFn;
 
-  Animal.fromPointer(this._ptr, {bool takeOwnership = false}) {
+  /// Whether the object that this one is borrowed from is still alive, or
+  /// null if this object isn't borrowed from another object.
+  ///
+  /// This is a tear-off of that object's [_isAlive], so it also keeps that
+  /// object, which owns the C++ object, from being garbage collected while
+  /// this one is reachable.
+  bool Function()? _isOwnerAlive;
+
+  /// Whether this object wraps a C++ reference, which it can't take
+  /// ownership of.
+  final bool _isReference;
+
+  Animal.fromPointer(this._ptr, {bool takeOwnership = false})
+    : _isReference = false {
     if (takeOwnership) {
       _defaultFinalizer.attach(this, _ptr.cast(), detach: this);
       _activeFinalizer = _defaultFinalizer;
@@ -42,18 +55,25 @@ class Animal implements ffi.Finalizable {
   ///
   /// Both [customFinalizer] and [customFinalizerFn] must be provided together.
   ///
-  /// Throws a [StateError] if the object has already been disposed, or if
-  /// this object already owns the pointer.
+  /// If this object is borrowed from another object, it no longer depends on
+  /// that object afterwards.
+  ///
+  /// Throws a [StateError] if the object, or the object it's borrowed from,
+  /// has already been disposed, if this object already owns the pointer, or
+  /// if it wraps a C++ reference.
   void retainOwnership([
     ffi.NativeFinalizer? customFinalizer,
     ffi.Pointer<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>?
     customFinalizerFn,
   ]) {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
+    final ptr = _alivePtr;
     if (_activeFinalizer != null) {
       throw StateError('This object already owns its pointer.');
+    }
+    if (_isReference) {
+      throw StateError(
+        "This object wraps a C++ reference, so it can't own its pointer.",
+      );
     }
     if ((customFinalizer == null) != (customFinalizerFn == null)) {
       throw ArgumentError(
@@ -66,9 +86,38 @@ class Animal implements ffi.Finalizable {
         ffi.Native.addressOf<
           ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>
         >(_Animal_delete);
-    fin.attach(this, _ptr.cast(), detach: this);
+    fin.attach(this, ptr.cast(), detach: this);
     _activeFinalizer = fin;
     _activeFinalizerFn = fnPtr;
+    _isOwnerAlive = null;
+  }
+
+  /// Wraps [_ptr], which another object owns, without taking ownership of it.
+  ///
+  /// [_isOwnerAlive] is a tear-off of the [_isAlive] method of the object
+  /// that this one is borrowed from, or null if it isn't borrowed from an
+  /// object. [isReference] is whether [_ptr] comes from a C++ reference.
+  Animal._borrowed(this._ptr, this._isOwnerAlive, {bool isReference = false})
+    : _isReference = isReference;
+
+  /// Whether neither this object, nor the object it's borrowed from, if any,
+  /// has been disposed.
+  bool _isAlive() => _ptr != ffi.nullptr && (_isOwnerAlive?.call() ?? true);
+
+  /// [_ptr], for passing to C++.
+  ///
+  /// Throws a [StateError] if this object, or the object it's borrowed from,
+  /// has been disposed, rather than letting C++ use a dangling pointer.
+  ffi.Pointer<ffi.Void> get _alivePtr {
+    if (_ptr == ffi.nullptr) {
+      throw StateError('This object has already been disposed.');
+    }
+    if (_isOwnerAlive?.call() == false) {
+      throw StateError(
+        'The object that this object is borrowed from has been disposed.',
+      );
+    }
+    return _ptr;
   }
 
   /// Detaches the finalizer so this object releases ownership of the
@@ -105,19 +154,11 @@ class Animal implements ffi.Finalizable {
     return Animal.fromPointer(_Animal_new(age), takeOwnership: true);
   }
   void speak() {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
-
-    _Animal_speak(_ptr);
+    _Animal_speak(_alivePtr);
   }
 
   int getAge() {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
-
-    return _Animal_getAge(_ptr);
+    return _Animal_getAge(_alivePtr);
   }
 
   static int getCount() {
@@ -133,27 +174,15 @@ class Animal implements ffi.Finalizable {
   }
 
   bool isMammalClass() {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
-
-    return _Animal_isMammalClass(_ptr);
+    return _Animal_isMammalClass(_alivePtr);
   }
 
   double getWeight(double multiplier) {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
-
-    return _Animal_getWeight(_ptr, multiplier);
+    return _Animal_getWeight(_alivePtr, multiplier);
   }
 
   int addAges(int otherAge, double scale) {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
-
-    return _Animal_addAges(_ptr, otherAge, scale);
+    return _Animal_addAges(_alivePtr, otherAge, scale);
   }
 
   static int sum(int a, int b) {
@@ -161,18 +190,14 @@ class Animal implements ffi.Finalizable {
   }
 
   Animal copyAndAddAge(Animal other) {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
-
     return Animal.fromPointer(
-      _Animal_copyAndAddAge(_ptr, other._ptr),
+      _Animal_copyAndAddAge(_alivePtr, other._alivePtr),
       takeOwnership: true,
     );
   }
 
   static bool haveSameAge(Animal a, Animal b) {
-    return _Animal_haveSameAge(a._ptr, b._ptr);
+    return _Animal_haveSameAge(a._alivePtr, b._alivePtr);
   }
 
   void dispose() {
@@ -274,7 +299,20 @@ class FinalizerTestSubject implements ffi.Finalizable {
   ffi.Pointer<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>?
   _activeFinalizerFn;
 
-  FinalizerTestSubject.fromPointer(this._ptr, {bool takeOwnership = false}) {
+  /// Whether the object that this one is borrowed from is still alive, or
+  /// null if this object isn't borrowed from another object.
+  ///
+  /// This is a tear-off of that object's [_isAlive], so it also keeps that
+  /// object, which owns the C++ object, from being garbage collected while
+  /// this one is reachable.
+  bool Function()? _isOwnerAlive;
+
+  /// Whether this object wraps a C++ reference, which it can't take
+  /// ownership of.
+  final bool _isReference;
+
+  FinalizerTestSubject.fromPointer(this._ptr, {bool takeOwnership = false})
+    : _isReference = false {
     if (takeOwnership) {
       _defaultFinalizer.attach(this, _ptr.cast(), detach: this);
       _activeFinalizer = _defaultFinalizer;
@@ -292,18 +330,25 @@ class FinalizerTestSubject implements ffi.Finalizable {
   ///
   /// Both [customFinalizer] and [customFinalizerFn] must be provided together.
   ///
-  /// Throws a [StateError] if the object has already been disposed, or if
-  /// this object already owns the pointer.
+  /// If this object is borrowed from another object, it no longer depends on
+  /// that object afterwards.
+  ///
+  /// Throws a [StateError] if the object, or the object it's borrowed from,
+  /// has already been disposed, if this object already owns the pointer, or
+  /// if it wraps a C++ reference.
   void retainOwnership([
     ffi.NativeFinalizer? customFinalizer,
     ffi.Pointer<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>?
     customFinalizerFn,
   ]) {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
+    final ptr = _alivePtr;
     if (_activeFinalizer != null) {
       throw StateError('This object already owns its pointer.');
+    }
+    if (_isReference) {
+      throw StateError(
+        "This object wraps a C++ reference, so it can't own its pointer.",
+      );
     }
     if ((customFinalizer == null) != (customFinalizerFn == null)) {
       throw ArgumentError(
@@ -316,9 +361,41 @@ class FinalizerTestSubject implements ffi.Finalizable {
         ffi.Native.addressOf<
           ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>
         >(_FinalizerTestSubject_delete);
-    fin.attach(this, _ptr.cast(), detach: this);
+    fin.attach(this, ptr.cast(), detach: this);
     _activeFinalizer = fin;
     _activeFinalizerFn = fnPtr;
+    _isOwnerAlive = null;
+  }
+
+  /// Wraps [_ptr], which another object owns, without taking ownership of it.
+  ///
+  /// [_isOwnerAlive] is a tear-off of the [_isAlive] method of the object
+  /// that this one is borrowed from, or null if it isn't borrowed from an
+  /// object. [isReference] is whether [_ptr] comes from a C++ reference.
+  FinalizerTestSubject._borrowed(
+    this._ptr,
+    this._isOwnerAlive, {
+    bool isReference = false,
+  }) : _isReference = isReference;
+
+  /// Whether neither this object, nor the object it's borrowed from, if any,
+  /// has been disposed.
+  bool _isAlive() => _ptr != ffi.nullptr && (_isOwnerAlive?.call() ?? true);
+
+  /// [_ptr], for passing to C++.
+  ///
+  /// Throws a [StateError] if this object, or the object it's borrowed from,
+  /// has been disposed, rather than letting C++ use a dangling pointer.
+  ffi.Pointer<ffi.Void> get _alivePtr {
+    if (_ptr == ffi.nullptr) {
+      throw StateError('This object has already been disposed.');
+    }
+    if (_isOwnerAlive?.call() == false) {
+      throw StateError(
+        'The object that this object is borrowed from has been disposed.',
+      );
+    }
+    return _ptr;
   }
 
   /// Detaches the finalizer so this object releases ownership of the

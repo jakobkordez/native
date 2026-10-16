@@ -26,6 +26,21 @@
   are unary or binary depending on their parameters get separate names, e.g.
   `operatorNegate` and `operatorMinus` for `operator-`. The allocation
   operators (`new`, `delete`, etc) are skipped.
+- Support references to C++ classes, like `T&` and `const T&`, in the
+  parameters and return types of C++ methods and constructors. Dart code sees
+  them as the class's wrapper, and the glue passes them as pointers. This also
+  generates bindings for copy constructors, and operators like `operator==`
+  and `operator=`, which take or return a reference to a class.
+- A C++ class wrapper returned by pointer or by reference from an instance
+  method is now borrowed from the object the method was called on. It keeps
+  that object from being garbage collected, so the C++ object it points into
+  stays alive, and it throws a `StateError` once that object is disposed,
+  instead of using a dangling pointer. Taking ownership of a returned pointer
+  with `retainOwnership` ends the borrow. A returned reference can never take
+  ownership: `retainOwnership` throws a `StateError`.
+- Passing a disposed C++ class wrapper, or one borrowed from a disposed object,
+  to a C++ method or constructor now throws a `StateError`, instead of passing
+  a null or dangling pointer.
 - Fix the C++ glue for methods returning a pointer to const, like
   `const T* get() const`, which failed to compile.
 - Fix the C++ glue for inherited methods hidden by a method of the same name in

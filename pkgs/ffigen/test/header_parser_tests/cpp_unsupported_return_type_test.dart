@@ -61,6 +61,11 @@ void main() {
         contains('blobPtr'),
         reason: 'a pointer to an incomplete compound is bindable',
       );
+      expect(
+        methodNames,
+        contains('constRef'),
+        reason: 'a reference to a class is bindable',
+      );
 
       // Never bindable: these return a type with no definition anywhere in
       // the translation unit, so no future version of ffigen can support them
@@ -88,16 +93,11 @@ void main() {
         reason: 'a defined class returned by value is supported',
       );
 
-      // Unsupported today: references have no Dart mapping.
+      // Unsupported today: only references to classes have a Dart mapping.
       expect(
         methodNames,
         isNot(contains('badRef')),
-        reason: 'a C++ reference return type has no Dart mapping',
-      );
-      expect(
-        methodNames,
-        isNot(contains('badConstRef')),
-        reason: 'a C++ reference return type has no Dart mapping',
+        reason: 'a reference to a primitive has no Dart mapping',
       );
     });
 
@@ -118,6 +118,11 @@ void main() {
           methodNames,
           contains('badSelfParam'),
           reason: 'a defined class passed by value is supported',
+        );
+        expect(
+          methodNames,
+          contains('constRefParam'),
+          reason: 'a reference to a class is a bindable parameter type',
         );
 
         // Never bindable: a parameter whose type has no definition anywhere in
@@ -140,23 +145,17 @@ void main() {
           reason: 'a forward-declared class cannot be passed by value',
         );
 
-        // Unsupported today: references have no Dart mapping.
+        // Unsupported today: only references to classes have a Dart mapping.
         expect(
           methodNames,
           isNot(contains('badRefParam')),
-          reason: 'a C++ reference parameter has no Dart mapping',
-        );
-        expect(
-          methodNames,
-          isNot(contains('badConstRefParam')),
-          reason: 'a C++ reference parameter has no Dart mapping',
+          reason: 'a reference to a primitive has no Dart mapping',
         );
 
-        // The copy constructor takes a C++ reference, so only the default
-        // constructor survives.
+        // The copy constructor takes a reference to a class, so it survives
+        // next to the default constructor.
         final constructors = widget.methods.where((m) => m.isConstructor);
-        expect(constructors, hasLength(1));
-        expect(constructors.single.parameters, isEmpty);
+        expect(constructors.map((c) => c.parameters.length), [0, 1]);
       },
     );
 
@@ -172,13 +171,14 @@ void main() {
       expect(output, contains('Widget_goodParams'));
       expect(output, contains('Widget_badSelfByValue'));
       expect(output, contains('Widget_badSelfParam'));
+      expect(output, contains('Widget_constRef'));
+      expect(output, contains('Widget_constRefParam'));
 
       // Unsupported returns:
       expect(output, isNot(contains('badUnionByValue')));
       expect(output, isNot(contains('badAliasByValue')));
       expect(output, isNot(contains('badClassByValue')));
       expect(output, isNot(contains('badRef')));
-      expect(output, isNot(contains('badConstRef')));
 
       // Unsupported parameters:
       expect(output, isNot(contains('badUnionParam')));

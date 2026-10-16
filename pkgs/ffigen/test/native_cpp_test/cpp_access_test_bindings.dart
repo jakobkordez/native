@@ -19,12 +19,24 @@ class access$Counted implements ffi.Finalizable {
   ffi.Pointer<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>?
   _activeFinalizerFn;
 
+  /// Whether the object that this one is borrowed from is still alive, or
+  /// null if this object isn't borrowed from another object.
+  ///
+  /// This is a tear-off of that object's [_isAlive], so it also keeps that
+  /// object, which owns the C++ object, from being garbage collected while
+  /// this one is reachable.
+  bool Function()? _isOwnerAlive;
+
+  /// Whether this object wraps a C++ reference, which it can't take
+  /// ownership of.
+  final bool _isReference;
+
   /// Wraps [_ptr], without taking ownership of it. To take ownership, call
   /// [retainOwnership] with a custom finalizer.
   ///
   /// The bindings can't delete a pointer to `access::Counted`, since
   /// its destructor isn't public.
-  access$Counted.fromPointer(this._ptr);
+  access$Counted.fromPointer(this._ptr) : _isReference = false;
 
   /// Attaches [customFinalizer] so this object takes ownership of the
   /// underlying C++ pointer. [customFinalizerFn] is the native function that
@@ -32,19 +44,25 @@ class access$Counted implements ffi.Finalizable {
   ///
   /// Both are required, since the bindings can't delete this object.
   ///
+  /// If this object is borrowed from another object, it no longer depends on
+  /// that object afterwards.
+  ///
   /// Throws an [ArgumentError] if either is missing. Throws a [StateError] if
-  /// the object has already been disposed, or if this object already owns
-  /// the pointer.
+  /// the object, or the object it's borrowed from, has already been disposed,
+  /// if this object already owns the pointer, or if it wraps a C++ reference.
   void retainOwnership([
     ffi.NativeFinalizer? customFinalizer,
     ffi.Pointer<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>?
     customFinalizerFn,
   ]) {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
+    final ptr = _alivePtr;
     if (_activeFinalizer != null) {
       throw StateError('This object already owns its pointer.');
+    }
+    if (_isReference) {
+      throw StateError(
+        "This object wraps a C++ reference, so it can't own its pointer.",
+      );
     }
     if (customFinalizer == null || customFinalizerFn == null) {
       throw ArgumentError(
@@ -52,9 +70,41 @@ class access$Counted implements ffi.Finalizable {
         'and customFinalizerFn must be provided.',
       );
     }
-    customFinalizer.attach(this, _ptr.cast(), detach: this);
+    customFinalizer.attach(this, ptr.cast(), detach: this);
     _activeFinalizer = customFinalizer;
     _activeFinalizerFn = customFinalizerFn;
+    _isOwnerAlive = null;
+  }
+
+  /// Wraps [_ptr], which another object owns, without taking ownership of it.
+  ///
+  /// [_isOwnerAlive] is a tear-off of the [_isAlive] method of the object
+  /// that this one is borrowed from, or null if it isn't borrowed from an
+  /// object. [isReference] is whether [_ptr] comes from a C++ reference.
+  access$Counted._borrowed(
+    this._ptr,
+    this._isOwnerAlive, {
+    bool isReference = false,
+  }) : _isReference = isReference;
+
+  /// Whether neither this object, nor the object it's borrowed from, if any,
+  /// has been disposed.
+  bool _isAlive() => _ptr != ffi.nullptr && (_isOwnerAlive?.call() ?? true);
+
+  /// [_ptr], for passing to C++.
+  ///
+  /// Throws a [StateError] if this object, or the object it's borrowed from,
+  /// has been disposed, rather than letting C++ use a dangling pointer.
+  ffi.Pointer<ffi.Void> get _alivePtr {
+    if (_ptr == ffi.nullptr) {
+      throw StateError('This object has already been disposed.');
+    }
+    if (_isOwnerAlive?.call() == false) {
+      throw StateError(
+        'The object that this object is borrowed from has been disposed.',
+      );
+    }
+    return _ptr;
   }
 
   /// Detaches the finalizer so this object releases ownership of the
@@ -93,27 +143,15 @@ class access$Counted implements ffi.Finalizable {
     return access$Counted.fromPointer(_access_Counted_new());
   }
   void retain() {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
-
-    _access_Counted_retain(_ptr);
+    _access_Counted_retain(_alivePtr);
   }
 
   void release() {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
-
-    _access_Counted_release(_ptr);
+    _access_Counted_release(_alivePtr);
   }
 
   int count() {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
-
-    return _access_Counted_count(_ptr);
+    return _access_Counted_count(_alivePtr);
   }
 
   static int liveCount() {
@@ -182,12 +220,24 @@ class access$Drawable implements ffi.Finalizable {
   ffi.Pointer<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>?
   _activeFinalizerFn;
 
+  /// Whether the object that this one is borrowed from is still alive, or
+  /// null if this object isn't borrowed from another object.
+  ///
+  /// This is a tear-off of that object's [_isAlive], so it also keeps that
+  /// object, which owns the C++ object, from being garbage collected while
+  /// this one is reachable.
+  bool Function()? _isOwnerAlive;
+
+  /// Whether this object wraps a C++ reference, which it can't take
+  /// ownership of.
+  final bool _isReference;
+
   /// Wraps [_ptr], without taking ownership of it. To take ownership, call
   /// [retainOwnership] with a custom finalizer.
   ///
   /// The bindings can't delete a pointer to `access::Drawable`, since
   /// its destructor isn't virtual, although it has virtual methods.
-  access$Drawable.fromPointer(this._ptr);
+  access$Drawable.fromPointer(this._ptr) : _isReference = false;
 
   /// Attaches [customFinalizer] so this object takes ownership of the
   /// underlying C++ pointer. [customFinalizerFn] is the native function that
@@ -195,19 +245,25 @@ class access$Drawable implements ffi.Finalizable {
   ///
   /// Both are required, since the bindings can't delete this object.
   ///
+  /// If this object is borrowed from another object, it no longer depends on
+  /// that object afterwards.
+  ///
   /// Throws an [ArgumentError] if either is missing. Throws a [StateError] if
-  /// the object has already been disposed, or if this object already owns
-  /// the pointer.
+  /// the object, or the object it's borrowed from, has already been disposed,
+  /// if this object already owns the pointer, or if it wraps a C++ reference.
   void retainOwnership([
     ffi.NativeFinalizer? customFinalizer,
     ffi.Pointer<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>?
     customFinalizerFn,
   ]) {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
+    final ptr = _alivePtr;
     if (_activeFinalizer != null) {
       throw StateError('This object already owns its pointer.');
+    }
+    if (_isReference) {
+      throw StateError(
+        "This object wraps a C++ reference, so it can't own its pointer.",
+      );
     }
     if (customFinalizer == null || customFinalizerFn == null) {
       throw ArgumentError(
@@ -215,9 +271,41 @@ class access$Drawable implements ffi.Finalizable {
         'and customFinalizerFn must be provided.',
       );
     }
-    customFinalizer.attach(this, _ptr.cast(), detach: this);
+    customFinalizer.attach(this, ptr.cast(), detach: this);
     _activeFinalizer = customFinalizer;
     _activeFinalizerFn = customFinalizerFn;
+    _isOwnerAlive = null;
+  }
+
+  /// Wraps [_ptr], which another object owns, without taking ownership of it.
+  ///
+  /// [_isOwnerAlive] is a tear-off of the [_isAlive] method of the object
+  /// that this one is borrowed from, or null if it isn't borrowed from an
+  /// object. [isReference] is whether [_ptr] comes from a C++ reference.
+  access$Drawable._borrowed(
+    this._ptr,
+    this._isOwnerAlive, {
+    bool isReference = false,
+  }) : _isReference = isReference;
+
+  /// Whether neither this object, nor the object it's borrowed from, if any,
+  /// has been disposed.
+  bool _isAlive() => _ptr != ffi.nullptr && (_isOwnerAlive?.call() ?? true);
+
+  /// [_ptr], for passing to C++.
+  ///
+  /// Throws a [StateError] if this object, or the object it's borrowed from,
+  /// has been disposed, rather than letting C++ use a dangling pointer.
+  ffi.Pointer<ffi.Void> get _alivePtr {
+    if (_ptr == ffi.nullptr) {
+      throw StateError('This object has already been disposed.');
+    }
+    if (_isOwnerAlive?.call() == false) {
+      throw StateError(
+        'The object that this object is borrowed from has been disposed.',
+      );
+    }
+    return _ptr;
   }
 
   /// Detaches the finalizer so this object releases ownership of the
@@ -251,11 +339,7 @@ class access$Drawable implements ffi.Finalizable {
   }
 
   int draw() {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
-
-    return _access_Drawable_draw(_ptr);
+    return _access_Drawable_draw(_alivePtr);
   }
 
   void dispose() {
@@ -300,7 +384,20 @@ class access$Gate implements ffi.Finalizable {
   ffi.Pointer<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>?
   _activeFinalizerFn;
 
-  access$Gate.fromPointer(this._ptr, {bool takeOwnership = false}) {
+  /// Whether the object that this one is borrowed from is still alive, or
+  /// null if this object isn't borrowed from another object.
+  ///
+  /// This is a tear-off of that object's [_isAlive], so it also keeps that
+  /// object, which owns the C++ object, from being garbage collected while
+  /// this one is reachable.
+  bool Function()? _isOwnerAlive;
+
+  /// Whether this object wraps a C++ reference, which it can't take
+  /// ownership of.
+  final bool _isReference;
+
+  access$Gate.fromPointer(this._ptr, {bool takeOwnership = false})
+    : _isReference = false {
     if (takeOwnership) {
       _defaultFinalizer.attach(this, _ptr.cast(), detach: this);
       _activeFinalizer = _defaultFinalizer;
@@ -318,18 +415,25 @@ class access$Gate implements ffi.Finalizable {
   ///
   /// Both [customFinalizer] and [customFinalizerFn] must be provided together.
   ///
-  /// Throws a [StateError] if the object has already been disposed, or if
-  /// this object already owns the pointer.
+  /// If this object is borrowed from another object, it no longer depends on
+  /// that object afterwards.
+  ///
+  /// Throws a [StateError] if the object, or the object it's borrowed from,
+  /// has already been disposed, if this object already owns the pointer, or
+  /// if it wraps a C++ reference.
   void retainOwnership([
     ffi.NativeFinalizer? customFinalizer,
     ffi.Pointer<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>?
     customFinalizerFn,
   ]) {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
+    final ptr = _alivePtr;
     if (_activeFinalizer != null) {
       throw StateError('This object already owns its pointer.');
+    }
+    if (_isReference) {
+      throw StateError(
+        "This object wraps a C++ reference, so it can't own its pointer.",
+      );
     }
     if ((customFinalizer == null) != (customFinalizerFn == null)) {
       throw ArgumentError(
@@ -342,9 +446,41 @@ class access$Gate implements ffi.Finalizable {
         ffi.Native.addressOf<
           ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>
         >(_access$Gate_delete);
-    fin.attach(this, _ptr.cast(), detach: this);
+    fin.attach(this, ptr.cast(), detach: this);
     _activeFinalizer = fin;
     _activeFinalizerFn = fnPtr;
+    _isOwnerAlive = null;
+  }
+
+  /// Wraps [_ptr], which another object owns, without taking ownership of it.
+  ///
+  /// [_isOwnerAlive] is a tear-off of the [_isAlive] method of the object
+  /// that this one is borrowed from, or null if it isn't borrowed from an
+  /// object. [isReference] is whether [_ptr] comes from a C++ reference.
+  access$Gate._borrowed(
+    this._ptr,
+    this._isOwnerAlive, {
+    bool isReference = false,
+  }) : _isReference = isReference;
+
+  /// Whether neither this object, nor the object it's borrowed from, if any,
+  /// has been disposed.
+  bool _isAlive() => _ptr != ffi.nullptr && (_isOwnerAlive?.call() ?? true);
+
+  /// [_ptr], for passing to C++.
+  ///
+  /// Throws a [StateError] if this object, or the object it's borrowed from,
+  /// has been disposed, rather than letting C++ use a dangling pointer.
+  ffi.Pointer<ffi.Void> get _alivePtr {
+    if (_ptr == ffi.nullptr) {
+      throw StateError('This object has already been disposed.');
+    }
+    if (_isOwnerAlive?.call() == false) {
+      throw StateError(
+        'The object that this object is borrowed from has been disposed.',
+      );
+    }
+    return _ptr;
   }
 
   /// Detaches the finalizer so this object releases ownership of the
@@ -387,27 +523,15 @@ class access$Gate implements ffi.Finalizable {
     );
   }
   int code() {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
-
-    return _access_Gate_code(_ptr);
+    return _access_Gate_code(_alivePtr);
   }
 
   bool isOpen() {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
-
-    return _access_Gate_isOpen(_ptr);
+    return _access_Gate_isOpen(_alivePtr);
   }
 
   void open() {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
-
-    _access_Gate_open(_ptr);
+    _access_Gate_open(_alivePtr);
   }
 
   static int liveCount() {
@@ -477,12 +601,24 @@ class access$Listener implements ffi.Finalizable {
   ffi.Pointer<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>?
   _activeFinalizerFn;
 
+  /// Whether the object that this one is borrowed from is still alive, or
+  /// null if this object isn't borrowed from another object.
+  ///
+  /// This is a tear-off of that object's [_isAlive], so it also keeps that
+  /// object, which owns the C++ object, from being garbage collected while
+  /// this one is reachable.
+  bool Function()? _isOwnerAlive;
+
+  /// Whether this object wraps a C++ reference, which it can't take
+  /// ownership of.
+  final bool _isReference;
+
   /// Wraps [_ptr], without taking ownership of it. To take ownership, call
   /// [retainOwnership] with a custom finalizer.
   ///
   /// The bindings can't delete a pointer to `access::Listener`, since
   /// its destructor isn't public.
-  access$Listener.fromPointer(this._ptr);
+  access$Listener.fromPointer(this._ptr) : _isReference = false;
 
   /// Attaches [customFinalizer] so this object takes ownership of the
   /// underlying C++ pointer. [customFinalizerFn] is the native function that
@@ -490,19 +626,25 @@ class access$Listener implements ffi.Finalizable {
   ///
   /// Both are required, since the bindings can't delete this object.
   ///
+  /// If this object is borrowed from another object, it no longer depends on
+  /// that object afterwards.
+  ///
   /// Throws an [ArgumentError] if either is missing. Throws a [StateError] if
-  /// the object has already been disposed, or if this object already owns
-  /// the pointer.
+  /// the object, or the object it's borrowed from, has already been disposed,
+  /// if this object already owns the pointer, or if it wraps a C++ reference.
   void retainOwnership([
     ffi.NativeFinalizer? customFinalizer,
     ffi.Pointer<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>?
     customFinalizerFn,
   ]) {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
+    final ptr = _alivePtr;
     if (_activeFinalizer != null) {
       throw StateError('This object already owns its pointer.');
+    }
+    if (_isReference) {
+      throw StateError(
+        "This object wraps a C++ reference, so it can't own its pointer.",
+      );
     }
     if (customFinalizer == null || customFinalizerFn == null) {
       throw ArgumentError(
@@ -510,9 +652,41 @@ class access$Listener implements ffi.Finalizable {
         'and customFinalizerFn must be provided.',
       );
     }
-    customFinalizer.attach(this, _ptr.cast(), detach: this);
+    customFinalizer.attach(this, ptr.cast(), detach: this);
     _activeFinalizer = customFinalizer;
     _activeFinalizerFn = customFinalizerFn;
+    _isOwnerAlive = null;
+  }
+
+  /// Wraps [_ptr], which another object owns, without taking ownership of it.
+  ///
+  /// [_isOwnerAlive] is a tear-off of the [_isAlive] method of the object
+  /// that this one is borrowed from, or null if it isn't borrowed from an
+  /// object. [isReference] is whether [_ptr] comes from a C++ reference.
+  access$Listener._borrowed(
+    this._ptr,
+    this._isOwnerAlive, {
+    bool isReference = false,
+  }) : _isReference = isReference;
+
+  /// Whether neither this object, nor the object it's borrowed from, if any,
+  /// has been disposed.
+  bool _isAlive() => _ptr != ffi.nullptr && (_isOwnerAlive?.call() ?? true);
+
+  /// [_ptr], for passing to C++.
+  ///
+  /// Throws a [StateError] if this object, or the object it's borrowed from,
+  /// has been disposed, rather than letting C++ use a dangling pointer.
+  ffi.Pointer<ffi.Void> get _alivePtr {
+    if (_ptr == ffi.nullptr) {
+      throw StateError('This object has already been disposed.');
+    }
+    if (_isOwnerAlive?.call() == false) {
+      throw StateError(
+        'The object that this object is borrowed from has been disposed.',
+      );
+    }
+    return _ptr;
   }
 
   /// Detaches the finalizer so this object releases ownership of the
@@ -546,11 +720,7 @@ class access$Listener implements ffi.Finalizable {
   }
 
   int notify(int event) {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
-
-    return _access_Listener_notify(_ptr, event);
+    return _access_Listener_notify(_alivePtr, event);
   }
 
   void dispose() {
@@ -595,7 +765,20 @@ class access$Polygon implements ffi.Finalizable, access$Shape {
   ffi.Pointer<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>?
   _activeFinalizerFn;
 
-  access$Polygon.fromPointer(this._ptr, {bool takeOwnership = false}) {
+  /// Whether the object that this one is borrowed from is still alive, or
+  /// null if this object isn't borrowed from another object.
+  ///
+  /// This is a tear-off of that object's [_isAlive], so it also keeps that
+  /// object, which owns the C++ object, from being garbage collected while
+  /// this one is reachable.
+  bool Function()? _isOwnerAlive;
+
+  /// Whether this object wraps a C++ reference, which it can't take
+  /// ownership of.
+  final bool _isReference;
+
+  access$Polygon.fromPointer(this._ptr, {bool takeOwnership = false})
+    : _isReference = false {
     if (takeOwnership) {
       _defaultFinalizer.attach(this, _ptr.cast(), detach: this);
       _activeFinalizer = _defaultFinalizer;
@@ -613,18 +796,25 @@ class access$Polygon implements ffi.Finalizable, access$Shape {
   ///
   /// Both [customFinalizer] and [customFinalizerFn] must be provided together.
   ///
-  /// Throws a [StateError] if the object has already been disposed, or if
-  /// this object already owns the pointer.
+  /// If this object is borrowed from another object, it no longer depends on
+  /// that object afterwards.
+  ///
+  /// Throws a [StateError] if the object, or the object it's borrowed from,
+  /// has already been disposed, if this object already owns the pointer, or
+  /// if it wraps a C++ reference.
   void retainOwnership([
     ffi.NativeFinalizer? customFinalizer,
     ffi.Pointer<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>?
     customFinalizerFn,
   ]) {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
+    final ptr = _alivePtr;
     if (_activeFinalizer != null) {
       throw StateError('This object already owns its pointer.');
+    }
+    if (_isReference) {
+      throw StateError(
+        "This object wraps a C++ reference, so it can't own its pointer.",
+      );
     }
     if ((customFinalizer == null) != (customFinalizerFn == null)) {
       throw ArgumentError(
@@ -637,9 +827,41 @@ class access$Polygon implements ffi.Finalizable, access$Shape {
         ffi.Native.addressOf<
           ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>
         >(_access$Polygon_delete);
-    fin.attach(this, _ptr.cast(), detach: this);
+    fin.attach(this, ptr.cast(), detach: this);
     _activeFinalizer = fin;
     _activeFinalizerFn = fnPtr;
+    _isOwnerAlive = null;
+  }
+
+  /// Wraps [_ptr], which another object owns, without taking ownership of it.
+  ///
+  /// [_isOwnerAlive] is a tear-off of the [_isAlive] method of the object
+  /// that this one is borrowed from, or null if it isn't borrowed from an
+  /// object. [isReference] is whether [_ptr] comes from a C++ reference.
+  access$Polygon._borrowed(
+    this._ptr,
+    this._isOwnerAlive, {
+    bool isReference = false,
+  }) : _isReference = isReference;
+
+  /// Whether neither this object, nor the object it's borrowed from, if any,
+  /// has been disposed.
+  bool _isAlive() => _ptr != ffi.nullptr && (_isOwnerAlive?.call() ?? true);
+
+  /// [_ptr], for passing to C++.
+  ///
+  /// Throws a [StateError] if this object, or the object it's borrowed from,
+  /// has been disposed, rather than letting C++ use a dangling pointer.
+  ffi.Pointer<ffi.Void> get _alivePtr {
+    if (_ptr == ffi.nullptr) {
+      throw StateError('This object has already been disposed.');
+    }
+    if (_isOwnerAlive?.call() == false) {
+      throw StateError(
+        'The object that this object is borrowed from has been disposed.',
+      );
+    }
+    return _ptr;
   }
 
   /// Detaches the finalizer so this object releases ownership of the
@@ -673,19 +895,11 @@ class access$Polygon implements ffi.Finalizable, access$Shape {
   }
 
   int sides() {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
-
-    return _access_Polygon_sides(_ptr);
+    return _access_Polygon_sides(_alivePtr);
   }
 
   double area() {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
-
-    return _access_Polygon_area(_ptr);
+    return _access_Polygon_area(_alivePtr);
   }
 
   static access$Shape makeSquare(double side) {
@@ -769,7 +983,20 @@ class access$Recorder implements ffi.Finalizable, access$Listener {
   ffi.Pointer<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>?
   _activeFinalizerFn;
 
-  access$Recorder.fromPointer(this._ptr, {bool takeOwnership = false}) {
+  /// Whether the object that this one is borrowed from is still alive, or
+  /// null if this object isn't borrowed from another object.
+  ///
+  /// This is a tear-off of that object's [_isAlive], so it also keeps that
+  /// object, which owns the C++ object, from being garbage collected while
+  /// this one is reachable.
+  bool Function()? _isOwnerAlive;
+
+  /// Whether this object wraps a C++ reference, which it can't take
+  /// ownership of.
+  final bool _isReference;
+
+  access$Recorder.fromPointer(this._ptr, {bool takeOwnership = false})
+    : _isReference = false {
     if (takeOwnership) {
       _defaultFinalizer.attach(this, _ptr.cast(), detach: this);
       _activeFinalizer = _defaultFinalizer;
@@ -787,18 +1014,25 @@ class access$Recorder implements ffi.Finalizable, access$Listener {
   ///
   /// Both [customFinalizer] and [customFinalizerFn] must be provided together.
   ///
-  /// Throws a [StateError] if the object has already been disposed, or if
-  /// this object already owns the pointer.
+  /// If this object is borrowed from another object, it no longer depends on
+  /// that object afterwards.
+  ///
+  /// Throws a [StateError] if the object, or the object it's borrowed from,
+  /// has already been disposed, if this object already owns the pointer, or
+  /// if it wraps a C++ reference.
   void retainOwnership([
     ffi.NativeFinalizer? customFinalizer,
     ffi.Pointer<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>?
     customFinalizerFn,
   ]) {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
+    final ptr = _alivePtr;
     if (_activeFinalizer != null) {
       throw StateError('This object already owns its pointer.');
+    }
+    if (_isReference) {
+      throw StateError(
+        "This object wraps a C++ reference, so it can't own its pointer.",
+      );
     }
     if ((customFinalizer == null) != (customFinalizerFn == null)) {
       throw ArgumentError(
@@ -811,9 +1045,41 @@ class access$Recorder implements ffi.Finalizable, access$Listener {
         ffi.Native.addressOf<
           ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>
         >(_access$Recorder_delete);
-    fin.attach(this, _ptr.cast(), detach: this);
+    fin.attach(this, ptr.cast(), detach: this);
     _activeFinalizer = fin;
     _activeFinalizerFn = fnPtr;
+    _isOwnerAlive = null;
+  }
+
+  /// Wraps [_ptr], which another object owns, without taking ownership of it.
+  ///
+  /// [_isOwnerAlive] is a tear-off of the [_isAlive] method of the object
+  /// that this one is borrowed from, or null if it isn't borrowed from an
+  /// object. [isReference] is whether [_ptr] comes from a C++ reference.
+  access$Recorder._borrowed(
+    this._ptr,
+    this._isOwnerAlive, {
+    bool isReference = false,
+  }) : _isReference = isReference;
+
+  /// Whether neither this object, nor the object it's borrowed from, if any,
+  /// has been disposed.
+  bool _isAlive() => _ptr != ffi.nullptr && (_isOwnerAlive?.call() ?? true);
+
+  /// [_ptr], for passing to C++.
+  ///
+  /// Throws a [StateError] if this object, or the object it's borrowed from,
+  /// has been disposed, rather than letting C++ use a dangling pointer.
+  ffi.Pointer<ffi.Void> get _alivePtr {
+    if (_ptr == ffi.nullptr) {
+      throw StateError('This object has already been disposed.');
+    }
+    if (_isOwnerAlive?.call() == false) {
+      throw StateError(
+        'The object that this object is borrowed from has been disposed.',
+      );
+    }
+    return _ptr;
   }
 
   /// Detaches the finalizer so this object releases ownership of the
@@ -853,27 +1119,18 @@ class access$Recorder implements ffi.Finalizable, access$Listener {
     );
   }
   int notify(int event) {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
-
-    return _access_Recorder_notify(_ptr, event);
+    return _access_Recorder_notify(_alivePtr, event);
   }
 
   int last() {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
-
-    return _access_Recorder_last(_ptr);
+    return _access_Recorder_last(_alivePtr);
   }
 
   access$Listener asListener() {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
-
-    return access$Listener.fromPointer(_access_Recorder_asListener(_ptr));
+    return access$Listener._borrowed(
+      _access_Recorder_asListener(_alivePtr),
+      _isAlive,
+    );
   }
 
   @override
@@ -934,12 +1191,24 @@ class access$Registry implements ffi.Finalizable {
   ffi.Pointer<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>?
   _activeFinalizerFn;
 
+  /// Whether the object that this one is borrowed from is still alive, or
+  /// null if this object isn't borrowed from another object.
+  ///
+  /// This is a tear-off of that object's [_isAlive], so it also keeps that
+  /// object, which owns the C++ object, from being garbage collected while
+  /// this one is reachable.
+  bool Function()? _isOwnerAlive;
+
+  /// Whether this object wraps a C++ reference, which it can't take
+  /// ownership of.
+  final bool _isReference;
+
   /// Wraps [_ptr], without taking ownership of it. To take ownership, call
   /// [retainOwnership] with a custom finalizer.
   ///
   /// The bindings can't delete a pointer to `access::Registry`, since
   /// its destructor isn't public.
-  access$Registry.fromPointer(this._ptr);
+  access$Registry.fromPointer(this._ptr) : _isReference = false;
 
   /// Attaches [customFinalizer] so this object takes ownership of the
   /// underlying C++ pointer. [customFinalizerFn] is the native function that
@@ -947,19 +1216,25 @@ class access$Registry implements ffi.Finalizable {
   ///
   /// Both are required, since the bindings can't delete this object.
   ///
+  /// If this object is borrowed from another object, it no longer depends on
+  /// that object afterwards.
+  ///
   /// Throws an [ArgumentError] if either is missing. Throws a [StateError] if
-  /// the object has already been disposed, or if this object already owns
-  /// the pointer.
+  /// the object, or the object it's borrowed from, has already been disposed,
+  /// if this object already owns the pointer, or if it wraps a C++ reference.
   void retainOwnership([
     ffi.NativeFinalizer? customFinalizer,
     ffi.Pointer<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>?
     customFinalizerFn,
   ]) {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
+    final ptr = _alivePtr;
     if (_activeFinalizer != null) {
       throw StateError('This object already owns its pointer.');
+    }
+    if (_isReference) {
+      throw StateError(
+        "This object wraps a C++ reference, so it can't own its pointer.",
+      );
     }
     if (customFinalizer == null || customFinalizerFn == null) {
       throw ArgumentError(
@@ -967,9 +1242,41 @@ class access$Registry implements ffi.Finalizable {
         'and customFinalizerFn must be provided.',
       );
     }
-    customFinalizer.attach(this, _ptr.cast(), detach: this);
+    customFinalizer.attach(this, ptr.cast(), detach: this);
     _activeFinalizer = customFinalizer;
     _activeFinalizerFn = customFinalizerFn;
+    _isOwnerAlive = null;
+  }
+
+  /// Wraps [_ptr], which another object owns, without taking ownership of it.
+  ///
+  /// [_isOwnerAlive] is a tear-off of the [_isAlive] method of the object
+  /// that this one is borrowed from, or null if it isn't borrowed from an
+  /// object. [isReference] is whether [_ptr] comes from a C++ reference.
+  access$Registry._borrowed(
+    this._ptr,
+    this._isOwnerAlive, {
+    bool isReference = false,
+  }) : _isReference = isReference;
+
+  /// Whether neither this object, nor the object it's borrowed from, if any,
+  /// has been disposed.
+  bool _isAlive() => _ptr != ffi.nullptr && (_isOwnerAlive?.call() ?? true);
+
+  /// [_ptr], for passing to C++.
+  ///
+  /// Throws a [StateError] if this object, or the object it's borrowed from,
+  /// has been disposed, rather than letting C++ use a dangling pointer.
+  ffi.Pointer<ffi.Void> get _alivePtr {
+    if (_ptr == ffi.nullptr) {
+      throw StateError('This object has already been disposed.');
+    }
+    if (_isOwnerAlive?.call() == false) {
+      throw StateError(
+        'The object that this object is borrowed from has been disposed.',
+      );
+    }
+    return _ptr;
   }
 
   /// Detaches the finalizer so this object releases ownership of the
@@ -1007,11 +1314,7 @@ class access$Registry implements ffi.Finalizable {
   }
 
   int size() {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
-
-    return _access_Registry_size(_ptr);
+    return _access_Registry_size(_alivePtr);
   }
 
   void dispose() {
@@ -1061,7 +1364,20 @@ class access$Shape implements ffi.Finalizable {
   ffi.Pointer<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>?
   _activeFinalizerFn;
 
-  access$Shape.fromPointer(this._ptr, {bool takeOwnership = false}) {
+  /// Whether the object that this one is borrowed from is still alive, or
+  /// null if this object isn't borrowed from another object.
+  ///
+  /// This is a tear-off of that object's [_isAlive], so it also keeps that
+  /// object, which owns the C++ object, from being garbage collected while
+  /// this one is reachable.
+  bool Function()? _isOwnerAlive;
+
+  /// Whether this object wraps a C++ reference, which it can't take
+  /// ownership of.
+  final bool _isReference;
+
+  access$Shape.fromPointer(this._ptr, {bool takeOwnership = false})
+    : _isReference = false {
     if (takeOwnership) {
       _defaultFinalizer.attach(this, _ptr.cast(), detach: this);
       _activeFinalizer = _defaultFinalizer;
@@ -1079,18 +1395,25 @@ class access$Shape implements ffi.Finalizable {
   ///
   /// Both [customFinalizer] and [customFinalizerFn] must be provided together.
   ///
-  /// Throws a [StateError] if the object has already been disposed, or if
-  /// this object already owns the pointer.
+  /// If this object is borrowed from another object, it no longer depends on
+  /// that object afterwards.
+  ///
+  /// Throws a [StateError] if the object, or the object it's borrowed from,
+  /// has already been disposed, if this object already owns the pointer, or
+  /// if it wraps a C++ reference.
   void retainOwnership([
     ffi.NativeFinalizer? customFinalizer,
     ffi.Pointer<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>?
     customFinalizerFn,
   ]) {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
+    final ptr = _alivePtr;
     if (_activeFinalizer != null) {
       throw StateError('This object already owns its pointer.');
+    }
+    if (_isReference) {
+      throw StateError(
+        "This object wraps a C++ reference, so it can't own its pointer.",
+      );
     }
     if ((customFinalizer == null) != (customFinalizerFn == null)) {
       throw ArgumentError(
@@ -1103,9 +1426,41 @@ class access$Shape implements ffi.Finalizable {
         ffi.Native.addressOf<
           ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>
         >(_access$Shape_delete);
-    fin.attach(this, _ptr.cast(), detach: this);
+    fin.attach(this, ptr.cast(), detach: this);
     _activeFinalizer = fin;
     _activeFinalizerFn = fnPtr;
+    _isOwnerAlive = null;
+  }
+
+  /// Wraps [_ptr], which another object owns, without taking ownership of it.
+  ///
+  /// [_isOwnerAlive] is a tear-off of the [_isAlive] method of the object
+  /// that this one is borrowed from, or null if it isn't borrowed from an
+  /// object. [isReference] is whether [_ptr] comes from a C++ reference.
+  access$Shape._borrowed(
+    this._ptr,
+    this._isOwnerAlive, {
+    bool isReference = false,
+  }) : _isReference = isReference;
+
+  /// Whether neither this object, nor the object it's borrowed from, if any,
+  /// has been disposed.
+  bool _isAlive() => _ptr != ffi.nullptr && (_isOwnerAlive?.call() ?? true);
+
+  /// [_ptr], for passing to C++.
+  ///
+  /// Throws a [StateError] if this object, or the object it's borrowed from,
+  /// has been disposed, rather than letting C++ use a dangling pointer.
+  ffi.Pointer<ffi.Void> get _alivePtr {
+    if (_ptr == ffi.nullptr) {
+      throw StateError('This object has already been disposed.');
+    }
+    if (_isOwnerAlive?.call() == false) {
+      throw StateError(
+        'The object that this object is borrowed from has been disposed.',
+      );
+    }
+    return _ptr;
   }
 
   /// Detaches the finalizer so this object releases ownership of the
@@ -1139,19 +1494,11 @@ class access$Shape implements ffi.Finalizable {
   }
 
   double area() {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
-
-    return _access_Shape_area(_ptr);
+    return _access_Shape_area(_alivePtr);
   }
 
   int sides() {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
-
-    return _access_Shape_sides(_ptr);
+    return _access_Shape_sides(_alivePtr);
   }
 
   static access$Shape makeSquare(double side) {
@@ -1234,7 +1581,20 @@ class access$Square implements ffi.Finalizable, access$Polygon {
   ffi.Pointer<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>?
   _activeFinalizerFn;
 
-  access$Square.fromPointer(this._ptr, {bool takeOwnership = false}) {
+  /// Whether the object that this one is borrowed from is still alive, or
+  /// null if this object isn't borrowed from another object.
+  ///
+  /// This is a tear-off of that object's [_isAlive], so it also keeps that
+  /// object, which owns the C++ object, from being garbage collected while
+  /// this one is reachable.
+  bool Function()? _isOwnerAlive;
+
+  /// Whether this object wraps a C++ reference, which it can't take
+  /// ownership of.
+  final bool _isReference;
+
+  access$Square.fromPointer(this._ptr, {bool takeOwnership = false})
+    : _isReference = false {
     if (takeOwnership) {
       _defaultFinalizer.attach(this, _ptr.cast(), detach: this);
       _activeFinalizer = _defaultFinalizer;
@@ -1252,18 +1612,25 @@ class access$Square implements ffi.Finalizable, access$Polygon {
   ///
   /// Both [customFinalizer] and [customFinalizerFn] must be provided together.
   ///
-  /// Throws a [StateError] if the object has already been disposed, or if
-  /// this object already owns the pointer.
+  /// If this object is borrowed from another object, it no longer depends on
+  /// that object afterwards.
+  ///
+  /// Throws a [StateError] if the object, or the object it's borrowed from,
+  /// has already been disposed, if this object already owns the pointer, or
+  /// if it wraps a C++ reference.
   void retainOwnership([
     ffi.NativeFinalizer? customFinalizer,
     ffi.Pointer<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>?
     customFinalizerFn,
   ]) {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
+    final ptr = _alivePtr;
     if (_activeFinalizer != null) {
       throw StateError('This object already owns its pointer.');
+    }
+    if (_isReference) {
+      throw StateError(
+        "This object wraps a C++ reference, so it can't own its pointer.",
+      );
     }
     if ((customFinalizer == null) != (customFinalizerFn == null)) {
       throw ArgumentError(
@@ -1276,9 +1643,41 @@ class access$Square implements ffi.Finalizable, access$Polygon {
         ffi.Native.addressOf<
           ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>
         >(_access$Square_delete);
-    fin.attach(this, _ptr.cast(), detach: this);
+    fin.attach(this, ptr.cast(), detach: this);
     _activeFinalizer = fin;
     _activeFinalizerFn = fnPtr;
+    _isOwnerAlive = null;
+  }
+
+  /// Wraps [_ptr], which another object owns, without taking ownership of it.
+  ///
+  /// [_isOwnerAlive] is a tear-off of the [_isAlive] method of the object
+  /// that this one is borrowed from, or null if it isn't borrowed from an
+  /// object. [isReference] is whether [_ptr] comes from a C++ reference.
+  access$Square._borrowed(
+    this._ptr,
+    this._isOwnerAlive, {
+    bool isReference = false,
+  }) : _isReference = isReference;
+
+  /// Whether neither this object, nor the object it's borrowed from, if any,
+  /// has been disposed.
+  bool _isAlive() => _ptr != ffi.nullptr && (_isOwnerAlive?.call() ?? true);
+
+  /// [_ptr], for passing to C++.
+  ///
+  /// Throws a [StateError] if this object, or the object it's borrowed from,
+  /// has been disposed, rather than letting C++ use a dangling pointer.
+  ffi.Pointer<ffi.Void> get _alivePtr {
+    if (_ptr == ffi.nullptr) {
+      throw StateError('This object has already been disposed.');
+    }
+    if (_isOwnerAlive?.call() == false) {
+      throw StateError(
+        'The object that this object is borrowed from has been disposed.',
+      );
+    }
+    return _ptr;
   }
 
   /// Detaches the finalizer so this object releases ownership of the
@@ -1318,19 +1717,11 @@ class access$Square implements ffi.Finalizable, access$Polygon {
     );
   }
   double area() {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
-
-    return _access_Square_area(_ptr);
+    return _access_Square_area(_alivePtr);
   }
 
   int sides() {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
-
-    return _access_Square_sides(_ptr);
+    return _access_Square_sides(_alivePtr);
   }
 
   static access$Shape makeSquare(double side) {
@@ -1414,12 +1805,24 @@ class access$SubRegistry implements ffi.Finalizable, access$Registry {
   ffi.Pointer<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>?
   _activeFinalizerFn;
 
+  /// Whether the object that this one is borrowed from is still alive, or
+  /// null if this object isn't borrowed from another object.
+  ///
+  /// This is a tear-off of that object's [_isAlive], so it also keeps that
+  /// object, which owns the C++ object, from being garbage collected while
+  /// this one is reachable.
+  bool Function()? _isOwnerAlive;
+
+  /// Whether this object wraps a C++ reference, which it can't take
+  /// ownership of.
+  final bool _isReference;
+
   /// Wraps [_ptr], without taking ownership of it. To take ownership, call
   /// [retainOwnership] with a custom finalizer.
   ///
   /// The bindings can't delete a pointer to `access::SubRegistry`, since
   /// its destructor isn't public.
-  access$SubRegistry.fromPointer(this._ptr);
+  access$SubRegistry.fromPointer(this._ptr) : _isReference = false;
 
   /// Attaches [customFinalizer] so this object takes ownership of the
   /// underlying C++ pointer. [customFinalizerFn] is the native function that
@@ -1427,19 +1830,25 @@ class access$SubRegistry implements ffi.Finalizable, access$Registry {
   ///
   /// Both are required, since the bindings can't delete this object.
   ///
+  /// If this object is borrowed from another object, it no longer depends on
+  /// that object afterwards.
+  ///
   /// Throws an [ArgumentError] if either is missing. Throws a [StateError] if
-  /// the object has already been disposed, or if this object already owns
-  /// the pointer.
+  /// the object, or the object it's borrowed from, has already been disposed,
+  /// if this object already owns the pointer, or if it wraps a C++ reference.
   void retainOwnership([
     ffi.NativeFinalizer? customFinalizer,
     ffi.Pointer<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>?
     customFinalizerFn,
   ]) {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
+    final ptr = _alivePtr;
     if (_activeFinalizer != null) {
       throw StateError('This object already owns its pointer.');
+    }
+    if (_isReference) {
+      throw StateError(
+        "This object wraps a C++ reference, so it can't own its pointer.",
+      );
     }
     if (customFinalizer == null || customFinalizerFn == null) {
       throw ArgumentError(
@@ -1447,9 +1856,41 @@ class access$SubRegistry implements ffi.Finalizable, access$Registry {
         'and customFinalizerFn must be provided.',
       );
     }
-    customFinalizer.attach(this, _ptr.cast(), detach: this);
+    customFinalizer.attach(this, ptr.cast(), detach: this);
     _activeFinalizer = customFinalizer;
     _activeFinalizerFn = customFinalizerFn;
+    _isOwnerAlive = null;
+  }
+
+  /// Wraps [_ptr], which another object owns, without taking ownership of it.
+  ///
+  /// [_isOwnerAlive] is a tear-off of the [_isAlive] method of the object
+  /// that this one is borrowed from, or null if it isn't borrowed from an
+  /// object. [isReference] is whether [_ptr] comes from a C++ reference.
+  access$SubRegistry._borrowed(
+    this._ptr,
+    this._isOwnerAlive, {
+    bool isReference = false,
+  }) : _isReference = isReference;
+
+  /// Whether neither this object, nor the object it's borrowed from, if any,
+  /// has been disposed.
+  bool _isAlive() => _ptr != ffi.nullptr && (_isOwnerAlive?.call() ?? true);
+
+  /// [_ptr], for passing to C++.
+  ///
+  /// Throws a [StateError] if this object, or the object it's borrowed from,
+  /// has been disposed, rather than letting C++ use a dangling pointer.
+  ffi.Pointer<ffi.Void> get _alivePtr {
+    if (_ptr == ffi.nullptr) {
+      throw StateError('This object has already been disposed.');
+    }
+    if (_isOwnerAlive?.call() == false) {
+      throw StateError(
+        'The object that this object is borrowed from has been disposed.',
+      );
+    }
+    return _ptr;
   }
 
   /// Detaches the finalizer so this object releases ownership of the
@@ -1483,11 +1924,7 @@ class access$SubRegistry implements ffi.Finalizable, access$Registry {
   }
 
   int depth() {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
-
-    return _access_SubRegistry_depth(_ptr);
+    return _access_SubRegistry_depth(_alivePtr);
   }
 
   static access$Registry instance() {
@@ -1495,11 +1932,7 @@ class access$SubRegistry implements ffi.Finalizable, access$Registry {
   }
 
   int size() {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
-
-    return _access_SubRegistry_size(_ptr);
+    return _access_SubRegistry_size(_alivePtr);
   }
 
   @override
@@ -1550,12 +1983,24 @@ class access$Widget implements ffi.Finalizable, access$Drawable {
   ffi.Pointer<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>?
   _activeFinalizerFn;
 
+  /// Whether the object that this one is borrowed from is still alive, or
+  /// null if this object isn't borrowed from another object.
+  ///
+  /// This is a tear-off of that object's [_isAlive], so it also keeps that
+  /// object, which owns the C++ object, from being garbage collected while
+  /// this one is reachable.
+  bool Function()? _isOwnerAlive;
+
+  /// Whether this object wraps a C++ reference, which it can't take
+  /// ownership of.
+  final bool _isReference;
+
   /// Wraps [_ptr], without taking ownership of it. To take ownership, call
   /// [retainOwnership] with a custom finalizer.
   ///
   /// The bindings can't delete a pointer to `access::Widget`, since
   /// its destructor isn't virtual, although it has virtual methods.
-  access$Widget.fromPointer(this._ptr);
+  access$Widget.fromPointer(this._ptr) : _isReference = false;
 
   /// Attaches [customFinalizer] so this object takes ownership of the
   /// underlying C++ pointer. [customFinalizerFn] is the native function that
@@ -1563,19 +2008,25 @@ class access$Widget implements ffi.Finalizable, access$Drawable {
   ///
   /// Both are required, since the bindings can't delete this object.
   ///
+  /// If this object is borrowed from another object, it no longer depends on
+  /// that object afterwards.
+  ///
   /// Throws an [ArgumentError] if either is missing. Throws a [StateError] if
-  /// the object has already been disposed, or if this object already owns
-  /// the pointer.
+  /// the object, or the object it's borrowed from, has already been disposed,
+  /// if this object already owns the pointer, or if it wraps a C++ reference.
   void retainOwnership([
     ffi.NativeFinalizer? customFinalizer,
     ffi.Pointer<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>?
     customFinalizerFn,
   ]) {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
+    final ptr = _alivePtr;
     if (_activeFinalizer != null) {
       throw StateError('This object already owns its pointer.');
+    }
+    if (_isReference) {
+      throw StateError(
+        "This object wraps a C++ reference, so it can't own its pointer.",
+      );
     }
     if (customFinalizer == null || customFinalizerFn == null) {
       throw ArgumentError(
@@ -1583,9 +2034,41 @@ class access$Widget implements ffi.Finalizable, access$Drawable {
         'and customFinalizerFn must be provided.',
       );
     }
-    customFinalizer.attach(this, _ptr.cast(), detach: this);
+    customFinalizer.attach(this, ptr.cast(), detach: this);
     _activeFinalizer = customFinalizer;
     _activeFinalizerFn = customFinalizerFn;
+    _isOwnerAlive = null;
+  }
+
+  /// Wraps [_ptr], which another object owns, without taking ownership of it.
+  ///
+  /// [_isOwnerAlive] is a tear-off of the [_isAlive] method of the object
+  /// that this one is borrowed from, or null if it isn't borrowed from an
+  /// object. [isReference] is whether [_ptr] comes from a C++ reference.
+  access$Widget._borrowed(
+    this._ptr,
+    this._isOwnerAlive, {
+    bool isReference = false,
+  }) : _isReference = isReference;
+
+  /// Whether neither this object, nor the object it's borrowed from, if any,
+  /// has been disposed.
+  bool _isAlive() => _ptr != ffi.nullptr && (_isOwnerAlive?.call() ?? true);
+
+  /// [_ptr], for passing to C++.
+  ///
+  /// Throws a [StateError] if this object, or the object it's borrowed from,
+  /// has been disposed, rather than letting C++ use a dangling pointer.
+  ffi.Pointer<ffi.Void> get _alivePtr {
+    if (_ptr == ffi.nullptr) {
+      throw StateError('This object has already been disposed.');
+    }
+    if (_isOwnerAlive?.call() == false) {
+      throw StateError(
+        'The object that this object is borrowed from has been disposed.',
+      );
+    }
+    return _ptr;
   }
 
   /// Detaches the finalizer so this object releases ownership of the
@@ -1623,12 +2106,14 @@ class access$Widget implements ffi.Finalizable, access$Drawable {
   factory access$Widget() {
     return access$Widget.fromPointer(_access_Widget_new());
   }
-  int draw() {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
 
-    return _access_Widget_draw(_ptr);
+  /// The returned object doesn't own its pointer, since the bindings can't
+  /// delete it. See [retainOwnership].
+  factory access$Widget.new$1(access$Widget other) {
+    return access$Widget.fromPointer(_access_Widget_new$1(other._alivePtr));
+  }
+  int draw() {
+    return _access_Widget_draw(_alivePtr);
   }
 
   static int liveCount() {
@@ -1636,11 +2121,11 @@ class access$Widget implements ffi.Finalizable, access$Drawable {
   }
 
   static void destroy(access$Widget widget) {
-    _access_Widget_destroy(widget._ptr);
+    _access_Widget_destroy(widget._alivePtr);
   }
 
   static int drawCopy(access$Widget widget) {
-    return _access_Widget_drawCopy(widget._ptr);
+    return _access_Widget_drawCopy(widget._alivePtr);
   }
 
   @override
@@ -1666,6 +2151,13 @@ class access$Widget implements ffi.Finalizable, access$Drawable {
 
 @ffi.Native<ffi.Pointer<ffi.Void> Function()>(symbol: 'access_Widget_new')
 external ffi.Pointer<ffi.Void> _access_Widget_new();
+
+@ffi.Native<ffi.Pointer<ffi.Void> Function(ffi.Pointer<ffi.Void>)>(
+  symbol: 'access_Widget_new_1',
+)
+external ffi.Pointer<ffi.Void> _access_Widget_new$1(
+  ffi.Pointer<ffi.Void> other,
+);
 
 @ffi.Native<ffi.Int32 Function(ffi.Pointer<ffi.Void>)>(
   symbol: 'access_Widget_draw',

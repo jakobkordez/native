@@ -38,7 +38,8 @@ class CppMethod extends AstNode with HasLocalScope {
   /// The base class that declares this method, if it was copied from a base.
   final CppClass? originatingClass;
 
-  /// Whether the C++ return type is a pointer to const, like `const T*`.
+  /// Whether the C++ return type is a pointer to const, like `const T*`, or a
+  /// reference to const, like `const T&`, which the glue returns as a pointer.
   ///
   /// The glue function returns a pointer to non-const, because Dart has no
   /// notion of const, so it has to cast the const away.
@@ -193,7 +194,7 @@ class CppClass extends BindingType with HasLocalScope {
     required bool objCRetain,
     required bool objCAutorelease,
     required LocalVariables localVariables,
-  }) => '$value._ptr';
+  }) => '$value._alivePtr';
 
   void copyMethod(CppMethod method, CppClass originatingBase) {
     final cloned = method.cloneForClass(this, originatingBase);
@@ -252,10 +253,23 @@ class $name implements $implementsClause {
     $ffiPrefix.NativeFunction<$ffiPrefix.Void Function($ptrVoid)>
   >? _activeFinalizerFn;
 
+  /// Whether the object that this one is borrowed from is still alive, or
+  /// null if this object isn't borrowed from another object.
+  ///
+  /// This is a tear-off of that object's [_isAlive], so it also keeps that
+  /// object, which owns the C++ object, from being garbage collected while
+  /// this one is reachable.
+  bool Function()? _isOwnerAlive;
+
+  /// Whether this object wraps a C++ reference, which it can't take
+  /// ownership of.
+  final bool _isReference;
+
 ''');
     if (isDeletable) {
       s.write('''
-  $name.fromPointer(this._ptr, {bool takeOwnership = false}) {
+  $name.fromPointer(this._ptr, {bool takeOwnership = false})
+    : _isReference = false {
     if (takeOwnership) {
       _defaultFinalizer.attach(this, _ptr.cast(), detach: this);
       _activeFinalizer = _defaultFinalizer;
@@ -272,19 +286,25 @@ class $name implements $implementsClause {
   ///
   /// Both [customFinalizer] and [customFinalizerFn] must be provided together.
   ///
-  /// Throws a [StateError] if the object has already been disposed, or if
-  /// this object already owns the pointer.
+  /// If this object is borrowed from another object, it no longer depends on
+  /// that object afterwards.
+  ///
+  /// Throws a [StateError] if the object, or the object it's borrowed from,
+  /// has already been disposed, if this object already owns the pointer, or
+  /// if it wraps a C++ reference.
   void retainOwnership([
     $ffiPrefix.NativeFinalizer? customFinalizer,
     $ffiPrefix.Pointer<
       $ffiPrefix.NativeFunction<$ffiPrefix.Void Function($ptrVoid)>
     >? customFinalizerFn,
   ]) {
-    if (_ptr == $ffiPrefix.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
+    final ptr = _alivePtr;
     if (_activeFinalizer != null) {
       throw StateError('This object already owns its pointer.');
+    }
+    if (_isReference) {
+      throw StateError(
+          "This object wraps a C++ reference, so it can't own its pointer.");
     }
     if ((customFinalizer == null) != (customFinalizerFn == null)) {
       throw ArgumentError(
@@ -295,9 +315,10 @@ class $name implements $implementsClause {
         $ffiPrefix.Native.addressOf<
           $ffiPrefix.NativeFunction<$ffiPrefix.Void Function($ptrVoid)>
         >($deleteGlue);
-    fin.attach(this, _ptr.cast(), detach: this);
+    fin.attach(this, ptr.cast(), detach: this);
     _activeFinalizer = fin;
     _activeFinalizerFn = fnPtr;
+    _isOwnerAlive = null;
   }
 
 ''');
@@ -311,7 +332,7 @@ class $name implements $implementsClause {
   ///
   /// The bindings can't delete a pointer to `$originalName`, since
   /// $reason.
-  $name.fromPointer(this._ptr);
+  $name.fromPointer(this._ptr) : _isReference = false;
 
   /// Attaches [customFinalizer] so this object takes ownership of the
   /// underlying C++ pointer. [customFinalizerFn] is the native function that
@@ -319,34 +340,71 @@ class $name implements $implementsClause {
   ///
   /// Both are required, since the bindings can't delete this object.
   ///
+  /// If this object is borrowed from another object, it no longer depends on
+  /// that object afterwards.
+  ///
   /// Throws an [ArgumentError] if either is missing. Throws a [StateError] if
-  /// the object has already been disposed, or if this object already owns
-  /// the pointer.
+  /// the object, or the object it's borrowed from, has already been disposed,
+  /// if this object already owns the pointer, or if it wraps a C++ reference.
   void retainOwnership([
     $ffiPrefix.NativeFinalizer? customFinalizer,
     $ffiPrefix.Pointer<
       $ffiPrefix.NativeFunction<$ffiPrefix.Void Function($ptrVoid)>
     >? customFinalizerFn,
   ]) {
-    if (_ptr == $ffiPrefix.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
+    final ptr = _alivePtr;
     if (_activeFinalizer != null) {
       throw StateError('This object already owns its pointer.');
+    }
+    if (_isReference) {
+      throw StateError(
+          "This object wraps a C++ reference, so it can't own its pointer.");
     }
     if (customFinalizer == null || customFinalizerFn == null) {
       throw ArgumentError(
           'The bindings cannot delete this object, so both customFinalizer '
           'and customFinalizerFn must be provided.');
     }
-    customFinalizer.attach(this, _ptr.cast(), detach: this);
+    customFinalizer.attach(this, ptr.cast(), detach: this);
     _activeFinalizer = customFinalizer;
     _activeFinalizerFn = customFinalizerFn;
+    _isOwnerAlive = null;
   }
 
 ''');
     }
     s.write('''
+  /// Wraps [_ptr], which another object owns, without taking ownership of it.
+  ///
+  /// [_isOwnerAlive] is a tear-off of the [_isAlive] method of the object
+  /// that this one is borrowed from, or null if it isn't borrowed from an
+  /// object. [isReference] is whether [_ptr] comes from a C++ reference.
+  $name._borrowed(
+    this._ptr,
+    this._isOwnerAlive, {
+    bool isReference = false,
+  }) : _isReference = isReference;
+
+  /// Whether neither this object, nor the object it's borrowed from, if any,
+  /// has been disposed.
+  bool _isAlive() =>
+      _ptr != $ffiPrefix.nullptr && (_isOwnerAlive?.call() ?? true);
+
+  /// [_ptr], for passing to C++.
+  ///
+  /// Throws a [StateError] if this object, or the object it's borrowed from,
+  /// has been disposed, rather than letting C++ use a dangling pointer.
+  $ptrVoid get _alivePtr {
+    if (_ptr == $ffiPrefix.nullptr) {
+      throw StateError('This object has already been disposed.');
+    }
+    if (_isOwnerAlive?.call() == false) {
+      throw StateError(
+          'The object that this object is borrowed from has been disposed.');
+    }
+    return _ptr;
+  }
+
   /// Detaches the finalizer so this object releases ownership of the
   /// underlying C++ pointer. The caller becomes responsible for freeing
   /// the memory.
@@ -426,7 +484,7 @@ class $name implements $implementsClause {
       final localVars = LocalVariables(method.localScope);
 
       final callArgs = [
-        if (!method.isStatic) '_ptr',
+        if (!method.isStatic) '_alivePtr',
         ...method.parameters.map(
           (p) => p.type.convertDartTypeToFfiDartType(
             ctx,
@@ -439,35 +497,32 @@ class $name implements $implementsClause {
       ].join(', ');
       final decls = localVars.generateDeclarations();
 
-      final returnExpr = method.returnType.convertFfiDartTypeToDartType(
-        ctx,
-        '$glue($callArgs)',
-        objCRetain: false,
-      );
+      final call = '$glue($callArgs)';
+      final returnExpr = switch (method.returnType.typealiasType) {
+        // A returned pointer or reference is borrowed from this object.
+        final CppClassPointerType type => type.convertReturnedToDartType(
+          ctx,
+          call,
+          isOwnerAlive: method.isStatic ? null : '_isAlive',
+        ),
+        _ => method.returnType.convertFfiDartTypeToDartType(
+          ctx,
+          call,
+          objCRetain: false,
+        ),
+      };
 
       final hasReturn = method.returnType != voidType;
       final callLine = localVars.wrapWithCleanups(
         hasReturn ? 'return $returnExpr;' : '$returnExpr;',
       );
 
-      if (method.isStatic) {
-        s.write('''\
-  static $dartReturn ${method.name}($dartParams) {
+      s.write('''\
+  ${method.isStatic ? 'static ' : ''}$dartReturn ${method.name}($dartParams) {
     $decls
     $callLine
   }
 ''');
-      } else {
-        s.write('''\
-  $dartReturn ${method.name}($dartParams) {
-    if (_ptr == $ffiPrefix.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
-    $decls
-    $callLine
-  }
-''');
-      }
     }
     s.write('''
   ${bases.isNotEmpty ? '@override\n  ' : ''}void dispose() {
@@ -615,11 +670,13 @@ FFIGEN_EXPORT void ${Namer.cSafeName('${name}_delete')}($originalName* self) {
             if (method.returnType == voidType) {
               body = '$callExpr;';
             } else {
-              final result = method.returnsPointerToConst
-                  ? 'const_cast<$returnTypeString>($callExpr)'
-                  : callExpr;
-              final returnExpr = method.returnType
-                  .convertNativeTypeToExternCType(context, result);
+              final result = method.returnType.convertNativeTypeToExternCType(
+                context,
+                callExpr,
+              );
+              final returnExpr = method.returnsPointerToConst
+                  ? 'const_cast<$returnTypeString>($result)'
+                  : result;
               body = 'return $returnExpr;';
             }
           }

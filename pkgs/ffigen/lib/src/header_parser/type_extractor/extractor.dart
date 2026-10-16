@@ -135,6 +135,8 @@ Type getCodeGenType(
         return HandleType();
       }
       return PointerType(s);
+    case clang_types.CXTypeKind.CXType_LValueReference:
+      return _extractReference(context, cxtype, cppGlue: cppGlue);
     case clang_types.CXTypeKind.CXType_FunctionProto:
       // Primarily used for function pointers.
       return _extractFromFunctionProto(context, cxtype, cursor: originalCursor);
@@ -372,6 +374,31 @@ Type _extractUniquePtrType(
   return UnimplementedType(
     'unique_ptr inner type is not a supported C++ class',
   );
+}
+
+/// Returns the type for [cxtype], an lvalue reference.
+///
+/// Only references to C++ classes are supported, and only by C++ methods and
+/// constructors, whose glue passes them as pointers.
+Type _extractReference(
+  Context context,
+  clang_types.CXType cxtype, {
+  required bool cppGlue,
+}) {
+  if (!cppGlue) {
+    return UnimplementedType(
+      'References are only supported by C++ methods and constructors',
+    );
+  }
+  final cxPointee = clang.clang_getPointeeType(cxtype);
+  final pointee = getCodeGenType(context, cxPointee);
+  if (pointee.typealiasType case final CppClass cppClass) {
+    return CppClassReferenceType(
+      cppClass,
+      isConst: clang.clang_getCanonicalType(cxPointee).isConstQualified,
+    );
+  }
+  return UnimplementedType('Reference to $pointee');
 }
 
 /// Returns the type for [cxtype] if it is a `std::string` or a reference to

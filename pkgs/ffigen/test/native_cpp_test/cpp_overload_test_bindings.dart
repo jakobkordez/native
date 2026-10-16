@@ -71,7 +71,20 @@ class lab$Experiment implements ffi.Finalizable {
   ffi.Pointer<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>?
   _activeFinalizerFn;
 
-  lab$Experiment.fromPointer(this._ptr, {bool takeOwnership = false}) {
+  /// Whether the object that this one is borrowed from is still alive, or
+  /// null if this object isn't borrowed from another object.
+  ///
+  /// This is a tear-off of that object's [_isAlive], so it also keeps that
+  /// object, which owns the C++ object, from being garbage collected while
+  /// this one is reachable.
+  bool Function()? _isOwnerAlive;
+
+  /// Whether this object wraps a C++ reference, which it can't take
+  /// ownership of.
+  final bool _isReference;
+
+  lab$Experiment.fromPointer(this._ptr, {bool takeOwnership = false})
+    : _isReference = false {
     if (takeOwnership) {
       _defaultFinalizer.attach(this, _ptr.cast(), detach: this);
       _activeFinalizer = _defaultFinalizer;
@@ -89,18 +102,25 @@ class lab$Experiment implements ffi.Finalizable {
   ///
   /// Both [customFinalizer] and [customFinalizerFn] must be provided together.
   ///
-  /// Throws a [StateError] if the object has already been disposed, or if
-  /// this object already owns the pointer.
+  /// If this object is borrowed from another object, it no longer depends on
+  /// that object afterwards.
+  ///
+  /// Throws a [StateError] if the object, or the object it's borrowed from,
+  /// has already been disposed, if this object already owns the pointer, or
+  /// if it wraps a C++ reference.
   void retainOwnership([
     ffi.NativeFinalizer? customFinalizer,
     ffi.Pointer<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>?
     customFinalizerFn,
   ]) {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
+    final ptr = _alivePtr;
     if (_activeFinalizer != null) {
       throw StateError('This object already owns its pointer.');
+    }
+    if (_isReference) {
+      throw StateError(
+        "This object wraps a C++ reference, so it can't own its pointer.",
+      );
     }
     if ((customFinalizer == null) != (customFinalizerFn == null)) {
       throw ArgumentError(
@@ -113,9 +133,41 @@ class lab$Experiment implements ffi.Finalizable {
         ffi.Native.addressOf<
           ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>
         >(_lab$Experiment_delete);
-    fin.attach(this, _ptr.cast(), detach: this);
+    fin.attach(this, ptr.cast(), detach: this);
     _activeFinalizer = fin;
     _activeFinalizerFn = fnPtr;
+    _isOwnerAlive = null;
+  }
+
+  /// Wraps [_ptr], which another object owns, without taking ownership of it.
+  ///
+  /// [_isOwnerAlive] is a tear-off of the [_isAlive] method of the object
+  /// that this one is borrowed from, or null if it isn't borrowed from an
+  /// object. [isReference] is whether [_ptr] comes from a C++ reference.
+  lab$Experiment._borrowed(
+    this._ptr,
+    this._isOwnerAlive, {
+    bool isReference = false,
+  }) : _isReference = isReference;
+
+  /// Whether neither this object, nor the object it's borrowed from, if any,
+  /// has been disposed.
+  bool _isAlive() => _ptr != ffi.nullptr && (_isOwnerAlive?.call() ?? true);
+
+  /// [_ptr], for passing to C++.
+  ///
+  /// Throws a [StateError] if this object, or the object it's borrowed from,
+  /// has been disposed, rather than letting C++ use a dangling pointer.
+  ffi.Pointer<ffi.Void> get _alivePtr {
+    if (_ptr == ffi.nullptr) {
+      throw StateError('This object has already been disposed.');
+    }
+    if (_isOwnerAlive?.call() == false) {
+      throw StateError(
+        'The object that this object is borrowed from has been disposed.',
+      );
+    }
+    return _ptr;
   }
 
   /// Detaches the finalizer so this object releases ownership of the
@@ -167,101 +219,60 @@ class lab$Experiment implements ffi.Finalizable {
     );
   }
   lab$Properties propertiesConst() {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
-
-    return lab$Properties.fromPointer(_lab_Experiment_propertiesConst(_ptr));
+    return lab$Properties._borrowed(
+      _lab_Experiment_propertiesConst(_alivePtr),
+      _isAlive,
+    );
   }
 
   lab$Properties properties() {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
-
-    return lab$Properties.fromPointer(_lab_Experiment_properties(_ptr));
+    return lab$Properties._borrowed(
+      _lab_Experiment_properties(_alivePtr),
+      _isAlive,
+    );
   }
 
   ffi.Pointer<ffi.Int32> resultsConst() {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
-
-    return _lab_Experiment_resultsConst(_ptr);
+    return _lab_Experiment_resultsConst(_alivePtr);
   }
 
   ffi.Pointer<ffi.Int32> results() {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
-
-    return _lab_Experiment_results(_ptr);
+    return _lab_Experiment_results(_alivePtr);
   }
 
   String constStreams() {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
-
-    return _stdStringToDart(_lab_Experiment_streamsConst(_ptr));
+    return _stdStringToDart(_lab_Experiment_streamsConst(_alivePtr));
   }
 
   String streams() {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
-
-    return _stdStringToDart(_lab_Experiment_streams(_ptr));
+    return _stdStringToDart(_lab_Experiment_streams(_alivePtr));
   }
 
   int getId() {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
-
-    return _lab_Experiment_getId(_ptr);
+    return _lab_Experiment_getId(_alivePtr);
   }
 
   double getWeight() {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
-
-    return _lab_Experiment_getWeight(_ptr);
+    return _lab_Experiment_getWeight(_alivePtr);
   }
 
   int add(int a, int b) {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
-
-    return _lab_Experiment_add(_ptr, a, b);
+    return _lab_Experiment_add(_alivePtr, a, b);
   }
 
   double add$1(double a, double b) {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
-
-    return _lab_Experiment_add$1(_ptr, a, b);
+    return _lab_Experiment_add$1(_alivePtr, a, b);
   }
 
   int add$2(int a, int b, int c) {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
-
-    return _lab_Experiment_add$2(_ptr, a, b, c);
+    return _lab_Experiment_add$2(_alivePtr, a, b, c);
   }
 
   String add$3(String a, String b) {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
     final _$$a = _stdStringFromDart(a);
     final _$$b = _stdStringFromDart(b);
     try {
-      return _stdStringToDart(_lab_Experiment_add$3(_ptr, _$$a, _$$b));
+      return _stdStringToDart(_lab_Experiment_add$3(_alivePtr, _$$a, _$$b));
     } finally {
       _stdStringDelete(_$$a);
       _stdStringDelete(_$$b);
@@ -277,103 +288,87 @@ class lab$Experiment implements ffi.Finalizable {
   }
 
   int describe() {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
-
-    return _lab_Experiment_describe(_ptr);
+    return _lab_Experiment_describe(_alivePtr);
   }
 
   int describe$1(int detail) {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
-
-    return _lab_Experiment_describe$1(_ptr, detail);
+    return _lab_Experiment_describe$1(_alivePtr, detail);
   }
 
-  bool operatorEqual(int id) {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
+  bool operatorEqual(lab$Experiment other) {
+    return _lab_Experiment_operatorEqual(_alivePtr, other._alivePtr);
+  }
 
-    return _lab_Experiment_operatorEqual(_ptr, id);
+  bool operatorEqual$1(int id) {
+    return _lab_Experiment_operatorEqual$1(_alivePtr, id);
+  }
+
+  bool operatorNotEqual(lab$Experiment other) {
+    return _lab_Experiment_operatorNotEqual(_alivePtr, other._alivePtr);
+  }
+
+  bool operatorLess(lab$Experiment other) {
+    return _lab_Experiment_operatorLess(_alivePtr, other._alivePtr);
+  }
+
+  lab$Experiment operatorAssign(lab$Experiment other) {
+    return lab$Experiment._borrowed(
+      _lab_Experiment_operatorAssign(_alivePtr, other._alivePtr),
+      _isAlive,
+      isReference: true,
+    );
   }
 
   int operatorSubscript(int index) {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
-
-    return _lab_Experiment_operatorSubscript(_ptr, index);
+    return _lab_Experiment_operatorSubscript(_alivePtr, index);
   }
 
   int operatorCall(int value) {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
-
-    return _lab_Experiment_operatorCall(_ptr, value);
+    return _lab_Experiment_operatorCall(_alivePtr, value);
   }
 
   int operatorCall$1(int a, int b) {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
+    return _lab_Experiment_operatorCall$1(_alivePtr, a, b);
+  }
 
-    return _lab_Experiment_operatorCall$1(_ptr, a, b);
+  lab$Experiment operatorIncrement() {
+    return lab$Experiment._borrowed(
+      _lab_Experiment_operatorIncrement(_alivePtr),
+      _isAlive,
+      isReference: true,
+    );
   }
 
   lab$Experiment operatorPostIncrement(int arg0) {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
-
     return lab$Experiment.fromPointer(
-      _lab_Experiment_operatorPostIncrement(_ptr, arg0),
+      _lab_Experiment_operatorPostIncrement(_alivePtr, arg0),
       takeOwnership: true,
     );
   }
 
   lab$Experiment operatorPlus(int delta) {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
-
     return lab$Experiment.fromPointer(
-      _lab_Experiment_operatorPlus(_ptr, delta),
+      _lab_Experiment_operatorPlus(_alivePtr, delta),
       takeOwnership: true,
     );
   }
 
   lab$Experiment operatorNegate() {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
-
     return lab$Experiment.fromPointer(
-      _lab_Experiment_operatorNegate(_ptr),
+      _lab_Experiment_operatorNegate(_alivePtr),
       takeOwnership: true,
     );
   }
 
   lab$Experiment operatorMinus(int delta) {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
-
     return lab$Experiment.fromPointer(
-      _lab_Experiment_operatorMinus(_ptr, delta),
+      _lab_Experiment_operatorMinus(_alivePtr, delta),
       takeOwnership: true,
     );
   }
 
   bool operatorLogicalNot() {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
-
-    return _lab_Experiment_operatorLogicalNot(_ptr);
+    return _lab_Experiment_operatorLogicalNot(_alivePtr);
   }
 
   void dispose() {
@@ -514,10 +509,45 @@ external int _lab_Experiment_describe(ffi.Pointer<ffi.Void> self);
 )
 external int _lab_Experiment_describe$1(ffi.Pointer<ffi.Void> self, int detail);
 
-@ffi.Native<ffi.Bool Function(ffi.Pointer<ffi.Void>, ffi.Int32)>(
+@ffi.Native<ffi.Bool Function(ffi.Pointer<ffi.Void>, ffi.Pointer<ffi.Void>)>(
   symbol: 'lab_Experiment_operatorEqual',
 )
-external bool _lab_Experiment_operatorEqual(ffi.Pointer<ffi.Void> self, int id);
+external bool _lab_Experiment_operatorEqual(
+  ffi.Pointer<ffi.Void> self,
+  ffi.Pointer<ffi.Void> other,
+);
+
+@ffi.Native<ffi.Bool Function(ffi.Pointer<ffi.Void>, ffi.Int32)>(
+  symbol: 'lab_Experiment_operatorEqual_1',
+)
+external bool _lab_Experiment_operatorEqual$1(
+  ffi.Pointer<ffi.Void> self,
+  int id,
+);
+
+@ffi.Native<ffi.Bool Function(ffi.Pointer<ffi.Void>, ffi.Pointer<ffi.Void>)>(
+  symbol: 'lab_Experiment_operatorNotEqual',
+)
+external bool _lab_Experiment_operatorNotEqual(
+  ffi.Pointer<ffi.Void> self,
+  ffi.Pointer<ffi.Void> other,
+);
+
+@ffi.Native<ffi.Bool Function(ffi.Pointer<ffi.Void>, ffi.Pointer<ffi.Void>)>(
+  symbol: 'lab_Experiment_operatorLess',
+)
+external bool _lab_Experiment_operatorLess(
+  ffi.Pointer<ffi.Void> self,
+  ffi.Pointer<ffi.Void> other,
+);
+
+@ffi.Native<
+  ffi.Pointer<ffi.Void> Function(ffi.Pointer<ffi.Void>, ffi.Pointer<ffi.Void>)
+>(symbol: 'lab_Experiment_operatorAssign')
+external ffi.Pointer<ffi.Void> _lab_Experiment_operatorAssign(
+  ffi.Pointer<ffi.Void> self,
+  ffi.Pointer<ffi.Void> other,
+);
 
 @ffi.Native<ffi.Int32 Function(ffi.Pointer<ffi.Void>, ffi.Int32)>(
   symbol: 'lab_Experiment_operatorSubscript',
@@ -542,6 +572,13 @@ external int _lab_Experiment_operatorCall$1(
   ffi.Pointer<ffi.Void> self,
   int a,
   int b,
+);
+
+@ffi.Native<ffi.Pointer<ffi.Void> Function(ffi.Pointer<ffi.Void>)>(
+  symbol: 'lab_Experiment_operatorIncrement',
+)
+external ffi.Pointer<ffi.Void> _lab_Experiment_operatorIncrement(
+  ffi.Pointer<ffi.Void> self,
 );
 
 @ffi.Native<ffi.Pointer<ffi.Void> Function(ffi.Pointer<ffi.Void>, ffi.Int)>(
@@ -602,7 +639,20 @@ class lab$Properties implements ffi.Finalizable {
   ffi.Pointer<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>?
   _activeFinalizerFn;
 
-  lab$Properties.fromPointer(this._ptr, {bool takeOwnership = false}) {
+  /// Whether the object that this one is borrowed from is still alive, or
+  /// null if this object isn't borrowed from another object.
+  ///
+  /// This is a tear-off of that object's [_isAlive], so it also keeps that
+  /// object, which owns the C++ object, from being garbage collected while
+  /// this one is reachable.
+  bool Function()? _isOwnerAlive;
+
+  /// Whether this object wraps a C++ reference, which it can't take
+  /// ownership of.
+  final bool _isReference;
+
+  lab$Properties.fromPointer(this._ptr, {bool takeOwnership = false})
+    : _isReference = false {
     if (takeOwnership) {
       _defaultFinalizer.attach(this, _ptr.cast(), detach: this);
       _activeFinalizer = _defaultFinalizer;
@@ -620,18 +670,25 @@ class lab$Properties implements ffi.Finalizable {
   ///
   /// Both [customFinalizer] and [customFinalizerFn] must be provided together.
   ///
-  /// Throws a [StateError] if the object has already been disposed, or if
-  /// this object already owns the pointer.
+  /// If this object is borrowed from another object, it no longer depends on
+  /// that object afterwards.
+  ///
+  /// Throws a [StateError] if the object, or the object it's borrowed from,
+  /// has already been disposed, if this object already owns the pointer, or
+  /// if it wraps a C++ reference.
   void retainOwnership([
     ffi.NativeFinalizer? customFinalizer,
     ffi.Pointer<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>?
     customFinalizerFn,
   ]) {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
+    final ptr = _alivePtr;
     if (_activeFinalizer != null) {
       throw StateError('This object already owns its pointer.');
+    }
+    if (_isReference) {
+      throw StateError(
+        "This object wraps a C++ reference, so it can't own its pointer.",
+      );
     }
     if ((customFinalizer == null) != (customFinalizerFn == null)) {
       throw ArgumentError(
@@ -644,9 +701,41 @@ class lab$Properties implements ffi.Finalizable {
         ffi.Native.addressOf<
           ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>
         >(_lab$Properties_delete);
-    fin.attach(this, _ptr.cast(), detach: this);
+    fin.attach(this, ptr.cast(), detach: this);
     _activeFinalizer = fin;
     _activeFinalizerFn = fnPtr;
+    _isOwnerAlive = null;
+  }
+
+  /// Wraps [_ptr], which another object owns, without taking ownership of it.
+  ///
+  /// [_isOwnerAlive] is a tear-off of the [_isAlive] method of the object
+  /// that this one is borrowed from, or null if it isn't borrowed from an
+  /// object. [isReference] is whether [_ptr] comes from a C++ reference.
+  lab$Properties._borrowed(
+    this._ptr,
+    this._isOwnerAlive, {
+    bool isReference = false,
+  }) : _isReference = isReference;
+
+  /// Whether neither this object, nor the object it's borrowed from, if any,
+  /// has been disposed.
+  bool _isAlive() => _ptr != ffi.nullptr && (_isOwnerAlive?.call() ?? true);
+
+  /// [_ptr], for passing to C++.
+  ///
+  /// Throws a [StateError] if this object, or the object it's borrowed from,
+  /// has been disposed, rather than letting C++ use a dangling pointer.
+  ffi.Pointer<ffi.Void> get _alivePtr {
+    if (_ptr == ffi.nullptr) {
+      throw StateError('This object has already been disposed.');
+    }
+    if (_isOwnerAlive?.call() == false) {
+      throw StateError(
+        'The object that this object is borrowed from has been disposed.',
+      );
+    }
+    return _ptr;
   }
 
   /// Detaches the finalizer so this object releases ownership of the
@@ -686,19 +775,11 @@ class lab$Properties implements ffi.Finalizable {
     );
   }
   int getLimit() {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
-
-    return _lab_Properties_getLimit(_ptr);
+    return _lab_Properties_getLimit(_alivePtr);
   }
 
   void setLimit(int limit) {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
-
-    _lab_Properties_setLimit(_ptr, limit);
+    _lab_Properties_setLimit(_alivePtr, limit);
   }
 
   void dispose() {
@@ -758,7 +839,20 @@ class lab$Refinement implements ffi.Finalizable, lab$Variant {
   ffi.Pointer<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>?
   _activeFinalizerFn;
 
-  lab$Refinement.fromPointer(this._ptr, {bool takeOwnership = false}) {
+  /// Whether the object that this one is borrowed from is still alive, or
+  /// null if this object isn't borrowed from another object.
+  ///
+  /// This is a tear-off of that object's [_isAlive], so it also keeps that
+  /// object, which owns the C++ object, from being garbage collected while
+  /// this one is reachable.
+  bool Function()? _isOwnerAlive;
+
+  /// Whether this object wraps a C++ reference, which it can't take
+  /// ownership of.
+  final bool _isReference;
+
+  lab$Refinement.fromPointer(this._ptr, {bool takeOwnership = false})
+    : _isReference = false {
     if (takeOwnership) {
       _defaultFinalizer.attach(this, _ptr.cast(), detach: this);
       _activeFinalizer = _defaultFinalizer;
@@ -776,18 +870,25 @@ class lab$Refinement implements ffi.Finalizable, lab$Variant {
   ///
   /// Both [customFinalizer] and [customFinalizerFn] must be provided together.
   ///
-  /// Throws a [StateError] if the object has already been disposed, or if
-  /// this object already owns the pointer.
+  /// If this object is borrowed from another object, it no longer depends on
+  /// that object afterwards.
+  ///
+  /// Throws a [StateError] if the object, or the object it's borrowed from,
+  /// has already been disposed, if this object already owns the pointer, or
+  /// if it wraps a C++ reference.
   void retainOwnership([
     ffi.NativeFinalizer? customFinalizer,
     ffi.Pointer<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>?
     customFinalizerFn,
   ]) {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
+    final ptr = _alivePtr;
     if (_activeFinalizer != null) {
       throw StateError('This object already owns its pointer.');
+    }
+    if (_isReference) {
+      throw StateError(
+        "This object wraps a C++ reference, so it can't own its pointer.",
+      );
     }
     if ((customFinalizer == null) != (customFinalizerFn == null)) {
       throw ArgumentError(
@@ -800,9 +901,41 @@ class lab$Refinement implements ffi.Finalizable, lab$Variant {
         ffi.Native.addressOf<
           ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>
         >(_lab$Refinement_delete);
-    fin.attach(this, _ptr.cast(), detach: this);
+    fin.attach(this, ptr.cast(), detach: this);
     _activeFinalizer = fin;
     _activeFinalizerFn = fnPtr;
+    _isOwnerAlive = null;
+  }
+
+  /// Wraps [_ptr], which another object owns, without taking ownership of it.
+  ///
+  /// [_isOwnerAlive] is a tear-off of the [_isAlive] method of the object
+  /// that this one is borrowed from, or null if it isn't borrowed from an
+  /// object. [isReference] is whether [_ptr] comes from a C++ reference.
+  lab$Refinement._borrowed(
+    this._ptr,
+    this._isOwnerAlive, {
+    bool isReference = false,
+  }) : _isReference = isReference;
+
+  /// Whether neither this object, nor the object it's borrowed from, if any,
+  /// has been disposed.
+  bool _isAlive() => _ptr != ffi.nullptr && (_isOwnerAlive?.call() ?? true);
+
+  /// [_ptr], for passing to C++.
+  ///
+  /// Throws a [StateError] if this object, or the object it's borrowed from,
+  /// has been disposed, rather than letting C++ use a dangling pointer.
+  ffi.Pointer<ffi.Void> get _alivePtr {
+    if (_ptr == ffi.nullptr) {
+      throw StateError('This object has already been disposed.');
+    }
+    if (_isOwnerAlive?.call() == false) {
+      throw StateError(
+        'The object that this object is borrowed from has been disposed.',
+      );
+    }
+    return _ptr;
   }
 
   /// Detaches the finalizer so this object releases ownership of the
@@ -842,109 +975,64 @@ class lab$Refinement implements ffi.Finalizable, lab$Variant {
     );
   }
   double add$1(double a, double b) {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
-
-    return _lab_Refinement_add(_ptr, a, b);
+    return _lab_Refinement_add(_alivePtr, a, b);
   }
 
   int describe$1(int detail) {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
-
-    return _lab_Refinement_describe(_ptr, detail);
+    return _lab_Refinement_describe(_alivePtr, detail);
   }
 
   lab$Properties propertiesConst() {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
-
-    return lab$Properties.fromPointer(_lab_Refinement_propertiesConst(_ptr));
+    return lab$Properties._borrowed(
+      _lab_Refinement_propertiesConst(_alivePtr),
+      _isAlive,
+    );
   }
 
   lab$Properties properties() {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
-
-    return lab$Properties.fromPointer(_lab_Refinement_properties(_ptr));
+    return lab$Properties._borrowed(
+      _lab_Refinement_properties(_alivePtr),
+      _isAlive,
+    );
   }
 
   ffi.Pointer<ffi.Int32> resultsConst() {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
-
-    return _lab_Refinement_resultsConst(_ptr);
+    return _lab_Refinement_resultsConst(_alivePtr);
   }
 
   ffi.Pointer<ffi.Int32> results() {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
-
-    return _lab_Refinement_results(_ptr);
+    return _lab_Refinement_results(_alivePtr);
   }
 
   String constStreams() {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
-
-    return _stdStringToDart(_lab_Refinement_streamsConst(_ptr));
+    return _stdStringToDart(_lab_Refinement_streamsConst(_alivePtr));
   }
 
   String streams() {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
-
-    return _stdStringToDart(_lab_Refinement_streams(_ptr));
+    return _stdStringToDart(_lab_Refinement_streams(_alivePtr));
   }
 
   int getId() {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
-
-    return _lab_Refinement_getId(_ptr);
+    return _lab_Refinement_getId(_alivePtr);
   }
 
   double getWeight() {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
-
-    return _lab_Refinement_getWeight(_ptr);
+    return _lab_Refinement_getWeight(_alivePtr);
   }
 
   int add(int a, int b) {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
-
-    return _lab_Refinement_add$1(_ptr, a, b);
+    return _lab_Refinement_add$1(_alivePtr, a, b);
   }
 
   int add$2(int a, int b, int c) {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
-
-    return _lab_Refinement_add$2(_ptr, a, b, c);
+    return _lab_Refinement_add$2(_alivePtr, a, b, c);
   }
 
   String add$3(String a, String b) {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
     final _$$a = _stdStringFromDart(a);
     final _$$b = _stdStringFromDart(b);
     try {
-      return _stdStringToDart(_lab_Refinement_add$3(_ptr, _$$a, _$$b));
+      return _stdStringToDart(_lab_Refinement_add$3(_alivePtr, _$$a, _$$b));
     } finally {
       _stdStringDelete(_$$a);
       _stdStringDelete(_$$b);
@@ -960,95 +1048,83 @@ class lab$Refinement implements ffi.Finalizable, lab$Variant {
   }
 
   int describe() {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
-
-    return _lab_Refinement_describe$1(_ptr);
+    return _lab_Refinement_describe$1(_alivePtr);
   }
 
-  bool operatorEqual(int id) {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
+  bool operatorEqual(lab$Experiment other) {
+    return _lab_Refinement_operatorEqual(_alivePtr, other._alivePtr);
+  }
 
-    return _lab_Refinement_operatorEqual(_ptr, id);
+  bool operatorEqual$1(int id) {
+    return _lab_Refinement_operatorEqual$1(_alivePtr, id);
+  }
+
+  bool operatorNotEqual(lab$Experiment other) {
+    return _lab_Refinement_operatorNotEqual(_alivePtr, other._alivePtr);
+  }
+
+  bool operatorLess(lab$Experiment other) {
+    return _lab_Refinement_operatorLess(_alivePtr, other._alivePtr);
+  }
+
+  lab$Experiment operatorAssign(lab$Experiment other) {
+    return lab$Experiment._borrowed(
+      _lab_Refinement_operatorAssign(_alivePtr, other._alivePtr),
+      _isAlive,
+      isReference: true,
+    );
   }
 
   int operatorSubscript(int index) {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
-
-    return _lab_Refinement_operatorSubscript(_ptr, index);
+    return _lab_Refinement_operatorSubscript(_alivePtr, index);
   }
 
   int operatorCall(int value) {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
-
-    return _lab_Refinement_operatorCall(_ptr, value);
+    return _lab_Refinement_operatorCall(_alivePtr, value);
   }
 
   int operatorCall$1(int a, int b) {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
+    return _lab_Refinement_operatorCall$1(_alivePtr, a, b);
+  }
 
-    return _lab_Refinement_operatorCall$1(_ptr, a, b);
+  lab$Experiment operatorIncrement() {
+    return lab$Experiment._borrowed(
+      _lab_Refinement_operatorIncrement(_alivePtr),
+      _isAlive,
+      isReference: true,
+    );
   }
 
   lab$Experiment operatorPostIncrement(int arg0) {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
-
     return lab$Experiment.fromPointer(
-      _lab_Refinement_operatorPostIncrement(_ptr, arg0),
+      _lab_Refinement_operatorPostIncrement(_alivePtr, arg0),
       takeOwnership: true,
     );
   }
 
   lab$Experiment operatorPlus(int delta) {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
-
     return lab$Experiment.fromPointer(
-      _lab_Refinement_operatorPlus(_ptr, delta),
+      _lab_Refinement_operatorPlus(_alivePtr, delta),
       takeOwnership: true,
     );
   }
 
   lab$Experiment operatorNegate() {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
-
     return lab$Experiment.fromPointer(
-      _lab_Refinement_operatorNegate(_ptr),
+      _lab_Refinement_operatorNegate(_alivePtr),
       takeOwnership: true,
     );
   }
 
   lab$Experiment operatorMinus(int delta) {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
-
     return lab$Experiment.fromPointer(
-      _lab_Refinement_operatorMinus(_ptr, delta),
+      _lab_Refinement_operatorMinus(_alivePtr, delta),
       takeOwnership: true,
     );
   }
 
   bool operatorLogicalNot() {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
-
-    return _lab_Refinement_operatorLogicalNot(_ptr);
+    return _lab_Refinement_operatorLogicalNot(_alivePtr);
   }
 
   @override
@@ -1182,10 +1258,45 @@ external double _lab_Refinement_scale$1(double value);
 )
 external int _lab_Refinement_describe$1(ffi.Pointer<ffi.Void> self);
 
-@ffi.Native<ffi.Bool Function(ffi.Pointer<ffi.Void>, ffi.Int32)>(
+@ffi.Native<ffi.Bool Function(ffi.Pointer<ffi.Void>, ffi.Pointer<ffi.Void>)>(
   symbol: 'lab_Refinement_operatorEqual',
 )
-external bool _lab_Refinement_operatorEqual(ffi.Pointer<ffi.Void> self, int id);
+external bool _lab_Refinement_operatorEqual(
+  ffi.Pointer<ffi.Void> self,
+  ffi.Pointer<ffi.Void> other,
+);
+
+@ffi.Native<ffi.Bool Function(ffi.Pointer<ffi.Void>, ffi.Int32)>(
+  symbol: 'lab_Refinement_operatorEqual_1',
+)
+external bool _lab_Refinement_operatorEqual$1(
+  ffi.Pointer<ffi.Void> self,
+  int id,
+);
+
+@ffi.Native<ffi.Bool Function(ffi.Pointer<ffi.Void>, ffi.Pointer<ffi.Void>)>(
+  symbol: 'lab_Refinement_operatorNotEqual',
+)
+external bool _lab_Refinement_operatorNotEqual(
+  ffi.Pointer<ffi.Void> self,
+  ffi.Pointer<ffi.Void> other,
+);
+
+@ffi.Native<ffi.Bool Function(ffi.Pointer<ffi.Void>, ffi.Pointer<ffi.Void>)>(
+  symbol: 'lab_Refinement_operatorLess',
+)
+external bool _lab_Refinement_operatorLess(
+  ffi.Pointer<ffi.Void> self,
+  ffi.Pointer<ffi.Void> other,
+);
+
+@ffi.Native<
+  ffi.Pointer<ffi.Void> Function(ffi.Pointer<ffi.Void>, ffi.Pointer<ffi.Void>)
+>(symbol: 'lab_Refinement_operatorAssign')
+external ffi.Pointer<ffi.Void> _lab_Refinement_operatorAssign(
+  ffi.Pointer<ffi.Void> self,
+  ffi.Pointer<ffi.Void> other,
+);
 
 @ffi.Native<ffi.Int32 Function(ffi.Pointer<ffi.Void>, ffi.Int32)>(
   symbol: 'lab_Refinement_operatorSubscript',
@@ -1210,6 +1321,13 @@ external int _lab_Refinement_operatorCall$1(
   ffi.Pointer<ffi.Void> self,
   int a,
   int b,
+);
+
+@ffi.Native<ffi.Pointer<ffi.Void> Function(ffi.Pointer<ffi.Void>)>(
+  symbol: 'lab_Refinement_operatorIncrement',
+)
+external ffi.Pointer<ffi.Void> _lab_Refinement_operatorIncrement(
+  ffi.Pointer<ffi.Void> self,
 );
 
 @ffi.Native<ffi.Pointer<ffi.Void> Function(ffi.Pointer<ffi.Void>, ffi.Int)>(
@@ -1270,7 +1388,20 @@ class lab$Variant implements ffi.Finalizable, lab$Experiment {
   ffi.Pointer<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>?
   _activeFinalizerFn;
 
-  lab$Variant.fromPointer(this._ptr, {bool takeOwnership = false}) {
+  /// Whether the object that this one is borrowed from is still alive, or
+  /// null if this object isn't borrowed from another object.
+  ///
+  /// This is a tear-off of that object's [_isAlive], so it also keeps that
+  /// object, which owns the C++ object, from being garbage collected while
+  /// this one is reachable.
+  bool Function()? _isOwnerAlive;
+
+  /// Whether this object wraps a C++ reference, which it can't take
+  /// ownership of.
+  final bool _isReference;
+
+  lab$Variant.fromPointer(this._ptr, {bool takeOwnership = false})
+    : _isReference = false {
     if (takeOwnership) {
       _defaultFinalizer.attach(this, _ptr.cast(), detach: this);
       _activeFinalizer = _defaultFinalizer;
@@ -1288,18 +1419,25 @@ class lab$Variant implements ffi.Finalizable, lab$Experiment {
   ///
   /// Both [customFinalizer] and [customFinalizerFn] must be provided together.
   ///
-  /// Throws a [StateError] if the object has already been disposed, or if
-  /// this object already owns the pointer.
+  /// If this object is borrowed from another object, it no longer depends on
+  /// that object afterwards.
+  ///
+  /// Throws a [StateError] if the object, or the object it's borrowed from,
+  /// has already been disposed, if this object already owns the pointer, or
+  /// if it wraps a C++ reference.
   void retainOwnership([
     ffi.NativeFinalizer? customFinalizer,
     ffi.Pointer<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>?
     customFinalizerFn,
   ]) {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
+    final ptr = _alivePtr;
     if (_activeFinalizer != null) {
       throw StateError('This object already owns its pointer.');
+    }
+    if (_isReference) {
+      throw StateError(
+        "This object wraps a C++ reference, so it can't own its pointer.",
+      );
     }
     if ((customFinalizer == null) != (customFinalizerFn == null)) {
       throw ArgumentError(
@@ -1312,9 +1450,41 @@ class lab$Variant implements ffi.Finalizable, lab$Experiment {
         ffi.Native.addressOf<
           ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>
         >(_lab$Variant_delete);
-    fin.attach(this, _ptr.cast(), detach: this);
+    fin.attach(this, ptr.cast(), detach: this);
     _activeFinalizer = fin;
     _activeFinalizerFn = fnPtr;
+    _isOwnerAlive = null;
+  }
+
+  /// Wraps [_ptr], which another object owns, without taking ownership of it.
+  ///
+  /// [_isOwnerAlive] is a tear-off of the [_isAlive] method of the object
+  /// that this one is borrowed from, or null if it isn't borrowed from an
+  /// object. [isReference] is whether [_ptr] comes from a C++ reference.
+  lab$Variant._borrowed(
+    this._ptr,
+    this._isOwnerAlive, {
+    bool isReference = false,
+  }) : _isReference = isReference;
+
+  /// Whether neither this object, nor the object it's borrowed from, if any,
+  /// has been disposed.
+  bool _isAlive() => _ptr != ffi.nullptr && (_isOwnerAlive?.call() ?? true);
+
+  /// [_ptr], for passing to C++.
+  ///
+  /// Throws a [StateError] if this object, or the object it's borrowed from,
+  /// has been disposed, rather than letting C++ use a dangling pointer.
+  ffi.Pointer<ffi.Void> get _alivePtr {
+    if (_ptr == ffi.nullptr) {
+      throw StateError('This object has already been disposed.');
+    }
+    if (_isOwnerAlive?.call() == false) {
+      throw StateError(
+        'The object that this object is borrowed from has been disposed.',
+      );
+    }
+    return _ptr;
   }
 
   /// Detaches the finalizer so this object releases ownership of the
@@ -1351,109 +1521,64 @@ class lab$Variant implements ffi.Finalizable, lab$Experiment {
     return lab$Variant.fromPointer(_lab_Variant_new(id), takeOwnership: true);
   }
   double add$1(double a, double b) {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
-
-    return _lab_Variant_add(_ptr, a, b);
+    return _lab_Variant_add(_alivePtr, a, b);
   }
 
   int describe$1(int detail) {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
-
-    return _lab_Variant_describe(_ptr, detail);
+    return _lab_Variant_describe(_alivePtr, detail);
   }
 
   lab$Properties propertiesConst() {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
-
-    return lab$Properties.fromPointer(_lab_Variant_propertiesConst(_ptr));
+    return lab$Properties._borrowed(
+      _lab_Variant_propertiesConst(_alivePtr),
+      _isAlive,
+    );
   }
 
   lab$Properties properties() {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
-
-    return lab$Properties.fromPointer(_lab_Variant_properties(_ptr));
+    return lab$Properties._borrowed(
+      _lab_Variant_properties(_alivePtr),
+      _isAlive,
+    );
   }
 
   ffi.Pointer<ffi.Int32> resultsConst() {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
-
-    return _lab_Variant_resultsConst(_ptr);
+    return _lab_Variant_resultsConst(_alivePtr);
   }
 
   ffi.Pointer<ffi.Int32> results() {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
-
-    return _lab_Variant_results(_ptr);
+    return _lab_Variant_results(_alivePtr);
   }
 
   String constStreams() {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
-
-    return _stdStringToDart(_lab_Variant_streamsConst(_ptr));
+    return _stdStringToDart(_lab_Variant_streamsConst(_alivePtr));
   }
 
   String streams() {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
-
-    return _stdStringToDart(_lab_Variant_streams(_ptr));
+    return _stdStringToDart(_lab_Variant_streams(_alivePtr));
   }
 
   int getId() {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
-
-    return _lab_Variant_getId(_ptr);
+    return _lab_Variant_getId(_alivePtr);
   }
 
   double getWeight() {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
-
-    return _lab_Variant_getWeight(_ptr);
+    return _lab_Variant_getWeight(_alivePtr);
   }
 
   int add(int a, int b) {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
-
-    return _lab_Variant_add$1(_ptr, a, b);
+    return _lab_Variant_add$1(_alivePtr, a, b);
   }
 
   int add$2(int a, int b, int c) {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
-
-    return _lab_Variant_add$2(_ptr, a, b, c);
+    return _lab_Variant_add$2(_alivePtr, a, b, c);
   }
 
   String add$3(String a, String b) {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
     final _$$a = _stdStringFromDart(a);
     final _$$b = _stdStringFromDart(b);
     try {
-      return _stdStringToDart(_lab_Variant_add$3(_ptr, _$$a, _$$b));
+      return _stdStringToDart(_lab_Variant_add$3(_alivePtr, _$$a, _$$b));
     } finally {
       _stdStringDelete(_$$a);
       _stdStringDelete(_$$b);
@@ -1469,95 +1594,83 @@ class lab$Variant implements ffi.Finalizable, lab$Experiment {
   }
 
   int describe() {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
-
-    return _lab_Variant_describe$1(_ptr);
+    return _lab_Variant_describe$1(_alivePtr);
   }
 
-  bool operatorEqual(int id) {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
+  bool operatorEqual(lab$Experiment other) {
+    return _lab_Variant_operatorEqual(_alivePtr, other._alivePtr);
+  }
 
-    return _lab_Variant_operatorEqual(_ptr, id);
+  bool operatorEqual$1(int id) {
+    return _lab_Variant_operatorEqual$1(_alivePtr, id);
+  }
+
+  bool operatorNotEqual(lab$Experiment other) {
+    return _lab_Variant_operatorNotEqual(_alivePtr, other._alivePtr);
+  }
+
+  bool operatorLess(lab$Experiment other) {
+    return _lab_Variant_operatorLess(_alivePtr, other._alivePtr);
+  }
+
+  lab$Experiment operatorAssign(lab$Experiment other) {
+    return lab$Experiment._borrowed(
+      _lab_Variant_operatorAssign(_alivePtr, other._alivePtr),
+      _isAlive,
+      isReference: true,
+    );
   }
 
   int operatorSubscript(int index) {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
-
-    return _lab_Variant_operatorSubscript(_ptr, index);
+    return _lab_Variant_operatorSubscript(_alivePtr, index);
   }
 
   int operatorCall(int value) {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
-
-    return _lab_Variant_operatorCall(_ptr, value);
+    return _lab_Variant_operatorCall(_alivePtr, value);
   }
 
   int operatorCall$1(int a, int b) {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
+    return _lab_Variant_operatorCall$1(_alivePtr, a, b);
+  }
 
-    return _lab_Variant_operatorCall$1(_ptr, a, b);
+  lab$Experiment operatorIncrement() {
+    return lab$Experiment._borrowed(
+      _lab_Variant_operatorIncrement(_alivePtr),
+      _isAlive,
+      isReference: true,
+    );
   }
 
   lab$Experiment operatorPostIncrement(int arg0) {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
-
     return lab$Experiment.fromPointer(
-      _lab_Variant_operatorPostIncrement(_ptr, arg0),
+      _lab_Variant_operatorPostIncrement(_alivePtr, arg0),
       takeOwnership: true,
     );
   }
 
   lab$Experiment operatorPlus(int delta) {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
-
     return lab$Experiment.fromPointer(
-      _lab_Variant_operatorPlus(_ptr, delta),
+      _lab_Variant_operatorPlus(_alivePtr, delta),
       takeOwnership: true,
     );
   }
 
   lab$Experiment operatorNegate() {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
-
     return lab$Experiment.fromPointer(
-      _lab_Variant_operatorNegate(_ptr),
+      _lab_Variant_operatorNegate(_alivePtr),
       takeOwnership: true,
     );
   }
 
   lab$Experiment operatorMinus(int delta) {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
-
     return lab$Experiment.fromPointer(
-      _lab_Variant_operatorMinus(_ptr, delta),
+      _lab_Variant_operatorMinus(_alivePtr, delta),
       takeOwnership: true,
     );
   }
 
   bool operatorLogicalNot() {
-    if (_ptr == ffi.nullptr) {
-      throw StateError('This object has already been disposed.');
-    }
-
-    return _lab_Variant_operatorLogicalNot(_ptr);
+    return _lab_Variant_operatorLogicalNot(_alivePtr);
   }
 
   @override
@@ -1689,10 +1802,42 @@ external double _lab_Variant_scale$1(double value);
 )
 external int _lab_Variant_describe$1(ffi.Pointer<ffi.Void> self);
 
-@ffi.Native<ffi.Bool Function(ffi.Pointer<ffi.Void>, ffi.Int32)>(
+@ffi.Native<ffi.Bool Function(ffi.Pointer<ffi.Void>, ffi.Pointer<ffi.Void>)>(
   symbol: 'lab_Variant_operatorEqual',
 )
-external bool _lab_Variant_operatorEqual(ffi.Pointer<ffi.Void> self, int id);
+external bool _lab_Variant_operatorEqual(
+  ffi.Pointer<ffi.Void> self,
+  ffi.Pointer<ffi.Void> other,
+);
+
+@ffi.Native<ffi.Bool Function(ffi.Pointer<ffi.Void>, ffi.Int32)>(
+  symbol: 'lab_Variant_operatorEqual_1',
+)
+external bool _lab_Variant_operatorEqual$1(ffi.Pointer<ffi.Void> self, int id);
+
+@ffi.Native<ffi.Bool Function(ffi.Pointer<ffi.Void>, ffi.Pointer<ffi.Void>)>(
+  symbol: 'lab_Variant_operatorNotEqual',
+)
+external bool _lab_Variant_operatorNotEqual(
+  ffi.Pointer<ffi.Void> self,
+  ffi.Pointer<ffi.Void> other,
+);
+
+@ffi.Native<ffi.Bool Function(ffi.Pointer<ffi.Void>, ffi.Pointer<ffi.Void>)>(
+  symbol: 'lab_Variant_operatorLess',
+)
+external bool _lab_Variant_operatorLess(
+  ffi.Pointer<ffi.Void> self,
+  ffi.Pointer<ffi.Void> other,
+);
+
+@ffi.Native<
+  ffi.Pointer<ffi.Void> Function(ffi.Pointer<ffi.Void>, ffi.Pointer<ffi.Void>)
+>(symbol: 'lab_Variant_operatorAssign')
+external ffi.Pointer<ffi.Void> _lab_Variant_operatorAssign(
+  ffi.Pointer<ffi.Void> self,
+  ffi.Pointer<ffi.Void> other,
+);
 
 @ffi.Native<ffi.Int32 Function(ffi.Pointer<ffi.Void>, ffi.Int32)>(
   symbol: 'lab_Variant_operatorSubscript',
@@ -1714,6 +1859,13 @@ external int _lab_Variant_operatorCall$1(
   ffi.Pointer<ffi.Void> self,
   int a,
   int b,
+);
+
+@ffi.Native<ffi.Pointer<ffi.Void> Function(ffi.Pointer<ffi.Void>)>(
+  symbol: 'lab_Variant_operatorIncrement',
+)
+external ffi.Pointer<ffi.Void> _lab_Variant_operatorIncrement(
+  ffi.Pointer<ffi.Void> self,
 );
 
 @ffi.Native<ffi.Pointer<ffi.Void> Function(ffi.Pointer<ffi.Void>, ffi.Int)>(

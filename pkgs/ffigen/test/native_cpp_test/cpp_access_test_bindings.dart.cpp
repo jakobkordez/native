@@ -189,6 +189,10 @@ FFIGEN_EXPORT access::Widget* access_Widget_new() {
   return new access::Widget();
 }
 
+FFIGEN_EXPORT access::Widget* access_Widget_new_1(access::Widget* other) {
+  return new access::Widget(*other);
+}
+
 FFIGEN_EXPORT int32_t access_Widget_draw(const access::Widget* self) {
   return self->draw();
 }

@@ -101,8 +101,24 @@ FFIGEN_EXPORT int32_t lab_Experiment_describe_1(const lab::Experiment* self, int
   return self->describe(detail);
 }
 
-FFIGEN_EXPORT bool lab_Experiment_operatorEqual(const lab::Experiment* self, int32_t id) {
+FFIGEN_EXPORT bool lab_Experiment_operatorEqual(const lab::Experiment* self, lab::Experiment* other) {
+  return self->operator==(*other);
+}
+
+FFIGEN_EXPORT bool lab_Experiment_operatorEqual_1(const lab::Experiment* self, int32_t id) {
   return self->operator==(id);
+}
+
+FFIGEN_EXPORT bool lab_Experiment_operatorNotEqual(const lab::Experiment* self, lab::Experiment* other) {
+  return self->operator!=(*other);
+}
+
+FFIGEN_EXPORT bool lab_Experiment_operatorLess(const lab::Experiment* self, lab::Experiment* other) {
+  return self->operator<(*other);
+}
+
+FFIGEN_EXPORT lab::Experiment* lab_Experiment_operatorAssign(lab::Experiment* self, lab::Experiment* other) {
+  return std::addressof(self->operator=(*other));
 }
 
 FFIGEN_EXPORT int32_t lab_Experiment_operatorSubscript(const lab::Experiment* self, int32_t index) {
@@ -115,6 +131,10 @@ FFIGEN_EXPORT int32_t lab_Experiment_operatorCall(const lab::Experiment* self, i
 
 FFIGEN_EXPORT int32_t lab_Experiment_operatorCall_1(const lab::Experiment* self, int32_t a, int32_t b) {
   return self->operator()(a, b);
+}
+
+FFIGEN_EXPORT lab::Experiment* lab_Experiment_operatorIncrement(lab::Experiment* self) {
+  return std::addressof(self->operator++());
 }
 
 FFIGEN_EXPORT lab::Experiment* lab_Experiment_operatorPostIncrement(lab::Experiment* self, int arg0) {
@@ -225,8 +245,24 @@ FFIGEN_EXPORT int32_t lab_Refinement_describe_1(const lab::Refinement* self) {
   return static_cast<const lab::Experiment*>(self)->describe();
 }
 
-FFIGEN_EXPORT bool lab_Refinement_operatorEqual(const lab::Refinement* self, int32_t id) {
+FFIGEN_EXPORT bool lab_Refinement_operatorEqual(const lab::Refinement* self, lab::Experiment* other) {
+  return static_cast<const lab::Experiment*>(self)->operator==(*other);
+}
+
+FFIGEN_EXPORT bool lab_Refinement_operatorEqual_1(const lab::Refinement* self, int32_t id) {
   return static_cast<const lab::Experiment*>(self)->operator==(id);
+}
+
+FFIGEN_EXPORT bool lab_Refinement_operatorNotEqual(const lab::Refinement* self, lab::Experiment* other) {
+  return static_cast<const lab::Experiment*>(self)->operator!=(*other);
+}
+
+FFIGEN_EXPORT bool lab_Refinement_operatorLess(const lab::Refinement* self, lab::Experiment* other) {
+  return static_cast<const lab::Experiment*>(self)->operator<(*other);
+}
+
+FFIGEN_EXPORT lab::Experiment* lab_Refinement_operatorAssign(lab::Refinement* self, lab::Experiment* other) {
+  return std::addressof(static_cast<lab::Experiment*>(self)->operator=(*other));
 }
 
 FFIGEN_EXPORT int32_t lab_Refinement_operatorSubscript(const lab::Refinement* self, int32_t index) {
@@ -239,6 +275,10 @@ FFIGEN_EXPORT int32_t lab_Refinement_operatorCall(const lab::Refinement* self, i
 
 FFIGEN_EXPORT int32_t lab_Refinement_operatorCall_1(const lab::Refinement* self, int32_t a, int32_t b) {
   return static_cast<const lab::Experiment*>(self)->operator()(a, b);
+}
+
+FFIGEN_EXPORT lab::Experiment* lab_Refinement_operatorIncrement(lab::Refinement* self) {
+  return std::addressof(static_cast<lab::Experiment*>(self)->operator++());
 }
 
 FFIGEN_EXPORT lab::Experiment* lab_Refinement_operatorPostIncrement(lab::Refinement* self, int arg0) {
@@ -333,8 +373,24 @@ FFIGEN_EXPORT int32_t lab_Variant_describe_1(const lab::Variant* self) {
   return static_cast<const lab::Experiment*>(self)->describe();
 }
 
-FFIGEN_EXPORT bool lab_Variant_operatorEqual(const lab::Variant* self, int32_t id) {
+FFIGEN_EXPORT bool lab_Variant_operatorEqual(const lab::Variant* self, lab::Experiment* other) {
+  return static_cast<const lab::Experiment*>(self)->operator==(*other);
+}
+
+FFIGEN_EXPORT bool lab_Variant_operatorEqual_1(const lab::Variant* self, int32_t id) {
   return static_cast<const lab::Experiment*>(self)->operator==(id);
+}
+
+FFIGEN_EXPORT bool lab_Variant_operatorNotEqual(const lab::Variant* self, lab::Experiment* other) {
+  return static_cast<const lab::Experiment*>(self)->operator!=(*other);
+}
+
+FFIGEN_EXPORT bool lab_Variant_operatorLess(const lab::Variant* self, lab::Experiment* other) {
+  return static_cast<const lab::Experiment*>(self)->operator<(*other);
+}
+
+FFIGEN_EXPORT lab::Experiment* lab_Variant_operatorAssign(lab::Variant* self, lab::Experiment* other) {
+  return std::addressof(static_cast<lab::Experiment*>(self)->operator=(*other));
 }
 
 FFIGEN_EXPORT int32_t lab_Variant_operatorSubscript(const lab::Variant* self, int32_t index) {
@@ -347,6 +403,10 @@ FFIGEN_EXPORT int32_t lab_Variant_operatorCall(const lab::Variant* self, int32_t
 
 FFIGEN_EXPORT int32_t lab_Variant_operatorCall_1(const lab::Variant* self, int32_t a, int32_t b) {
   return static_cast<const lab::Experiment*>(self)->operator()(a, b);
+}
+
+FFIGEN_EXPORT lab::Experiment* lab_Variant_operatorIncrement(lab::Variant* self) {
+  return std::addressof(static_cast<lab::Experiment*>(self)->operator++());
 }
 
 FFIGEN_EXPORT lab::Experiment* lab_Variant_operatorPostIncrement(lab::Variant* self, int arg0) {

@@ -15,8 +15,7 @@ class Widget {
  public:
   Widget();
 
-  // A copy constructor takes a C++ reference, so it must be dropped like any
-  // other method with an unsupported parameter type.
+  // A copy constructor takes a reference to a class, which is bindable.
   Widget(const Widget& other);
 
   // Bindable: these must survive.
@@ -24,10 +23,11 @@ class Widget {
   Widget* self();
   Blob* blobPtr();
   void goodParams(int x, Widget* w, Blob* b);
+  const Widget& constRef() const;
+  void constRefParam(const Widget& w);
 
-  // A C++ reference has no Dart mapping.
+  // Only references to classes are supported.
   int& badRef();
-  const Widget& badConstRef() const;
 
   // An incomplete compound returned by value, directly and via a typedef.
   Blob badUnionByValue();
@@ -40,7 +40,6 @@ class Widget {
 
   // The same shapes as unsupported parameter types instead of return types.
   void badRefParam(int& x);
-  void badConstRefParam(const Widget& w);
   void badUnionParam(Blob b);
   void badAliasParam(BlobAlias b);
   void badClassParam(Incomplete i);
