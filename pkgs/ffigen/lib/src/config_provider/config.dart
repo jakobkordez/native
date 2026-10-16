@@ -214,7 +214,50 @@ enum EnumStyle {
 /// Configuration for C++.
 @experimental
 final class Cpp {
-  const Cpp();
+  /// A C++ type that every generated glue function calling into C++
+  /// default-constructs as a local before the call, so that its constructor
+  /// and destructor bracket the call. For example, a scoped lock guard
+  /// serializing all calls into a library that isn't thread safe.
+  ///
+  /// It's written into the glue as is, so name it fully qualified, and declare
+  /// it in one of the entry points or in [glueIncludes]. The `std::string`
+  /// conversion helpers don't call into the library, so they don't construct
+  /// it.
+  ///
+  /// The glue deleting an object constructs it too, and the `NativeFinalizer`
+  /// calls that glue during garbage collection, on any thread. A C++ call that
+  /// calls back into Dart holds the guard while the callback runs, so the
+  /// callback constructs another guard on the same thread if it calls a
+  /// binding, or triggers a garbage collection that deletes an object: a
+  /// non-recursive lock deadlocks then. Even a recursive lock deadlocks if a
+  /// garbage collection on another thread waits for it to delete an object,
+  /// while the callback waits for that garbage collection to finish.
+  final String? glueGuard;
+
+  /// Headers the C++ glue file includes after the entry points, written into
+  /// `#include "..."` as is, e.g. the header declaring [glueGuard]'s type. A
+  /// relative path is relative to the glue file.
+  final List<String> glueIncludes;
+
+  /// Whether the glue catches the C++ exceptions thrown by the calls it makes,
+  /// and the Dart bindings rethrow them as a `CppException`, generated into the
+  /// bindings, carrying the exception's `what()`.
+  ///
+  /// Otherwise, a C++ exception unwinding through the glue into Dart terminates
+  /// the process.
+  ///
+  /// The glue deleting an object doesn't catch exceptions, since the
+  /// `NativeFinalizer` calls it during garbage collection, where there's no
+  /// Dart caller to rethrow them to. So an exception thrown by a
+  /// `noexcept(false)` destructor, or by [glueGuard]'s constructor while
+  /// deleting an object, still terminates the process.
+  final bool catchExceptions;
+
+  const Cpp({
+    this.glueGuard,
+    this.glueIncludes = const [],
+    this.catchExceptions = false,
+  });
 }
 
 /// Configuration for Objective-C.

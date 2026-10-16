@@ -25,6 +25,7 @@ class Context {
   final unnamedEnumConstants = <UnnamedEnumConstant>[];
   late final ObjCBuiltInFunctions objCBuiltInFunctions;
   late final cppStdStringType = CppStdStringType(this);
+  late final cppExceptionHelpers = CppExceptionHelpers(this);
   bool hasSourceErrors = false;
   final reportedCommentRanges = <((String, int), (String, int))>{};
   final libs = LibraryImports();

@@ -15,6 +15,7 @@ import 'cpp_class_config.dart' as cpp_class_config;
 import 'cpp_constexpr_config.dart' as cpp_constexpr_config;
 import 'cpp_extern_c_config.dart' as cpp_extern_c_config;
 import 'cpp_filter_rename_config.dart' as cpp_filter_rename_config;
+import 'cpp_glue_hooks_config.dart' as cpp_glue_hooks_config;
 import 'cpp_inheritance_config.dart' as cpp_inheritance_config;
 import 'cpp_namespace_class_config.dart' as cpp_namespace_class_config;
 import 'cpp_namespace_enum_config.dart' as cpp_namespace_enum_config;
@@ -52,6 +53,7 @@ void main() {
       'cpp_constexpr': cpp_constexpr_config.getConfig(packageRoot),
       'cpp_extern_c': cpp_extern_c_config.getConfig(packageRoot),
       'cpp_filter_rename': cpp_filter_rename_config.getConfig(packageRoot),
+      'cpp_glue_hooks': cpp_glue_hooks_config.getConfig(packageRoot),
       'cpp_pod': cpp_pod_config.getConfig(packageRoot),
       'memory_edge_cases': memory_edge_cases_config.getConfig(packageRoot),
       'cpp_inheritance': cpp_inheritance_config.getConfig(packageRoot),

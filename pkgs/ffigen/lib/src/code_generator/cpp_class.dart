@@ -64,6 +64,9 @@ class CppMethod extends AstNode with HasLocalScope {
 
   bool get isUnnamedConstructor => isConstructor && name.oldName.isEmpty;
 
+  /// Whether this method returns `void`, possibly through a typedef.
+  bool get returnsVoid => returnType.typealiasType == voidType;
+
   CppMethod cloneForClass(CppClass targetClass, CppClass baseClass) {
     return CppMethod(
       name: name.clone(),
@@ -205,6 +208,9 @@ class CppClass extends BindingType with HasLocalScope {
     methods.retainWhere(predicate);
   }
 
+  /// Whether the glue catches C++ exceptions, see `Cpp.catchExceptions`.
+  bool get _catchesExceptions => context.config.cpp?.catchExceptions ?? false;
+
   @override
   BindingString toBindingString(Writer w) {
     final s = StringBuffer();
@@ -212,6 +218,11 @@ class CppClass extends BindingType with HasLocalScope {
     final ffiPrefix = ctx.libs.prefix(ffiImport);
 
     final ptrVoid = '$ffiPrefix.Pointer<$ffiPrefix.Void>';
+
+    // A glue call returning a value, checked for a caught C++ exception.
+    String checkedCall(String call) => _catchesExceptions
+        ? '${ctx.cppExceptionHelpers.checked.name}($call)'
+        : call;
 
     // Helper to build a comma-separated Dart parameter list.
     String dartParamList(Iterable<Parameter> params) =>
@@ -456,11 +467,11 @@ class $name implements $implementsClause {
           )
           .join(', ');
 
+      final call = checkedCall('$privateName($callArgs)');
       final body = localVars.wrapWithCleanups(
         isDeletable
-            ? 'return $name.fromPointer($privateName($callArgs), '
-                  'takeOwnership: true);'
-            : 'return $name.fromPointer($privateName($callArgs));',
+            ? 'return $name.fromPointer($call, takeOwnership: true);'
+            : 'return $name.fromPointer($call);',
       );
       if (!isDeletable) {
         s.write('''
@@ -497,7 +508,10 @@ class $name implements $implementsClause {
       ].join(', ');
       final decls = localVars.generateDeclarations();
 
-      final call = '$glue($callArgs)';
+      final hasReturn = !method.returnsVoid;
+      final call = hasReturn
+          ? checkedCall('$glue($callArgs)')
+          : '$glue($callArgs)';
       final returnExpr = switch (method.returnType.typealiasType) {
         // A returned pointer or reference is borrowed from this object.
         final CppClassPointerType type => type.convertReturnedToDartType(
@@ -512,9 +526,12 @@ class $name implements $implementsClause {
         ),
       };
 
-      final hasReturn = method.returnType != voidType;
       final callLine = localVars.wrapWithCleanups(
-        hasReturn ? 'return $returnExpr;' : '$returnExpr;',
+        hasReturn
+            ? 'return $returnExpr;'
+            : _catchesExceptions
+            ? '$returnExpr;\n    ${ctx.cppExceptionHelpers.check.name}();'
+            : '$returnExpr;',
       );
 
       s.write('''\
@@ -615,12 +632,31 @@ class $name implements $implementsClause {
     String paramDecl(Parameter p) =>
         p.type.getExternCType(context, varName: p.name).trim();
 
+    // Every glue function calling into C++ constructs the configured guard
+    // first.
+    final guard = switch (context.config.cpp?.glueGuard) {
+      final type? => 'const $type ffigen_guard{};',
+      null => null,
+    };
+    String guarded(String body) => guard == null ? body : '$guard\n  $body';
+    String glueBody(String body, {required bool returnsValue}) =>
+        _catchesExceptions
+        ? context.cppExceptionHelpers.wrapGlueBody(
+            body,
+            returnsValue: returnsValue,
+            guard: guard,
+          )
+        : guarded(body);
+
     // The Dart side looks these functions up by their C-safe names, so define
     // them under the same names.
+    //
+    // `delete` isn't wrapped in a `try`: the NativeFinalizer calls it during
+    // garbage collection, where no Dart caller could rethrow the exception.
     final deleteWrapper =
         '''
 FFIGEN_EXPORT void ${Namer.cSafeName('${name}_delete')}($originalName* self) {
-  delete self;
+  ${guarded('delete self;')}
 }''';
 
     final methodBindings = methods
@@ -667,7 +703,7 @@ FFIGEN_EXPORT void ${Namer.cSafeName('${name}_delete')}($originalName* self) {
               callExpr = '$receiver->$methodName($callArgs)';
             }
 
-            if (method.returnType == voidType) {
+            if (method.returnsVoid) {
               body = '$callExpr;';
             } else {
               final result = method.returnType.convertNativeTypeToExternCType(
@@ -683,7 +719,7 @@ FFIGEN_EXPORT void ${Namer.cSafeName('${name}_delete')}($originalName* self) {
 
           return '''
 FFIGEN_EXPORT $returnTypeString $symbol($params) {
-  $body
+  ${glueBody(body, returnsValue: method.isConstructor || !method.returnsVoid)}
 }''';
         })
         .join('\n\n');
@@ -750,5 +786,6 @@ FFIGEN_EXPORT $returnTypeString $symbol($params) {
     visitor.visitAll(fields);
     visitor.visitAll(bases);
     visitor.visit(ffiImport);
+    if (_catchesExceptions) visitor.visit(context.cppExceptionHelpers);
   }
 }

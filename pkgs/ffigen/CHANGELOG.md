@@ -58,6 +58,14 @@
   `retainOwnership` needs a custom finalizer. Methods that would have to delete
   the class, by returning it by value or in a `std::unique_ptr`, or destroy it,
   by taking it by value, are skipped.
+- Add `Cpp.catchExceptions`: the C++ glue catches the exceptions thrown by the
+  calls it makes, and the Dart bindings rethrow them as a `CppException`
+  carrying the exception's `what()`, instead of the process terminating when
+  an exception unwinds into Dart.
+- Add `Cpp.glueGuard`, a C++ type that every C++ glue function
+  default-constructs around its call, e.g. a lock guard serializing the calls
+  into a library that isn't thread safe, and `Cpp.glueIncludes`, headers the
+  glue file includes, e.g. the one declaring that type.
 
 ## 23.0.0
 

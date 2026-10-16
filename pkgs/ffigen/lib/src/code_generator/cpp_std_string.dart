@@ -126,7 +126,7 @@ class CppStdStringHelpers extends NoLookUpBinding {
   final _size = Symbol('_stdStringSize', SymbolKind.method);
 
   CppStdStringHelpers(Context context)
-    : _nativePrefix = 'ffigen_${_libraryId(context.config)}_std_string',
+    : _nativePrefix = 'ffigen_${libraryId(context.config)}_std_string',
       super(
         originalName: 'std::string',
         symbol: Symbol('_stdStringToDart', SymbolKind.method),
@@ -136,9 +136,10 @@ class CppStdStringHelpers extends NoLookUpBinding {
   /// Copies a `std::string` into a Dart [String], and deletes it.
   Symbol get toDart => symbol;
 
-  // A unique (but not human readable) ID for the generated library, based on a
-  // hash of parts of the config.
-  static String _libraryId(FfiGenerator config) => fnvHash32(
+  /// A unique (but not human readable) ID for the generated library, based on
+  /// a hash of parts of the config, to prefix the native symbols of helpers
+  /// that every library's glue defines.
+  static String libraryId(FfiGenerator config) => fnvHash32(
     [
       ...config.input.entryPoints,
       config.output.dart.path,

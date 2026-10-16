@@ -422,6 +422,19 @@ id objc_retainBlock(id);
     for (final header in context.config.input.entryPoints) {
       s.write('#include "${p.relative(header.toFilePath(), from: outDir)}"\n');
     }
+    final cpp = context.config.cpp;
+    for (final header in cpp?.glueIncludes ?? const <String>[]) {
+      s.write('#include "$header"\n');
+    }
+    final catchExceptions = cpp?.catchExceptions ?? false;
+    if (catchExceptions) {
+      s.write('''
+#include <cstddef>
+#include <cstdlib>
+#include <cstring>
+#include <exception>
+''');
+    }
     s.write(r'''
 
 #if defined(_WIN32)
@@ -430,6 +443,9 @@ id objc_retainBlock(id);
 #define FFIGEN_EXPORT
 #endif
 
+''');
+    if (catchExceptions) s.write(context.cppExceptionHelpers.cppSupport());
+    s.write('''
 extern "C" {
 
 ''');
