@@ -49,6 +49,26 @@ FFIGEN_EXPORT borrow::Property* borrow_Device_property(borrow::Device* self, int
   return self->property(id);
 }
 
+FFIGEN_EXPORT intptr_t borrow_Device_address(const borrow::Device* self) {
+  return self->address();
+}
+
+FFIGEN_EXPORT int32_t borrow_Device_dispose(const borrow::Device* self) {
+  return self->dispose();
+}
+
+FFIGEN_EXPORT int32_t borrow_Device_pointer(const borrow::Device* self) {
+  return self->pointer();
+}
+
+FFIGEN_EXPORT int32_t borrow_Device_hashCode(const borrow::Device* self) {
+  return self->hashCode();
+}
+
+FFIGEN_EXPORT int32_t borrow_Device_toString(const borrow::Device* self) {
+  return self->toString();
+}
+
 FFIGEN_EXPORT borrow::Property* borrow_Property_new(int32_t id, int32_t value) {
   return new borrow::Property(id, value);
 }

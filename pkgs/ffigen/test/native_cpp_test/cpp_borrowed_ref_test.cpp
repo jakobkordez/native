@@ -94,6 +94,18 @@ void Device::setStatus(const StatusFlag& status) { status_ = status; }
 
 PropertyList& Device::properties() { return properties_; }
 
+std::intptr_t Device::address() const {
+  return reinterpret_cast<std::intptr_t>(this);
+}
+
+int32_t Device::dispose() const { return id_; }
+
+int32_t Device::pointer() const { return id_; }
+
+int32_t Device::hashCode() const { return id_; }
+
+int32_t Device::toString() const { return id_; }
+
 Property* Device::property(int32_t id) {
   for (int32_t i = 0; i < properties_.size(); ++i) {
     if (properties_.at(i)->id() == id) return properties_.at(i);

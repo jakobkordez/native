@@ -78,6 +78,7 @@ CppClass? parseClassDeclaration(Context context, clang_types.CXCursor cursor) {
     isDeletable:
         hasPublicDestructor &&
         (destructor.isVirtual || !_isPolymorphic(cursor)),
+    isCopyable: _isCopyable(cursor),
   );
 
   context.bindingsIndex.addCppClassToSeen(usr, cppClass);
@@ -221,6 +222,112 @@ bool _isPolymorphic(clang_types.CXCursor cursor) =>
         null ||
     _baseDefinitions(cursor).any(_isPolymorphic);
 
+/// Whether the glue can copy an object of the class at [cursor], which needs
+/// a public copy constructor that isn't deleted.
+///
+/// libclang doesn't expose an implicit copy constructor, so whether the class
+/// has one is derived from its declarations: it's deleted if the class
+/// declares a move constructor or a move assignment operator, or if a base or
+/// a field can't be copied. [isBase] is whether a derived class copies it,
+/// which can also call a protected copy constructor.
+///
+/// [visited] holds the USRs of the classes already checked, or being checked,
+/// which a field like `std::vector<Node> children` makes recursive. They count
+/// as copyable, since one that isn't ends the check as soon as it's known.
+bool _isCopyable(
+  clang_types.CXCursor cursor, {
+  bool isBase = false,
+  Set<String>? visited,
+}) {
+  final usr = cursor.usr();
+  visited ??= {};
+  if (!visited.add(usr)) return true;
+
+  // Whether [function] takes a single reference of [kind] to the class.
+  bool takesClassReference(clang_types.CXCursor function, int kind) {
+    if (clang.clang_Cursor_getNumArguments(function) != 1) return false;
+    final type = clang.clang_getCursorType(
+      clang.clang_Cursor_getArgument(function, 0),
+    );
+    return type.kind == kind &&
+        clang
+                .clang_getTypeDeclaration(clang.clang_getPointeeType(type))
+                .usr() ==
+            usr;
+  }
+
+  final copyConstructors = <clang_types.CXCursor>[];
+  var declaresMove = false;
+  final fieldTypes = <clang_types.CXType>[];
+  cursor.visitChildren((child) {
+    switch (child.kind) {
+      case clang_types.CXCursorKind.CXCursor_Constructor:
+        if (takesClassReference(
+          child,
+          clang_types.CXTypeKind.CXType_LValueReference,
+        )) {
+          copyConstructors.add(child);
+        } else if (takesClassReference(
+          child,
+          clang_types.CXTypeKind.CXType_RValueReference,
+        )) {
+          declaresMove = true;
+        }
+      case clang_types.CXCursorKind.CXCursor_CXXMethod
+          when child.spelling() == 'operator=' &&
+              takesClassReference(
+                child,
+                clang_types.CXTypeKind.CXType_RValueReference,
+              ):
+        declaresMove = true;
+      case clang_types.CXCursorKind.CXCursor_FieldDecl:
+        fieldTypes.add(clang.clang_getCursorType(child));
+    }
+  });
+
+  if (copyConstructors.isNotEmpty) {
+    return copyConstructors.any((constructor) {
+      final access = clang.clang_getCXXAccessSpecifier(constructor);
+      return clang.clang_getCursorAvailability(constructor) !=
+              clang_types.CXAvailabilityKind.CXAvailability_NotAvailable &&
+          (access == clang_types.CX_CXXAccessSpecifier.CX_CXXPublic ||
+              isBase &&
+                  access == clang_types.CX_CXXAccessSpecifier.CX_CXXProtected);
+    });
+  }
+  return !declaresMove &&
+      _baseDefinitions(
+        cursor,
+      ).every((base) => _isCopyable(base, isBase: true, visited: visited)) &&
+      fieldTypes.every((type) => _isTypeCopyable(type, visited!));
+}
+
+/// Whether the glue can copy a field of [type], see [_isCopyable].
+///
+/// libclang doesn't expose the members of an implicit instantiation of a
+/// class template, so of the standard library's templates, only a
+/// `std::unique_ptr`, and a `std::vector` of something that can't be copied,
+/// are known not to be copyable.
+bool _isTypeCopyable(clang_types.CXType type, Set<String> visited) {
+  var t = clang.clang_getCanonicalType(type);
+  while (t.kind == clang_types.CXTypeKind.CXType_ConstantArray) {
+    t = clang.clang_getArrayElementType(t);
+  }
+  if (t.kind == clang_types.CXTypeKind.CXType_RValueReference) return false;
+  if (t.kind != clang_types.CXTypeKind.CXType_Record) return true;
+  if (isStdUniquePtr(t)) return false;
+  if (isStdDecl(t, 'vector')) {
+    return _isTypeCopyable(
+      clang.clang_Type_getTemplateArgumentAsType(t, 0),
+      visited,
+    );
+  }
+  final definition = clang.clang_getCursorDefinition(
+    clang.clang_getTypeDeclaration(t),
+  );
+  return definition.isNull || _isCopyable(definition, visited: visited);
+}
+
 /// The definitions of the direct bases of the class at [cursor], whatever
 /// their access.
 List<clang_types.CXCursor> _baseDefinitions(clang_types.CXCursor cursor) {
@@ -276,11 +383,9 @@ void _parseAnyMethod(
       '  ---- Skipping method $methodName due to unsupported parameter type',
     );
     return;
-  } else if (!parameters.every((p) => _canPassByValue(p.type))) {
-    logger.fine(
-      '  ---- Skipping method $methodName, class passed by value can\'t be '
-      'destroyed',
-    );
+  } else if (parameters.map((p) => _whyCantPass(p.type)).nonNulls.firstOrNull
+      case final reason?) {
+    logger.fine('  ---- Skipping method $methodName, $reason');
     return;
   }
 
@@ -302,6 +407,22 @@ void _parseAnyMethod(
       'deleted',
     );
     return;
+  } else if (returnType.typealiasType case CppStdVectorType(
+    isCopyable: false,
+  ) when cxReturnType.kind == clang_types.CXTypeKind.CXType_LValueReference) {
+    logger.fine(
+      '  ---- Skipping method $methodName, the std::vector it returns by '
+      "reference can't be copied",
+    );
+    return;
+  }
+
+  // Only the vectors that are passed from Dart need the helpers copying a
+  // List into one.
+  for (final parameter in parameters) {
+    if (parameter.type.typealiasType case final CppStdVectorType vector) {
+      vector.markPassedFromDart();
+    }
   }
 
   // NameCppMethodsVisitation picks the final names, once all the overloads
@@ -328,19 +449,23 @@ void _parseAnyMethod(
       // The glue returns a reference to a class as a pointer.
       returnsPointerToConst: switch (returnType.typealiasType) {
         CppClassReferenceType(:final isConst) => isConst,
-        _ => _isPointerToConst(cxReturnType),
+        _ => isPointerToConst(cxReturnType),
       },
     ),
   );
 }
 
-/// Whether a glue function can pass [type] by value.
+/// Why a glue function can't take a parameter of [type], or null if it can.
 ///
-/// The parameter is a copy of a C++ class, which the glue function destroys
-/// when the call ends.
-bool _canPassByValue(Type type) => switch (type.typealiasType) {
-  final CppClass c => !c.isAbstract && c.hasPublicDestructor,
-  _ => true,
+/// A C++ class passed by value is copied, and the copy destroyed when the call
+/// ends. A `std::vector` is copied from a Dart [List].
+String? _whyCantPass(Type type) => switch (type.typealiasType) {
+  CppClass(isAbstract: true) || CppClass(hasPublicDestructor: false) =>
+    "class passed by value can't be destroyed",
+  CppClass(isCopyable: false) => "class passed by value can't be copied",
+  CppStdVectorType(canPassFromDart: false) =>
+    "the elements of a std::vector parameter can't be passed from Dart",
+  _ => null,
 };
 
 /// Whether a glue function can return [type] by value.
@@ -351,19 +476,6 @@ bool _canReturnByValue(Type type) => switch (type.typealiasType) {
   final CppClass c => !c.isAbstract && c.isDeletable,
   _ => true,
 };
-
-/// Whether [type] is a pointer to const at any level, like `const T*` or
-/// `T* const*`.
-bool _isPointerToConst(clang_types.CXType type) {
-  for (
-    var t = clang.clang_getCanonicalType(type);
-    t.kind == clang_types.CXTypeKind.CXType_Pointer;
-    t = clang.clang_getPointeeType(t)
-  ) {
-    if (clang.clang_getPointeeType(t).isConstQualified) return true;
-  }
-  return false;
-}
 
 /// The Dart name of the C++ method [spelling], which takes [numParams]
 /// parameters, or null if it's an operator that isn't supported.

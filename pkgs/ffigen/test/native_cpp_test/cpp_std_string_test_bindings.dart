@@ -121,6 +121,18 @@ class StringBox implements ffi.Finalizable {
     return _ptr;
   }
 
+  /// The address of the C++ object, for passing to native code that these
+  /// bindings don't cover.
+  ///
+  /// This object keeps its ownership: the address stays valid only while
+  /// this object, and the object it's borrowed from, if any, are alive. A
+  /// local variable holding this object keeps it alive until the end of its
+  /// scope, since the class is [ffi.Finalizable].
+  ///
+  /// Throws a [StateError] if this object, or the object it's borrowed from,
+  /// has been disposed.
+  ffi.Pointer<ffi.Void> get pointer => _alivePtr;
+
   /// Detaches the finalizer so this object releases ownership of the
   /// underlying C++ pointer. The caller becomes responsible for freeing
   /// the memory.

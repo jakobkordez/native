@@ -119,4 +119,41 @@ void main() {
       expect(hooks$Thrower.guardDepth(), 1);
     });
   });
+
+  group('std::vector helpers', () {
+    test('copying and destroying class elements constructs a guard', () {
+      final copies = hooks$Thrower.copies(3, 2);
+      addTearDown(() {
+        for (final copy in copies) {
+          copy.dispose();
+        }
+      });
+      // Copied out of the vector, which is then deleted.
+      expect(copies.map((c) => c.value()), [3, 3]);
+      expect(hooks$Copyable.copyGuardDepth(), 1);
+      expect(hooks$Copyable.destroyGuardDepth(), 1);
+
+      // Copied into a vector.
+      expect(hooks$Thrower.sumCopies(copies), 6);
+      expect(hooks$Copyable.copyGuardDepth(), 1);
+    });
+
+    test('an exception copying an element out of a vector is rethrown', () {
+      expect(
+        () => hooks$Thrower.copies(-1, 2),
+        throwsCppException('copy failed'),
+      );
+      expect(hooks$Thrower.guardDepth(), 1);
+    });
+
+    test('an exception copying an element into a vector is rethrown', () {
+      final negative = hooks$Copyable(-1);
+      addTearDown(negative.dispose);
+      expect(
+        () => hooks$Thrower.sumCopies([hooks$Copyable(1), negative]),
+        throwsCppException('copy failed'),
+      );
+      expect(hooks$Thrower.guardDepth(), 1);
+    });
+  });
 }

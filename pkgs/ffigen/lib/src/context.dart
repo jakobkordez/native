@@ -25,6 +25,11 @@ class Context {
   final unnamedEnumConstants = <UnnamedEnumConstant>[];
   late final ObjCBuiltInFunctions objCBuiltInFunctions;
   late final cppStdStringType = CppStdStringType(this);
+
+  /// The `std::vector` types, by their C++ spelling, so that each one's
+  /// helpers are generated once.
+  final cppStdVectorTypes = <String, CppStdVectorType>{};
+  late final cppStdVectorArgument = CppStdVectorArgument();
   late final cppExceptionHelpers = CppExceptionHelpers(this);
   bool hasSourceErrors = false;
   final reportedCommentRanges = <((String, int), (String, int))>{};

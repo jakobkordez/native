@@ -47,8 +47,8 @@ Type getCodeGenType(
   // This sees through type sugar by itself, so it comes before the elaborated
   // types are unwrapped.
   if (context.config.cpp != null) {
-    final stdString = _extractStdString(context, cxtype, cppGlue: cppGlue);
-    if (stdString != null) return stdString;
+    final stdType = _extractStdType(context, cxtype, cppGlue: cppGlue);
+    if (stdType != null) return stdType;
   }
 
   // Special case: Elaborated types just refer to another type.
@@ -57,23 +57,10 @@ Type getCodeGenType(
   }
 
   // Handle C++ templates like std::unique_ptr.
-  if (context.config.cpp != null) {
-    final numTemplateArgs = clang.clang_Type_getNumTemplateArguments(cxtype);
-    if (numTemplateArgs >= 1) {
-      final declCursor = clang.clang_getTypeDeclaration(cxtype);
-      final isStdUniquePtr =
-          declCursor.spelling() == 'unique_ptr' &&
-          declCursor.usr().startsWith('c:@N@std@');
-      if (isStdUniquePtr) {
-        final spelling = cxtype.spelling();
-        return _extractUniquePtrType(
-          context,
-          cxtype,
-          numTemplateArgs,
-          spelling,
-        );
-      }
-    }
+  if (context.config.cpp != null &&
+      clang.clang_Type_getNumTemplateArguments(cxtype) >= 1 &&
+      isStdDecl(cxtype, 'unique_ptr')) {
+    return _extractUniquePtrType(context, cxtype);
   }
 
   // These basic Objective C types skip the cache, and are conditional on the
@@ -166,6 +153,18 @@ Type getCodeGenType(
       return BooleanType();
     case clang_types.CXTypeKind.CXType_Attributed:
     case clang_types.CXTypeKind.CXType_Unexposed:
+      // A standard typedef named through a using-declaration, like
+      // `std::size_t` on MSVC, has no declaration. Like a typedef, it's
+      // mapped by its name, since the type it stands for differs between
+      // platforms.
+      if (_standardTypedef(cxtype)?.name case final name?) {
+        if (suportedTypedefToSuportedNativeType[name] case final type?) {
+          return NativeType(type);
+        }
+        if (supportedTypedefToImportedType[name] case final type?) {
+          return type;
+        }
+      }
       // Attributed types carry the type they modify; other unexposed types
       // (e.g. a using-declared C++ type) have none, so use the canonical type.
       var innerCxType = clang.clang_Type_getModifiedType(cxtype);
@@ -332,23 +331,23 @@ Type? _extractfromRecord(
   return UnimplementedType('${cxtype.kindSpelling()} not implemented');
 }
 
-Type _extractUniquePtrType(
-  Context context,
-  clang_types.CXType cxtype,
-  int numTemplateArgs,
-  String spelling,
-) {
+/// Returns the type for [cxtype], a `std::unique_ptr`.
+Type _extractUniquePtrType(Context context, clang_types.CXType cxtype) {
   final logger = context.logger;
+  final spelling = cxtype.spelling();
 
-  if (numTemplateArgs != 1) {
+  // The canonical type has every template argument, unlike the type as
+  // written, whose arguments could even be an alias template's.
+  final canonical = clang.clang_getCanonicalType(cxtype);
+  if (!isStdUniquePtr(canonical)) {
     logger.warning(
       'std::unique_ptr with a custom deleter is not supported '
-      '($numTemplateArgs template args in "$spelling"). Skipping.',
+      '("$spelling"). Skipping.',
     );
     return UnimplementedType('unique_ptr with custom deleter not supported');
   }
 
-  final innerCXType = clang.clang_Type_getTemplateArgumentAsType(cxtype, 0);
+  final innerCXType = clang.clang_Type_getTemplateArgumentAsType(canonical, 0);
   final innerType = getCodeGenType(context, innerCXType);
 
   if (innerType is CppClass) {
@@ -401,12 +400,13 @@ Type _extractReference(
   return UnimplementedType('Reference to $pointee');
 }
 
-/// Returns the type for [cxtype] if it is a `std::string` or a reference to
-/// one, or null otherwise.
+/// Returns the type for [cxtype] if it is a `std::string` or a `std::vector`,
+/// or a reference to one, or null otherwise.
 ///
-/// The check is on the canonical type, so it also covers aliases of
-/// `std::string`, like `using Name = std::string;`.
-Type? _extractStdString(
+/// The check is on the canonical type, so it also covers aliases, like
+/// `using Name = std::string;`. Either can be passed by value or by a const
+/// or rvalue reference, and only to and from C++ methods and constructors.
+Type? _extractStdType(
   Context context,
   clang_types.CXType cxtype, {
   required bool cppGlue,
@@ -416,22 +416,30 @@ Type? _extractStdString(
   final isReference =
       isLValueReference ||
       cxtype.kind == clang_types.CXTypeKind.CXType_RValueReference;
-  final stringType = clang.clang_getCanonicalType(
-    isReference ? clang.clang_getPointeeType(cxtype) : cxtype,
-  );
-  if (!_isStdString(stringType)) return null;
+  final type = isReference ? clang.clang_getPointeeType(cxtype) : cxtype;
+  final canonical = clang.clang_getCanonicalType(type);
+  final String name;
+  if (_isStdString(canonical)) {
+    name = 'std::string';
+  } else if (_isStdVector(canonical)) {
+    name = 'std::vector';
+  } else {
+    return null;
+  }
 
   if (!cppGlue) {
     return UnimplementedType(
-      'std::string is only supported by C++ methods and constructors',
+      '$name is only supported by C++ methods and constructors',
     );
   }
-  // The callee could modify the string through a mutable reference, which
-  // would not be reflected in the Dart String.
-  if (isLValueReference && !stringType.isConstQualified) {
-    return UnimplementedType('Mutable reference to std::string');
+  // The callee could modify it through a mutable reference, which would not
+  // be reflected in the Dart object.
+  if (isLValueReference && !canonical.isConstQualified) {
+    return UnimplementedType('Mutable reference to $name');
   }
-  return context.cppStdStringType;
+  return name == 'std::string'
+      ? context.cppStdStringType
+      : _extractStdVector(context, type, canonical);
 }
 
 /// Whether the canonical type [cxtype] is `std::string`, that is,
@@ -441,14 +449,6 @@ bool _isStdString(clang_types.CXType cxtype) {
       clang.clang_Type_getNumTemplateArguments(cxtype) != 3) {
     return false;
   }
-  bool isStdDecl(clang_types.CXType type, String name) {
-    final decl = clang.clang_getTypeDeclaration(type);
-    // Standard libraries declare these in an inline namespace inside `std`,
-    // like `std::__1` (libc++) or `std::__cxx11` (libstdc++), or in `std`
-    // itself (MSVC).
-    return decl.spelling() == name && decl.usr().startsWith('c:@N@std@');
-  }
-
   final charType = clang.clang_Type_getTemplateArgumentAsType(cxtype, 0);
   final isChar =
       charType.kind == clang_types.CXTypeKind.CXType_Char_S ||
@@ -463,6 +463,223 @@ bool _isStdString(clang_types.CXType cxtype) {
         clang.clang_Type_getTemplateArgumentAsType(cxtype, 2),
         'allocator',
       );
+}
+
+/// Returns the type for [vectorType], a `std::vector` whose canonical type is
+/// [canonical].
+Type _extractStdVector(
+  Context context,
+  clang_types.CXType vectorType,
+  clang_types.CXType canonical,
+) {
+  final (elementType, elementSpelling) = _stdVectorElement(
+    vectorType,
+    canonical,
+  );
+  if (elementSpelling == null) {
+    return UnimplementedType(
+      "std::vector of a type that can't be spelled in the glue: "
+      '${elementType.spelling()}',
+    );
+  }
+  final spelling = 'std::vector<$elementSpelling>';
+  if (context.cppStdVectorTypes[spelling] case final vector?) return vector;
+
+  final element = getCodeGenType(context, elementType, cppGlue: true);
+  final unsupported = switch (element.typealiasType) {
+    _ when element.baseType is UnimplementedType => 'an unsupported type',
+    _ when element.isIncompleteCompound => 'an incomplete struct',
+    // The glue copies each element to the heap for a Dart object to own.
+    CppClass(isAbstract: true) => 'an abstract class',
+    CppClass(isDeletable: false) => "a class that the bindings can't delete",
+    _ => null,
+  };
+  if (unsupported != null) {
+    return UnimplementedType('std::vector of $unsupported');
+  }
+
+  return context.cppStdVectorTypes[spelling] = CppStdVectorType(
+    context,
+    element: element,
+    elementSpelling: elementSpelling,
+    elementIsPointerToConst: isPointerToConst(elementType),
+  );
+}
+
+/// The element type of the `std::vector` [vectorType], whose canonical type
+/// is [canonical], and its spelling in the C++ glue, if it can be spelled.
+///
+/// That's the element type as written, which keeps its typedef names, if
+/// available. libclang reports the template arguments of the outermost
+/// template in the type's sugar, though, which for an alias template, like
+/// `Ptrs<T>` for `template <class T> using Ptrs = std::vector<T*>`, aren't
+/// the vector's. So if the written type isn't the element type, or can't be
+/// spelled, like a substituted template parameter, it's the canonical one.
+(clang_types.CXType, String?) _stdVectorElement(
+  clang_types.CXType vectorType,
+  clang_types.CXType canonical,
+) {
+  final element = clang.clang_Type_getTemplateArgumentAsType(canonical, 0);
+  final written = clang.clang_Type_getTemplateArgumentAsType(vectorType, 0);
+  if (written.kind != clang_types.CXTypeKind.CXType_Invalid &&
+      clang.clang_equalTypes(clang.clang_getCanonicalType(written), element) !=
+          0) {
+    final spelling = _cppSpelling(written);
+    if (spelling != null) return (written, spelling);
+  }
+  return (element, _cppSpelling(element));
+}
+
+/// Whether the canonical type [cxtype] is a `std::vector<T>` with the default
+/// allocator, `std::allocator<T>`.
+bool _isStdVector(clang_types.CXType cxtype) {
+  if (cxtype.kind != clang_types.CXTypeKind.CXType_Record ||
+      clang.clang_Type_getNumTemplateArguments(cxtype) != 2 ||
+      !isStdDecl(cxtype, 'vector')) {
+    return false;
+  }
+  final allocator = clang.clang_Type_getTemplateArgumentAsType(cxtype, 1);
+  return isStdDecl(allocator, 'allocator') &&
+      clang.clang_equalTypes(
+            clang.clang_Type_getTemplateArgumentAsType(allocator, 0),
+            clang.clang_Type_getTemplateArgumentAsType(cxtype, 0),
+          ) !=
+          0;
+}
+
+/// The spelling of [cxtype] in the C++ glue, or null if it can't be spelled.
+///
+/// Every name is fully qualified, since the glue is outside of any namespace,
+/// and typedef names are kept, since the types that some of them stand for,
+/// like `std::size_t`, differ between platforms.
+String? _cppSpelling(clang_types.CXType cxtype) {
+  final canonical = clang.clang_getCanonicalType(cxtype);
+  final String? spelling;
+  switch (cxtype.kind) {
+    // Whatever sugar these are written through, which libclang may not expose.
+    case _ when _isStdString(canonical):
+      spelling = 'std::string';
+    case _ when _isStdVector(canonical):
+      final (_, element) = _stdVectorElement(cxtype, canonical);
+      spelling = element == null ? null : 'std::vector<$element>';
+    case _ when isStdUniquePtr(canonical):
+      final pointee = _cppSpelling(
+        clang.clang_Type_getTemplateArgumentAsType(canonical, 0),
+      );
+      spelling = pointee == null ? null : 'std::unique_ptr<$pointee>';
+    case clang_types.CXTypeKind.CXType_Elaborated:
+      spelling = _cppSpelling(clang.clang_Type_getNamedType(cxtype));
+    case clang_types.CXTypeKind.CXType_Pointer:
+      final pointee = _cppSpelling(clang.clang_getPointeeType(cxtype));
+      if (pointee == null) return null;
+      return cxtype.isConstQualified ? '$pointee* const' : '$pointee*';
+    case clang_types.CXTypeKind.CXType_Typedef:
+      final decl = clang.clang_getTypeDeclaration(cxtype);
+      spelling = _qualifiedSpelling(decl) ?? _builtinSpelling(cxtype);
+    case clang_types.CXTypeKind.CXType_Record:
+      // Other templates would need their arguments spelled.
+      spelling = clang.clang_Type_getNumTemplateArguments(canonical) > 0
+          ? null
+          : _qualifiedSpelling(clang.clang_getTypeDeclaration(cxtype));
+    case clang_types.CXTypeKind.CXType_Enum:
+      spelling = _qualifiedSpelling(clang.clang_getTypeDeclaration(cxtype));
+    case clang_types.CXTypeKind.CXType_Unexposed:
+      // A typedef named through a using-declaration, like `std::size_t` on
+      // MSVC, which libclang exposes with no declaration, so only its
+      // spelling as written is known. That spelling is kept for the standard
+      // library's typedefs, which are declared at global or `std` scope.
+      spelling = _standardTypedef(cxtype)?.spelling ?? _builtinSpelling(cxtype);
+    default:
+      spelling = _builtinSpelling(cxtype);
+  }
+  if (spelling == null) return null;
+  return cxtype.isConstQualified && !spelling.startsWith('const ')
+      ? 'const $spelling'
+      : spelling;
+}
+
+/// The fully qualified name of the declaration [decl], or null if it isn't
+/// declared in a scope that the glue can name, like a class template or a
+/// function, or is a member of a class that isn't public.
+String? _qualifiedSpelling(clang_types.CXCursor decl) {
+  final name = decl.spelling();
+  if (name.isEmpty || clang.clang_Cursor_isAnonymous(decl) != 0) return null;
+  clang_types.CXCursor parentOf(clang_types.CXCursor cursor) =>
+      clang.clang_getCursorSemanticParent(cursor);
+  // The translation unit is the only scope without a semantic parent.
+  for (
+    var member = decl, parent = parentOf(decl);
+    clang.clang_Cursor_isNull(parentOf(parent)) == 0;
+    member = parent, parent = parentOf(parent)
+  ) {
+    switch (parent.kind) {
+      case clang_types.CXCursorKind.CXCursor_Namespace:
+        if (parent.spelling().isEmpty) return null;
+      case clang_types.CXCursorKind.CXCursor_LinkageSpec:
+        break;
+      // The glue can only name the public members of a class.
+      case clang_types.CXCursorKind.CXCursor_StructDecl ||
+          clang_types.CXCursorKind.CXCursor_ClassDecl ||
+          clang_types.CXCursorKind.CXCursor_UnionDecl:
+        if (clang.clang_getCXXAccessSpecifier(member) !=
+            clang_types.CX_CXXAccessSpecifier.CX_CXXPublic) {
+          return null;
+        }
+      default:
+        return null;
+    }
+  }
+  return qualifiedNameFromCursor(decl, name);
+}
+
+/// The standard library's typedefs of integer types, which the C++ glue
+/// spells by name, and the Dart bindings map by name, if they can, since the
+/// types they stand for differ between platforms.
+const _standardTypedefNames = {
+  'size_t',
+  'ptrdiff_t',
+  'intptr_t',
+  'uintptr_t',
+  'intmax_t',
+  'uintmax_t',
+  'int8_t',
+  'int16_t',
+  'int32_t',
+  'int64_t',
+  'uint8_t',
+  'uint16_t',
+  'uint32_t',
+  'uint64_t',
+};
+
+/// Matches a spelling like `const std::size_t`, capturing it without `const`,
+/// and the name, `size_t`.
+final _standardTypedefPattern = RegExp(r'^(?:const )?((?:std::)?(\w+))$');
+
+/// The spelling of [cxtype] without `const`, and its name, if it's one of
+/// [_standardTypedefNames], and stands for a builtin type, or null
+/// otherwise.
+({String spelling, String name})? _standardTypedef(clang_types.CXType cxtype) {
+  final match = _standardTypedefPattern.firstMatch(cxtype.spelling());
+  if (match == null ||
+      !_standardTypedefNames.contains(match[2]) ||
+      _builtinSpelling(cxtype) == null) {
+    return null;
+  }
+  return (spelling: match[1]!, name: match[2]!);
+}
+
+/// The spelling of the canonical type of [cxtype] if it's a builtin type,
+/// like `unsigned int`, or null otherwise.
+String? _builtinSpelling(clang_types.CXType cxtype) {
+  final canonical = clang.clang_getCanonicalType(cxtype);
+  if (canonical.kind < clang_types.CXTypeKind.CXType_FirstBuiltin ||
+      canonical.kind > clang_types.CXTypeKind.CXType_LastBuiltin ||
+      canonical.kind == clang_types.CXTypeKind.CXType_Void) {
+    return null;
+  }
+  final spelling = canonical.spelling();
+  return spelling.startsWith('const ') ? spelling.substring(6) : spelling;
 }
 
 // Used for function pointer arguments.

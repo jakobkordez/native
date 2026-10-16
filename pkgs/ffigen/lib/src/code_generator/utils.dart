@@ -61,6 +61,33 @@ String makeNativeAnnotation(
   return '@$ffiPrefix.Native<$nativeType>($combinedArgs)';
 }
 
+/// Returns the `@Native` annotated `external` declaration of [dartName], a
+/// generated helper function implemented in C++ as [nativeSymbolName].
+///
+/// Each of [params] is a parameter's native type, Dart type and name.
+String makeNativeHelperDeclaration(
+  Writer w, {
+  required String dartName,
+  required String nativeSymbolName,
+  required String returnType,
+  required String nativeReturnType,
+  List<(String, String, String)> params = const [],
+  bool isLeaf = false,
+}) {
+  final nativeParams = params.map((param) => param.$1).join(', ');
+  final dartParams = params
+      .map((param) => '${param.$2} ${param.$3}')
+      .join(', ');
+  final annotation = makeNativeAnnotation(
+    w,
+    nativeType: '$nativeReturnType Function($nativeParams)',
+    dartName: dartName,
+    nativeSymbolName: nativeSymbolName,
+    isLeaf: isLeaf,
+  );
+  return '$annotation\nexternal $returnType $dartName($dartParams);\n\n';
+}
+
 String makeArrayAnnotation(Writer w, ConstantArray arrayType) {
   final dimensions = <int>[];
   Type type = arrayType;

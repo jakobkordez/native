@@ -307,14 +307,11 @@ class CppClassPointerType extends PointerType {
     String? objCEnclosingClass,
   }) => '${cppClass.name}.fromPointer($value)';
 
-  /// Converts [value], which a C++ method returned, to a Dart object.
-  ///
-  /// [isOwnerAlive] is a tear-off of the `_isAlive` method of the Dart object
-  /// that the method was called on, or null for a static method. The returned
-  /// object borrows the pointer from that object: it keeps the object from
-  /// being garbage collected, and becomes unusable once the object is
-  /// disposed. It can still take ownership of the pointer, which ends the
-  /// borrow.
+  /// The returned object borrows the pointer from the object that
+  /// [isOwnerAlive] belongs to, if any: it keeps that object from being
+  /// garbage collected, and becomes unusable once that object is disposed. It
+  /// can still take ownership of the pointer, which ends the borrow.
+  @override
   String convertReturnedToDartType(
     Context context,
     String value, {

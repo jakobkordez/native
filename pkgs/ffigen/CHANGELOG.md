@@ -5,6 +5,35 @@
   Dart code sees them as `String`s, converted to and from the `std::string` as
   UTF-8 by the generated C++ glue. Free functions, mutable references and
   pointers to `std::string` are still unsupported.
+- Support `std::vector<T>` in the parameters and return types of C++ methods
+  and constructors, passed by value, by const reference or by rvalue
+  reference. Dart code sees them as `List`s, which the generated C++ glue
+  copies to and from the `std::vector` element by element. The elements can
+  be numbers, `bool`s, enums, `std::string`s, POD structs, pointers to C++
+  classes, C++ classes by value (as copies that the Dart objects own),
+  `std::unique_ptr`s to C++ classes, and nested `std::vector`s. Pointers to
+  C++ classes in a vector that an instance method returns are borrowed from
+  the object the method was called on, like a returned pointer. The Dart
+  objects for a returned vector's `std::unique_ptr`s own them. The objects in
+  a `List` passed as a vector of `std::unique_ptr`s have to own their
+  pointers, and keep them until the call returns. Then the ones whose
+  `std::unique_ptr`s C++ took out of the vector give their ownership to C++,
+  and the others, like all of them after a call that failed before reaching
+  C++, keep it. The glue spells element types through their typedef names,
+  like `std::vector<std::size_t>`, since the type such a typedef stands for
+  can differ between platforms. Free functions, mutable references, pointers
+  to `std::vector` and vectors with a custom allocator are still unsupported,
+  and so are returning a vector of `std::unique_ptr`s, or of a C++ class that
+  can't be copied, by reference, which would copy it, passing a vector of such
+  a class, and passing a vector of vectors of `std::unique_ptr`s.
+- Map the standard library's typedefs named through a using-declaration, like
+  `std::size_t` and `std::uint32_t` on MSVC, to the same Dart types as the
+  typedefs themselves, like `ffi.Size` and `ffi.Uint32`, instead of the types
+  they stand for on the platform generating the bindings.
+- Skip C++ methods and constructors that take a C++ class by value that can't
+  be copied, whose glue failed to compile.
+- Fix the C++ glue for methods returning a `std::unique_ptr` to const, like
+  `std::unique_ptr<const T>`, which failed to compile.
 - Generate C++ class bindings for classes declared inside a namespace or a
   record. Like scoped structs and enums, their Dart name is the scope path
   flattened with `$`, e.g. `zoo::Keeper::Badge` becomes `zoo$Keeper$Badge`,
@@ -41,6 +70,13 @@
 - Passing a disposed C++ class wrapper, or one borrowed from a disposed object,
   to a C++ method or constructor now throws a `StateError`, instead of passing
   a null or dangling pointer.
+- Add a `pointer` getter to C++ class wrappers, which returns the C++ object's
+  address for passing to native code that the bindings don't cover, and throws
+  a `StateError` once the object, or the object it's borrowed from, is
+  disposed. The members every wrapper has, like `pointer` and `dispose`, and
+  those of `Object`, like `hashCode` and `toString`, now reserve their names,
+  so a C++ method of the same name gets a `$1` suffix instead of clashing with
+  them.
 - Fix the C++ glue for methods returning a pointer to const, like
   `const T* get() const`, which failed to compile.
 - Fix the C++ glue for inherited methods hidden by a method of the same name in

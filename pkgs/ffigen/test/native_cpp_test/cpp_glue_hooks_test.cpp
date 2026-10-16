@@ -14,6 +14,8 @@ namespace {
 int guardDepth_ = 0;
 int guardCount_ = 0;
 bool failNextGuard_ = false;
+int copyGuardDepth_ = 0;
+int destroyGuardDepth_ = 0;
 
 class NullWhatError : public std::exception {
  public:
@@ -37,6 +39,21 @@ int CallGuard::depth() { return guardDepth_; }
 int CallGuard::count() { return guardCount_; }
 
 void CallGuard::failNext() { failNextGuard_ = true; }
+
+Copyable::Copyable(int value) : value_(value) {}
+
+Copyable::Copyable(const Copyable& other) : value_(other.value_) {
+  copyGuardDepth_ = CallGuard::depth();
+  if (value_ < 0) throw std::runtime_error("copy failed");
+}
+
+Copyable::~Copyable() { destroyGuardDepth_ = CallGuard::depth(); }
+
+int Copyable::value() const { return value_; }
+
+int Copyable::copyGuardDepth() { return copyGuardDepth_; }
+
+int Copyable::destroyGuardDepth() { return destroyGuardDepth_; }
 
 Thrower::Thrower(int value) : value_(value) {
   if (value < 0) throw std::invalid_argument("negative value");
@@ -76,6 +93,20 @@ Thrower* Thrower::self(bool fail) {
 int Thrower::answer(bool fail) {
   if (fail) throw std::runtime_error("no answer");
   return 42;
+}
+
+std::vector<Copyable> Thrower::copies(int value, int count) {
+  std::vector<Copyable> result;
+  // Reserved, so that growing the vector doesn't copy the elements.
+  result.reserve(count);
+  for (int i = 0; i < count; ++i) result.emplace_back(value);
+  return result;
+}
+
+int Thrower::sumCopies(const std::vector<Copyable>& values) {
+  int total = 0;
+  for (const auto& value : values) total += value.value();
+  return total;
 }
 
 int Thrower::guardDepth() { return CallGuard::depth(); }

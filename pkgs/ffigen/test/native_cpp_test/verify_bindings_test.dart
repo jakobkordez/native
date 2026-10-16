@@ -24,6 +24,7 @@ import 'cpp_overload_config.dart' as cpp_overload_config;
 import 'cpp_pod_config.dart' as cpp_pod_config;
 import 'cpp_scoped_struct_config.dart' as cpp_scoped_struct_config;
 import 'cpp_std_string_config.dart' as cpp_std_string_config;
+import 'cpp_std_vector_config.dart' as cpp_std_vector_config;
 import 'memory_edge_cases_config.dart' as memory_edge_cases_config;
 import 'util.dart';
 
@@ -63,6 +64,7 @@ void main() {
       'cpp_overload': cpp_overload_config.getConfig(packageRoot),
       'cpp_scoped_struct': cpp_scoped_struct_config.getConfig(packageRoot),
       'cpp_std_string': cpp_std_string_config.getConfig(packageRoot),
+      'cpp_std_vector': cpp_std_vector_config.getConfig(packageRoot),
     };
 
     for (final testFile in testFiles) {

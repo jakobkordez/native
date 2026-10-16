@@ -123,6 +123,18 @@ class borrow$Core implements ffi.Finalizable {
     return _ptr;
   }
 
+  /// The address of the C++ object, for passing to native code that these
+  /// bindings don't cover.
+  ///
+  /// This object keeps its ownership: the address stays valid only while
+  /// this object, and the object it's borrowed from, if any, are alive. A
+  /// local variable holding this object keeps it alive until the end of its
+  /// scope, since the class is [ffi.Finalizable].
+  ///
+  /// Throws a [StateError] if this object, or the object it's borrowed from,
+  /// has been disposed.
+  ffi.Pointer<ffi.Void> get pointer => _alivePtr;
+
   /// Detaches the finalizer so this object releases ownership of the
   /// underlying C++ pointer. The caller becomes responsible for freeing
   /// the memory.
@@ -309,6 +321,18 @@ class borrow$Device implements ffi.Finalizable {
     return _ptr;
   }
 
+  /// The address of the C++ object, for passing to native code that these
+  /// bindings don't cover.
+  ///
+  /// This object keeps its ownership: the address stays valid only while
+  /// this object, and the object it's borrowed from, if any, are alive. A
+  /// local variable holding this object keeps it alive until the end of its
+  /// scope, since the class is [ffi.Finalizable].
+  ///
+  /// Throws a [StateError] if this object, or the object it's borrowed from,
+  /// has been disposed.
+  ffi.Pointer<ffi.Void> get pointer => _alivePtr;
+
   /// Detaches the finalizer so this object releases ownership of the
   /// underlying C++ pointer. The caller becomes responsible for freeing
   /// the memory.
@@ -378,6 +402,26 @@ class borrow$Device implements ffi.Finalizable {
     );
   }
 
+  int address() {
+    return _borrow_Device_address(_alivePtr);
+  }
+
+  int dispose$1() {
+    return _borrow_Device_dispose(_alivePtr);
+  }
+
+  int pointer$1() {
+    return _borrow_Device_pointer(_alivePtr);
+  }
+
+  int hashCode$1() {
+    return _borrow_Device_hashCode(_alivePtr);
+  }
+
+  int toString$1() {
+    return _borrow_Device_toString(_alivePtr);
+  }
+
   void dispose() {
     if (_ptr == ffi.nullptr) {
       throw StateError('This object has already been disposed.');
@@ -439,6 +483,31 @@ external ffi.Pointer<ffi.Void> _borrow_Device_property(
   ffi.Pointer<ffi.Void> self,
   int id,
 );
+
+@ffi.Native<ffi.IntPtr Function(ffi.Pointer<ffi.Void>)>(
+  symbol: 'borrow_Device_address',
+)
+external int _borrow_Device_address(ffi.Pointer<ffi.Void> self);
+
+@ffi.Native<ffi.Int32 Function(ffi.Pointer<ffi.Void>)>(
+  symbol: 'borrow_Device_dispose',
+)
+external int _borrow_Device_dispose(ffi.Pointer<ffi.Void> self);
+
+@ffi.Native<ffi.Int32 Function(ffi.Pointer<ffi.Void>)>(
+  symbol: 'borrow_Device_pointer',
+)
+external int _borrow_Device_pointer(ffi.Pointer<ffi.Void> self);
+
+@ffi.Native<ffi.Int32 Function(ffi.Pointer<ffi.Void>)>(
+  symbol: 'borrow_Device_hashCode',
+)
+external int _borrow_Device_hashCode(ffi.Pointer<ffi.Void> self);
+
+@ffi.Native<ffi.Int32 Function(ffi.Pointer<ffi.Void>)>(
+  symbol: 'borrow_Device_toString',
+)
+external int _borrow_Device_toString(ffi.Pointer<ffi.Void> self);
 
 class borrow$Property implements ffi.Finalizable {
   ffi.Pointer<ffi.Void> _ptr;
@@ -555,6 +624,18 @@ class borrow$Property implements ffi.Finalizable {
     }
     return _ptr;
   }
+
+  /// The address of the C++ object, for passing to native code that these
+  /// bindings don't cover.
+  ///
+  /// This object keeps its ownership: the address stays valid only while
+  /// this object, and the object it's borrowed from, if any, are alive. A
+  /// local variable holding this object keeps it alive until the end of its
+  /// scope, since the class is [ffi.Finalizable].
+  ///
+  /// Throws a [StateError] if this object, or the object it's borrowed from,
+  /// has been disposed.
+  ffi.Pointer<ffi.Void> get pointer => _alivePtr;
 
   /// Detaches the finalizer so this object releases ownership of the
   /// underlying C++ pointer. The caller becomes responsible for freeing
@@ -755,6 +836,18 @@ class borrow$PropertyList implements ffi.Finalizable {
     }
     return _ptr;
   }
+
+  /// The address of the C++ object, for passing to native code that these
+  /// bindings don't cover.
+  ///
+  /// This object keeps its ownership: the address stays valid only while
+  /// this object, and the object it's borrowed from, if any, are alive. A
+  /// local variable holding this object keeps it alive until the end of its
+  /// scope, since the class is [ffi.Finalizable].
+  ///
+  /// Throws a [StateError] if this object, or the object it's borrowed from,
+  /// has been disposed.
+  ffi.Pointer<ffi.Void> get pointer => _alivePtr;
 
   /// Detaches the finalizer so this object releases ownership of the
   /// underlying C++ pointer. The caller becomes responsible for freeing
@@ -975,6 +1068,18 @@ class borrow$Registry implements ffi.Finalizable {
     return _ptr;
   }
 
+  /// The address of the C++ object, for passing to native code that these
+  /// bindings don't cover.
+  ///
+  /// This object keeps its ownership: the address stays valid only while
+  /// this object, and the object it's borrowed from, if any, are alive. A
+  /// local variable holding this object keeps it alive until the end of its
+  /// scope, since the class is [ffi.Finalizable].
+  ///
+  /// Throws a [StateError] if this object, or the object it's borrowed from,
+  /// has been disposed.
+  ffi.Pointer<ffi.Void> get pointer => _alivePtr;
+
   /// Detaches the finalizer so this object releases ownership of the
   /// underlying C++ pointer. The caller becomes responsible for freeing
   /// the memory.
@@ -1162,6 +1267,18 @@ class borrow$StatusFlag implements ffi.Finalizable {
     }
     return _ptr;
   }
+
+  /// The address of the C++ object, for passing to native code that these
+  /// bindings don't cover.
+  ///
+  /// This object keeps its ownership: the address stays valid only while
+  /// this object, and the object it's borrowed from, if any, are alive. A
+  /// local variable holding this object keeps it alive until the end of its
+  /// scope, since the class is [ffi.Finalizable].
+  ///
+  /// Throws a [StateError] if this object, or the object it's borrowed from,
+  /// has been disposed.
+  ffi.Pointer<ffi.Void> get pointer => _alivePtr;
 
   /// Detaches the finalizer so this object releases ownership of the
   /// underlying C++ pointer. The caller becomes responsible for freeing

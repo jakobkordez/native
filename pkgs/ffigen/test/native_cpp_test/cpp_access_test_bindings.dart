@@ -107,6 +107,18 @@ class access$Counted implements ffi.Finalizable {
     return _ptr;
   }
 
+  /// The address of the C++ object, for passing to native code that these
+  /// bindings don't cover.
+  ///
+  /// This object keeps its ownership: the address stays valid only while
+  /// this object, and the object it's borrowed from, if any, are alive. A
+  /// local variable holding this object keeps it alive until the end of its
+  /// scope, since the class is [ffi.Finalizable].
+  ///
+  /// Throws a [StateError] if this object, or the object it's borrowed from,
+  /// has been disposed.
+  ffi.Pointer<ffi.Void> get pointer => _alivePtr;
+
   /// Detaches the finalizer so this object releases ownership of the
   /// underlying C++ pointer. The caller becomes responsible for freeing
   /// the memory.
@@ -308,6 +320,18 @@ class access$Drawable implements ffi.Finalizable {
     return _ptr;
   }
 
+  /// The address of the C++ object, for passing to native code that these
+  /// bindings don't cover.
+  ///
+  /// This object keeps its ownership: the address stays valid only while
+  /// this object, and the object it's borrowed from, if any, are alive. A
+  /// local variable holding this object keeps it alive until the end of its
+  /// scope, since the class is [ffi.Finalizable].
+  ///
+  /// Throws a [StateError] if this object, or the object it's borrowed from,
+  /// has been disposed.
+  ffi.Pointer<ffi.Void> get pointer => _alivePtr;
+
   /// Detaches the finalizer so this object releases ownership of the
   /// underlying C++ pointer. The caller becomes responsible for freeing
   /// the memory.
@@ -482,6 +506,18 @@ class access$Gate implements ffi.Finalizable {
     }
     return _ptr;
   }
+
+  /// The address of the C++ object, for passing to native code that these
+  /// bindings don't cover.
+  ///
+  /// This object keeps its ownership: the address stays valid only while
+  /// this object, and the object it's borrowed from, if any, are alive. A
+  /// local variable holding this object keeps it alive until the end of its
+  /// scope, since the class is [ffi.Finalizable].
+  ///
+  /// Throws a [StateError] if this object, or the object it's borrowed from,
+  /// has been disposed.
+  ffi.Pointer<ffi.Void> get pointer => _alivePtr;
 
   /// Detaches the finalizer so this object releases ownership of the
   /// underlying C++ pointer. The caller becomes responsible for freeing
@@ -689,6 +725,18 @@ class access$Listener implements ffi.Finalizable {
     return _ptr;
   }
 
+  /// The address of the C++ object, for passing to native code that these
+  /// bindings don't cover.
+  ///
+  /// This object keeps its ownership: the address stays valid only while
+  /// this object, and the object it's borrowed from, if any, are alive. A
+  /// local variable holding this object keeps it alive until the end of its
+  /// scope, since the class is [ffi.Finalizable].
+  ///
+  /// Throws a [StateError] if this object, or the object it's borrowed from,
+  /// has been disposed.
+  ffi.Pointer<ffi.Void> get pointer => _alivePtr;
+
   /// Detaches the finalizer so this object releases ownership of the
   /// underlying C++ pointer. The caller becomes responsible for freeing
   /// the memory.
@@ -863,6 +911,18 @@ class access$Polygon implements ffi.Finalizable, access$Shape {
     }
     return _ptr;
   }
+
+  /// The address of the C++ object, for passing to native code that these
+  /// bindings don't cover.
+  ///
+  /// This object keeps its ownership: the address stays valid only while
+  /// this object, and the object it's borrowed from, if any, are alive. A
+  /// local variable holding this object keeps it alive until the end of its
+  /// scope, since the class is [ffi.Finalizable].
+  ///
+  /// Throws a [StateError] if this object, or the object it's borrowed from,
+  /// has been disposed.
+  ffi.Pointer<ffi.Void> get pointer => _alivePtr;
 
   /// Detaches the finalizer so this object releases ownership of the
   /// underlying C++ pointer. The caller becomes responsible for freeing
@@ -1082,6 +1142,18 @@ class access$Recorder implements ffi.Finalizable, access$Listener {
     return _ptr;
   }
 
+  /// The address of the C++ object, for passing to native code that these
+  /// bindings don't cover.
+  ///
+  /// This object keeps its ownership: the address stays valid only while
+  /// this object, and the object it's borrowed from, if any, are alive. A
+  /// local variable holding this object keeps it alive until the end of its
+  /// scope, since the class is [ffi.Finalizable].
+  ///
+  /// Throws a [StateError] if this object, or the object it's borrowed from,
+  /// has been disposed.
+  ffi.Pointer<ffi.Void> get pointer => _alivePtr;
+
   /// Detaches the finalizer so this object releases ownership of the
   /// underlying C++ pointer. The caller becomes responsible for freeing
   /// the memory.
@@ -1279,6 +1351,18 @@ class access$Registry implements ffi.Finalizable {
     return _ptr;
   }
 
+  /// The address of the C++ object, for passing to native code that these
+  /// bindings don't cover.
+  ///
+  /// This object keeps its ownership: the address stays valid only while
+  /// this object, and the object it's borrowed from, if any, are alive. A
+  /// local variable holding this object keeps it alive until the end of its
+  /// scope, since the class is [ffi.Finalizable].
+  ///
+  /// Throws a [StateError] if this object, or the object it's borrowed from,
+  /// has been disposed.
+  ffi.Pointer<ffi.Void> get pointer => _alivePtr;
+
   /// Detaches the finalizer so this object releases ownership of the
   /// underlying C++ pointer. The caller becomes responsible for freeing
   /// the memory.
@@ -1462,6 +1546,18 @@ class access$Shape implements ffi.Finalizable {
     }
     return _ptr;
   }
+
+  /// The address of the C++ object, for passing to native code that these
+  /// bindings don't cover.
+  ///
+  /// This object keeps its ownership: the address stays valid only while
+  /// this object, and the object it's borrowed from, if any, are alive. A
+  /// local variable holding this object keeps it alive until the end of its
+  /// scope, since the class is [ffi.Finalizable].
+  ///
+  /// Throws a [StateError] if this object, or the object it's borrowed from,
+  /// has been disposed.
+  ffi.Pointer<ffi.Void> get pointer => _alivePtr;
 
   /// Detaches the finalizer so this object releases ownership of the
   /// underlying C++ pointer. The caller becomes responsible for freeing
@@ -1680,6 +1776,18 @@ class access$Square implements ffi.Finalizable, access$Polygon {
     return _ptr;
   }
 
+  /// The address of the C++ object, for passing to native code that these
+  /// bindings don't cover.
+  ///
+  /// This object keeps its ownership: the address stays valid only while
+  /// this object, and the object it's borrowed from, if any, are alive. A
+  /// local variable holding this object keeps it alive until the end of its
+  /// scope, since the class is [ffi.Finalizable].
+  ///
+  /// Throws a [StateError] if this object, or the object it's borrowed from,
+  /// has been disposed.
+  ffi.Pointer<ffi.Void> get pointer => _alivePtr;
+
   /// Detaches the finalizer so this object releases ownership of the
   /// underlying C++ pointer. The caller becomes responsible for freeing
   /// the memory.
@@ -1893,6 +2001,18 @@ class access$SubRegistry implements ffi.Finalizable, access$Registry {
     return _ptr;
   }
 
+  /// The address of the C++ object, for passing to native code that these
+  /// bindings don't cover.
+  ///
+  /// This object keeps its ownership: the address stays valid only while
+  /// this object, and the object it's borrowed from, if any, are alive. A
+  /// local variable holding this object keeps it alive until the end of its
+  /// scope, since the class is [ffi.Finalizable].
+  ///
+  /// Throws a [StateError] if this object, or the object it's borrowed from,
+  /// has been disposed.
+  ffi.Pointer<ffi.Void> get pointer => _alivePtr;
+
   /// Detaches the finalizer so this object releases ownership of the
   /// underlying C++ pointer. The caller becomes responsible for freeing
   /// the memory.
@@ -2070,6 +2190,18 @@ class access$Widget implements ffi.Finalizable, access$Drawable {
     }
     return _ptr;
   }
+
+  /// The address of the C++ object, for passing to native code that these
+  /// bindings don't cover.
+  ///
+  /// This object keeps its ownership: the address stays valid only while
+  /// this object, and the object it's borrowed from, if any, are alive. A
+  /// local variable holding this object keeps it alive until the end of its
+  /// scope, since the class is [ffi.Finalizable].
+  ///
+  /// Throws a [StateError] if this object, or the object it's borrowed from,
+  /// has been disposed.
+  ffi.Pointer<ffi.Void> get pointer => _alivePtr;
 
   /// Detaches the finalizer so this object releases ownership of the
   /// underlying C++ pointer. The caller becomes responsible for freeing

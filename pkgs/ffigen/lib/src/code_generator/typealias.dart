@@ -222,6 +222,17 @@ class Typealias extends BindingType {
   );
 
   @override
+  String convertReturnedToDartType(
+    Context context,
+    String value, {
+    required String? isOwnerAlive,
+  }) => type.convertReturnedToDartType(
+    context,
+    value,
+    isOwnerAlive: isOwnerAlive,
+  );
+
+  @override
   String? generateRetain(String value) => type.generateRetain(value);
 
   @override

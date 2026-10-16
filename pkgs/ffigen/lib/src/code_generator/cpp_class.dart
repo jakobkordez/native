@@ -163,6 +163,13 @@ class CppClass extends BindingType with HasLocalScope {
   /// objects that don't own their pointers.
   final bool isDeletable;
 
+  /// Whether the glue can copy an object of this class, which needs a public
+  /// copy constructor that isn't deleted.
+  ///
+  /// The glue copies an object to pass it by value, or to put it in a
+  /// `std::vector`.
+  final bool isCopyable;
+
   CppClass({
     super.usr,
     super.originalName,
@@ -175,7 +182,33 @@ class CppClass extends BindingType with HasLocalScope {
     this.isAbstract = false,
     this.hasPublicDestructor = true,
     this.isDeletable = true,
+    this.isCopyable = true,
   });
+
+  /// The names of the members that every class wrapper has, including those
+  /// of [Object], which its C++ methods can't be named, see
+  /// `CreateScopesVisitation`.
+  static const wrapperMemberNames = {
+    'hashCode',
+    'runtimeType',
+    'noSuchMethod',
+    'toString',
+    'fromPointer',
+    'retainOwnership',
+    'releaseOwnership',
+    'detachPointer',
+    'pointer',
+    'dispose',
+    '_ptr',
+    '_defaultFinalizer',
+    '_activeFinalizer',
+    '_activeFinalizerFn',
+    '_isOwnerAlive',
+    '_isReference',
+    '_borrowed',
+    '_isAlive',
+    '_alivePtr',
+  };
 
   /// The prefix of the C glue functions generated for this class's methods.
   ///
@@ -416,6 +449,18 @@ class $name implements $implementsClause {
     return _ptr;
   }
 
+  /// The address of the C++ object, for passing to native code that these
+  /// bindings don't cover.
+  ///
+  /// This object keeps its ownership: the address stays valid only while
+  /// this object, and the object it's borrowed from, if any, are alive. A
+  /// local variable holding this object keeps it alive until the end of its
+  /// scope, since the class is [$ffiPrefix.Finalizable].
+  ///
+  /// Throws a [StateError] if this object, or the object it's borrowed from,
+  /// has been disposed.
+  $ptrVoid get pointer => _alivePtr;
+
   /// Detaches the finalizer so this object releases ownership of the
   /// underlying C++ pointer. The caller becomes responsible for freeing
   /// the memory.
@@ -512,19 +557,12 @@ class $name implements $implementsClause {
       final call = hasReturn
           ? checkedCall('$glue($callArgs)')
           : '$glue($callArgs)';
-      final returnExpr = switch (method.returnType.typealiasType) {
-        // A returned pointer or reference is borrowed from this object.
-        final CppClassPointerType type => type.convertReturnedToDartType(
-          ctx,
-          call,
-          isOwnerAlive: method.isStatic ? null : '_isAlive',
-        ),
-        _ => method.returnType.convertFfiDartTypeToDartType(
-          ctx,
-          call,
-          objCRetain: false,
-        ),
-      };
+      // A returned pointer or reference is borrowed from this object.
+      final returnExpr = method.returnType.convertReturnedToDartType(
+        ctx,
+        call,
+        isOwnerAlive: method.isStatic ? null : '_isAlive',
+      );
 
       final callLine = localVars.wrapWithCleanups(
         hasReturn
@@ -632,31 +670,15 @@ class $name implements $implementsClause {
     String paramDecl(Parameter p) =>
         p.type.getExternCType(context, varName: p.name).trim();
 
-    // Every glue function calling into C++ constructs the configured guard
-    // first.
-    final guard = switch (context.config.cpp?.glueGuard) {
-      final type? => 'const $type ffigen_guard{};',
-      null => null,
-    };
-    String guarded(String body) => guard == null ? body : '$guard\n  $body';
-    String glueBody(String body, {required bool returnsValue}) =>
-        _catchesExceptions
-        ? context.cppExceptionHelpers.wrapGlueBody(
-            body,
-            returnsValue: returnsValue,
-            guard: guard,
-          )
-        : guarded(body);
-
     // The Dart side looks these functions up by their C-safe names, so define
     // them under the same names.
     //
-    // `delete` isn't wrapped in a `try`: the NativeFinalizer calls it during
+    // `delete` doesn't catch exceptions: the NativeFinalizer calls it during
     // garbage collection, where no Dart caller could rethrow the exception.
     final deleteWrapper =
         '''
 FFIGEN_EXPORT void ${Namer.cSafeName('${name}_delete')}($originalName* self) {
-  ${guarded('delete self;')}
+  ${cppGlueBody(context, 'delete self;', returnsValue: false, catchExceptions: false)}
 }''';
 
     final methodBindings = methods
@@ -719,7 +741,7 @@ FFIGEN_EXPORT void ${Namer.cSafeName('${name}_delete')}($originalName* self) {
 
           return '''
 FFIGEN_EXPORT $returnTypeString $symbol($params) {
-  ${glueBody(body, returnsValue: method.isConstructor || !method.returnsVoid)}
+  ${cppGlueBody(context, body, returnsValue: method.isConstructor || !method.returnsVoid)}
 }''';
         })
         .join('\n\n');
@@ -788,4 +810,31 @@ FFIGEN_EXPORT $returnTypeString $symbol($params) {
     visitor.visit(ffiImport);
     if (_catchesExceptions) visitor.visit(context.cppExceptionHelpers);
   }
+}
+
+/// The body of a glue function whose statement [body] calls into C++.
+///
+/// It constructs the `Cpp.glueGuard`, if any, first. With
+/// `Cpp.catchExceptions`, it also catches the exceptions of [body], unless
+/// [catchExceptions] is false, and returns a value-initialized result if
+/// [returnsValue].
+String cppGlueBody(
+  Context context,
+  String body, {
+  required bool returnsValue,
+  bool catchExceptions = true,
+}) {
+  final cpp = context.config.cpp;
+  final guard = switch (cpp?.glueGuard) {
+    final type? => 'const $type ffigen_guard{};',
+    null => null,
+  };
+  if (catchExceptions && (cpp?.catchExceptions ?? false)) {
+    return context.cppExceptionHelpers.wrapGlueBody(
+      body,
+      returnsValue: returnsValue,
+      guard: guard,
+    );
+  }
+  return guard == null ? body : '$guard\n  $body';
 }

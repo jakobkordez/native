@@ -222,7 +222,8 @@ final class Cpp {
   /// It's written into the glue as is, so name it fully qualified, and declare
   /// it in one of the entry points or in [glueIncludes]. The `std::string`
   /// conversion helpers don't call into the library, so they don't construct
-  /// it.
+  /// it, and neither do the `std::vector` ones, unless copying, moving or
+  /// destroying the elements runs the code of a C++ class.
   ///
   /// The glue deleting an object constructs it too, and the `NativeFinalizer`
   /// calls that glue during garbage collection, on any thread. A C++ call that
@@ -246,11 +247,15 @@ final class Cpp {
   /// Otherwise, a C++ exception unwinding through the glue into Dart terminates
   /// the process.
   ///
+  /// The `std::vector` conversion helpers also catch the exceptions of the
+  /// copy and move constructors of a C++ class's objects in a vector.
+  ///
   /// The glue deleting an object doesn't catch exceptions, since the
   /// `NativeFinalizer` calls it during garbage collection, where there's no
-  /// Dart caller to rethrow them to. So an exception thrown by a
-  /// `noexcept(false)` destructor, or by [glueGuard]'s constructor while
-  /// deleting an object, still terminates the process.
+  /// Dart caller to rethrow them to, and neither does the glue deleting a
+  /// `std::vector`. So an exception thrown by a `noexcept(false)` destructor,
+  /// or by [glueGuard]'s constructor while deleting an object, still
+  /// terminates the process.
   final bool catchExceptions;
 
   const Cpp({

@@ -186,5 +186,24 @@ void main() {
       doGC();
       expect(borrow$Core.liveCount(), 0);
     }, skip: !canDoGC);
+
+    test('pointer is the address of the C++ object', () {
+      final core = borrow$Core(4);
+      final device = core.device();
+      expect(device.pointer.address, device.address());
+
+      core.dispose();
+      expect(() => device.pointer, throwsStateError);
+      expect(() => core.pointer, throwsStateError);
+    });
+
+    test("methods named like the wrapper's members are renamed", () {
+      final core = borrow$Core(5);
+      expect(core.device().dispose$1(), 5);
+      expect(core.device().pointer$1(), 5);
+      expect(core.device().hashCode$1(), 5);
+      expect(core.device().toString$1(), 5);
+      core.dispose();
+    });
   });
 }

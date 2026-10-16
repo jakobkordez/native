@@ -107,6 +107,305 @@ external int _stdStringSize(ffi.Pointer<ffi.Void> value);
 )
 external void _stdStringDelete(ffi.Pointer<ffi.Void> value);
 
+/// Copies the `std::vector<hooks::Copyable>` [_value] into a [List], and deletes [_value].
+List<hooks$Copyable> _stdVectorOfHooks$CopyableToDart(
+  ffi.Pointer<ffi.Void> _value,
+) {
+  try {
+    return List.generate(
+      _stdVectorOfHooks$CopyableSize(_value),
+      (_index) => hooks$Copyable.fromPointer(
+        _cppChecked(_stdVectorOfHooks$CopyableGet(_value, _index)),
+        takeOwnership: true,
+      ),
+    );
+  } finally {
+    _stdVectorOfHooks$CopyableDelete(_value);
+  }
+}
+
+/// Copies [_value$1] into a new `std::vector<hooks::Copyable>`.
+///
+/// The `std::vector` must be deleted with [_stdVectorOfHooks$CopyableDelete].
+ffi.Pointer<ffi.Void> _stdVectorOfHooks$CopyableFromDart(
+  List<hooks$Copyable> _value$1,
+) {
+  final _vector = _stdVectorOfHooks$CopyableNew(_value$1.length);
+  try {
+    for (final _element in _value$1) {
+      _stdVectorOfHooks$CopyablePush(_vector, _element._alivePtr);
+      _cppCheckException();
+    }
+  } catch (_) {
+    _stdVectorOfHooks$CopyableDelete(_vector);
+    rethrow;
+  }
+  return _vector;
+}
+
+@ffi.Native<ffi.Pointer<ffi.Void> Function(ffi.Size)>(
+  symbol: 'ffigen_1qtx5pv_std_vector_dr345q_new',
+  isLeaf: true,
+)
+external ffi.Pointer<ffi.Void> _stdVectorOfHooks$CopyableNew(int capacity);
+
+@ffi.Native<ffi.Void Function(ffi.Pointer<ffi.Void>, ffi.Pointer<ffi.Void>)>(
+  symbol: 'ffigen_1qtx5pv_std_vector_dr345q_push',
+)
+external void _stdVectorOfHooks$CopyablePush(
+  ffi.Pointer<ffi.Void> self,
+  ffi.Pointer<ffi.Void> value,
+);
+
+@ffi.Native<ffi.Size Function(ffi.Pointer<ffi.Void>)>(
+  symbol: 'ffigen_1qtx5pv_std_vector_dr345q_size',
+  isLeaf: true,
+)
+external int _stdVectorOfHooks$CopyableSize(ffi.Pointer<ffi.Void> self);
+
+@ffi.Native<ffi.Pointer<ffi.Void> Function(ffi.Pointer<ffi.Void>, ffi.Size)>(
+  symbol: 'ffigen_1qtx5pv_std_vector_dr345q_get',
+)
+external ffi.Pointer<ffi.Void> _stdVectorOfHooks$CopyableGet(
+  ffi.Pointer<ffi.Void> self,
+  int index,
+);
+
+@ffi.Native<ffi.Void Function(ffi.Pointer<ffi.Void>)>(
+  symbol: 'ffigen_1qtx5pv_std_vector_dr345q_delete',
+)
+external void _stdVectorOfHooks$CopyableDelete(ffi.Pointer<ffi.Void> self);
+
+class hooks$Copyable implements ffi.Finalizable {
+  ffi.Pointer<ffi.Void> _ptr;
+  static final _defaultFinalizer = ffi.NativeFinalizer(
+    ffi.Native.addressOf<
+      ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>
+    >(_hooks$Copyable_delete),
+  );
+
+  /// The finalizer currently attached for this instance, or [null] if this
+  /// object does not own its pointer.
+  ffi.NativeFinalizer? _activeFinalizer;
+
+  /// The native function pointer used by [_activeFinalizer], stored so that
+  /// [dispose] can call the correct destructor directly.
+  ffi.Pointer<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>?
+  _activeFinalizerFn;
+
+  /// Whether the object that this one is borrowed from is still alive, or
+  /// null if this object isn't borrowed from another object.
+  ///
+  /// This is a tear-off of that object's [_isAlive], so it also keeps that
+  /// object, which owns the C++ object, from being garbage collected while
+  /// this one is reachable.
+  bool Function()? _isOwnerAlive;
+
+  /// Whether this object wraps a C++ reference, which it can't take
+  /// ownership of.
+  final bool _isReference;
+
+  hooks$Copyable.fromPointer(this._ptr, {bool takeOwnership = false})
+    : _isReference = false {
+    if (takeOwnership) {
+      _defaultFinalizer.attach(this, _ptr.cast(), detach: this);
+      _activeFinalizer = _defaultFinalizer;
+      _activeFinalizerFn =
+          ffi.Native.addressOf<
+            ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>
+          >(_hooks$Copyable_delete);
+    }
+  }
+
+  /// Attaches a finalizer so this object takes ownership of the underlying
+  /// C++ pointer. If [customFinalizer] is provided it is used instead of the
+  /// default `delete` finalizer, which is useful when the object was not
+  /// allocated with `new` (e.g. `malloc` or a custom allocator).
+  ///
+  /// Both [customFinalizer] and [customFinalizerFn] must be provided together.
+  ///
+  /// If this object is borrowed from another object, it no longer depends on
+  /// that object afterwards.
+  ///
+  /// Throws a [StateError] if the object, or the object it's borrowed from,
+  /// has already been disposed, if this object already owns the pointer, or
+  /// if it wraps a C++ reference.
+  void retainOwnership([
+    ffi.NativeFinalizer? customFinalizer,
+    ffi.Pointer<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>?
+    customFinalizerFn,
+  ]) {
+    final ptr = _alivePtr;
+    if (_activeFinalizer != null) {
+      throw StateError('This object already owns its pointer.');
+    }
+    if (_isReference) {
+      throw StateError(
+        "This object wraps a C++ reference, so it can't own its pointer.",
+      );
+    }
+    if ((customFinalizer == null) != (customFinalizerFn == null)) {
+      throw ArgumentError(
+        'Both customFinalizer and customFinalizerFn must be provided together.',
+      );
+    }
+    final fin = customFinalizer ?? _defaultFinalizer;
+    final fnPtr =
+        customFinalizerFn ??
+        ffi.Native.addressOf<
+          ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>
+        >(_hooks$Copyable_delete);
+    fin.attach(this, ptr.cast(), detach: this);
+    _activeFinalizer = fin;
+    _activeFinalizerFn = fnPtr;
+    _isOwnerAlive = null;
+  }
+
+  /// Wraps [_ptr], which another object owns, without taking ownership of it.
+  ///
+  /// [_isOwnerAlive] is a tear-off of the [_isAlive] method of the object
+  /// that this one is borrowed from, or null if it isn't borrowed from an
+  /// object. [isReference] is whether [_ptr] comes from a C++ reference.
+  hooks$Copyable._borrowed(
+    this._ptr,
+    this._isOwnerAlive, {
+    bool isReference = false,
+  }) : _isReference = isReference;
+
+  /// Whether neither this object, nor the object it's borrowed from, if any,
+  /// has been disposed.
+  bool _isAlive() => _ptr != ffi.nullptr && (_isOwnerAlive?.call() ?? true);
+
+  /// [_ptr], for passing to C++.
+  ///
+  /// Throws a [StateError] if this object, or the object it's borrowed from,
+  /// has been disposed, rather than letting C++ use a dangling pointer.
+  ffi.Pointer<ffi.Void> get _alivePtr {
+    if (_ptr == ffi.nullptr) {
+      throw StateError('This object has already been disposed.');
+    }
+    if (_isOwnerAlive?.call() == false) {
+      throw StateError(
+        'The object that this object is borrowed from has been disposed.',
+      );
+    }
+    return _ptr;
+  }
+
+  /// The address of the C++ object, for passing to native code that these
+  /// bindings don't cover.
+  ///
+  /// This object keeps its ownership: the address stays valid only while
+  /// this object, and the object it's borrowed from, if any, are alive. A
+  /// local variable holding this object keeps it alive until the end of its
+  /// scope, since the class is [ffi.Finalizable].
+  ///
+  /// Throws a [StateError] if this object, or the object it's borrowed from,
+  /// has been disposed.
+  ffi.Pointer<ffi.Void> get pointer => _alivePtr;
+
+  /// Detaches the finalizer so this object releases ownership of the
+  /// underlying C++ pointer. The caller becomes responsible for freeing
+  /// the memory.
+  ///
+  /// Throws a [StateError] if the object has already been disposed, or if
+  /// this object does not own the pointer.
+  void releaseOwnership() {
+    if (_ptr == ffi.nullptr) {
+      throw StateError('This object has already been disposed.');
+    }
+    if (_activeFinalizer == null) {
+      throw StateError('This object does not own its pointer.');
+    }
+    _activeFinalizer!.detach(this);
+    _activeFinalizer = null;
+    _activeFinalizerFn = null;
+  }
+
+  /// Detaches the finalizer and invalidates this object, returning the
+  /// underlying C++ pointer.
+  ///
+  /// Throws a [StateError] if the object has already been disposed, or if
+  /// this object does not own the pointer.
+  ffi.Pointer<ffi.Void> detachPointer() {
+    final rawPtr = _ptr;
+    releaseOwnership();
+    _ptr = ffi.nullptr;
+    return rawPtr;
+  }
+
+  factory hooks$Copyable(int value) {
+    return hooks$Copyable.fromPointer(
+      _cppChecked(_hooks_Copyable_new(value)),
+      takeOwnership: true,
+    );
+  }
+  factory hooks$Copyable.new$1(hooks$Copyable other) {
+    return hooks$Copyable.fromPointer(
+      _cppChecked(_hooks_Copyable_new$1(other._alivePtr)),
+      takeOwnership: true,
+    );
+  }
+  int value() {
+    return _cppChecked(_hooks_Copyable_value(_alivePtr));
+  }
+
+  static int copyGuardDepth() {
+    return _cppChecked(_hooks_Copyable_copyGuardDepth());
+  }
+
+  static int destroyGuardDepth() {
+    return _cppChecked(_hooks_Copyable_destroyGuardDepth());
+  }
+
+  void dispose() {
+    if (_ptr == ffi.nullptr) {
+      throw StateError('This object has already been disposed.');
+    }
+    if (_activeFinalizer == null) {
+      throw StateError(
+        'Cannot dispose a non-owning wrapper. '
+        'Call retainOwnership() first to take ownership.',
+      );
+    }
+    _activeFinalizer!.detach(this);
+    _activeFinalizer = null;
+    _activeFinalizerFn?.asFunction<void Function(ffi.Pointer<ffi.Void>)>()(
+      _ptr,
+    );
+    _activeFinalizerFn = null;
+    _ptr = ffi.nullptr;
+  }
+}
+
+@ffi.Native<ffi.Pointer<ffi.Void> Function(ffi.Int)>(
+  symbol: 'hooks_Copyable_new',
+)
+external ffi.Pointer<ffi.Void> _hooks_Copyable_new(int value);
+
+@ffi.Native<ffi.Pointer<ffi.Void> Function(ffi.Pointer<ffi.Void>)>(
+  symbol: 'hooks_Copyable_new_1',
+)
+external ffi.Pointer<ffi.Void> _hooks_Copyable_new$1(
+  ffi.Pointer<ffi.Void> other,
+);
+
+@ffi.Native<ffi.Int Function(ffi.Pointer<ffi.Void>)>(
+  symbol: 'hooks_Copyable_value',
+)
+external int _hooks_Copyable_value(ffi.Pointer<ffi.Void> self);
+
+@ffi.Native<ffi.Int Function()>(symbol: 'hooks_Copyable_copyGuardDepth')
+external int _hooks_Copyable_copyGuardDepth();
+
+@ffi.Native<ffi.Int Function()>(symbol: 'hooks_Copyable_destroyGuardDepth')
+external int _hooks_Copyable_destroyGuardDepth();
+
+@ffi.Native<ffi.Void Function(ffi.Pointer<ffi.Void>)>(
+  symbol: 'hooks_Copyable_delete',
+)
+external void _hooks$Copyable_delete(ffi.Pointer<ffi.Void> self);
+
 class hooks$Thrower implements ffi.Finalizable {
   ffi.Pointer<ffi.Void> _ptr;
   static final _defaultFinalizer = ffi.NativeFinalizer(
@@ -223,6 +522,18 @@ class hooks$Thrower implements ffi.Finalizable {
     return _ptr;
   }
 
+  /// The address of the C++ object, for passing to native code that these
+  /// bindings don't cover.
+  ///
+  /// This object keeps its ownership: the address stays valid only while
+  /// this object, and the object it's borrowed from, if any, are alive. A
+  /// local variable holding this object keeps it alive until the end of its
+  /// scope, since the class is [ffi.Finalizable].
+  ///
+  /// Throws a [StateError] if this object, or the object it's borrowed from,
+  /// has been disposed.
+  ffi.Pointer<ffi.Void> get pointer => _alivePtr;
+
   /// Detaches the finalizer so this object releases ownership of the
   /// underlying C++ pointer. The caller becomes responsible for freeing
   /// the memory.
@@ -302,6 +613,21 @@ class hooks$Thrower implements ffi.Finalizable {
 
   static int answer(bool fail) {
     return _cppChecked(_hooks_Thrower_answer(fail));
+  }
+
+  static List<hooks$Copyable> copies(int value, int count) {
+    return _stdVectorOfHooks$CopyableToDart(
+      _cppChecked(_hooks_Thrower_copies(value, count)),
+    );
+  }
+
+  static int sumCopies(List<hooks$Copyable> values) {
+    final _$$values = _stdVectorOfHooks$CopyableFromDart(values);
+    try {
+      return _cppChecked(_hooks_Thrower_sumCopies(_$$values));
+    } finally {
+      _stdVectorOfHooks$CopyableDelete(_$$values);
+    }
   }
 
   static int guardDepth() {
@@ -390,6 +716,16 @@ external ffi.Pointer<ffi.Void> _hooks_Thrower_self(
 
 @ffi.Native<ffi.Int Function(ffi.Bool)>(symbol: 'hooks_Thrower_answer')
 external int _hooks_Thrower_answer(bool fail);
+
+@ffi.Native<ffi.Pointer<ffi.Void> Function(ffi.Int, ffi.Int)>(
+  symbol: 'hooks_Thrower_copies',
+)
+external ffi.Pointer<ffi.Void> _hooks_Thrower_copies(int value, int count);
+
+@ffi.Native<ffi.Int Function(ffi.Pointer<ffi.Void>)>(
+  symbol: 'hooks_Thrower_sumCopies',
+)
+external int _hooks_Thrower_sumCopies(ffi.Pointer<ffi.Void> values);
 
 @ffi.Native<ffi.Int Function()>(symbol: 'hooks_Thrower_guardDepth')
 external int _hooks_Thrower_guardDepth();

@@ -73,6 +73,16 @@ class Device {
   PropertyList& properties();
   Property* property(int32_t id);
 
+  // The address of this device, which the wrappers' `pointer` returns.
+  std::intptr_t address() const;
+
+  // Named like members that every wrapper has, including those of Dart's
+  // `Object`, so the bindings rename them.
+  int32_t dispose() const;
+  int32_t pointer() const;
+  int32_t hashCode() const;
+  int32_t toString() const;
+
  private:
   friend class Core;
   explicit Device(int32_t id);

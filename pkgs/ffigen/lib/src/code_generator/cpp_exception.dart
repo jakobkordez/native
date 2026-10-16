@@ -113,38 +113,26 @@ T ${checked.name}<T>(T result) {
 
 ''');
 
-    void writeNative(
-      Symbol dartSymbol,
-      String nativeSuffix, {
-      required String returnType,
-      required String nativeType,
-      required String params,
-    }) {
-      s.write(
-        makeNativeAnnotation(
-          w,
-          nativeType: nativeType,
-          dartName: dartSymbol.name,
-          nativeSymbolName: '${_nativePrefix}_$nativeSuffix',
-          isLeaf: true,
-        ),
-      );
-      s.write('\nexternal $returnType ${dartSymbol.name}($params);\n\n');
-    }
-
-    writeNative(
-      _take,
-      'take',
-      returnType: ptrUint8,
-      nativeType: '$ptrUint8 Function()',
-      params: '',
+    s.write(
+      makeNativeHelperDeclaration(
+        w,
+        dartName: _take.name,
+        nativeSymbolName: '${_nativePrefix}_take',
+        returnType: ptrUint8,
+        nativeReturnType: ptrUint8,
+        isLeaf: true,
+      ),
     );
-    writeNative(
-      _free,
-      'free',
-      returnType: 'void',
-      nativeType: '$ffi.Void Function($ptrUint8)',
-      params: '$ptrUint8 exception',
+    s.write(
+      makeNativeHelperDeclaration(
+        w,
+        dartName: _free.name,
+        nativeSymbolName: '${_nativePrefix}_free',
+        returnType: 'void',
+        nativeReturnType: '$ffi.Void',
+        params: [(ptrUint8, ptrUint8, 'exception')],
+        isLeaf: true,
+      ),
     );
 
     return BindingString(type: BindingStringType.func, string: s.toString());

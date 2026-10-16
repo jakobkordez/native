@@ -185,22 +185,17 @@ String ${toDart.name}($ptrVoid value) {
       required String returnType,
       required String nativeReturnType,
       required List<(String, String, String)> params,
-    }) {
-      final nativeParams = params.map((param) => param.$1).join(', ');
-      final dartParams = params
-          .map((param) => '${param.$2} ${param.$3}')
-          .join(', ');
-      s.write(
-        makeNativeAnnotation(
-          w,
-          nativeType: '$nativeReturnType Function($nativeParams)',
-          dartName: dartSymbol.name,
-          nativeSymbolName: '${_nativePrefix}_$nativeSuffix',
-          isLeaf: true,
-        ),
-      );
-      s.write('\nexternal $returnType ${dartSymbol.name}($dartParams);\n\n');
-    }
+    }) => s.write(
+      makeNativeHelperDeclaration(
+        w,
+        dartName: dartSymbol.name,
+        nativeSymbolName: '${_nativePrefix}_$nativeSuffix',
+        returnType: returnType,
+        nativeReturnType: nativeReturnType,
+        params: params,
+        isLeaf: true,
+      ),
+    );
 
     writeNative(
       _new,

@@ -3,6 +3,7 @@
 // BSD-style license that can be found in the LICENSE file.
 
 #include <string>
+#include <vector>
 
 // The glue hooks of `Cpp`: every glue function constructs the configured guard
 // (`hooks::CallGuard`, declared in cpp_glue_hooks_guard.h, which only the glue
@@ -12,6 +13,30 @@
 namespace hooks {
 
 using Nothing = void;
+
+// A class whose copy constructor and destructor run in the glue of the
+// `std::vector` helpers, which copy elements to and from Dart, and delete
+// vectors.
+class Copyable {
+ public:
+  explicit Copyable(int value);
+
+  // Throws std::runtime_error when copying a negative value. A vector's
+  // elements are copied out of it with this too, since there's no move
+  // constructor.
+  Copyable(const Copyable& other);
+  ~Copyable();
+
+  int value() const;
+
+  // How many guards were alive during the last copy, and the last
+  // destruction.
+  static int copyGuardDepth();
+  static int destroyGuardDepth();
+
+ private:
+  int value_;
+};
 
 class Thrower {
  public:
@@ -46,6 +71,11 @@ class Thrower {
 
   // A static method: throws std::runtime_error when fail is true.
   static int answer(bool fail);
+
+  // Vectors of a class whose copy constructor can throw, which the glue of
+  // the `std::vector` helpers calls. Never throw themselves.
+  static std::vector<Copyable> copies(int value, int count);
+  static int sumCopies(const std::vector<Copyable>& values);
 
   // How many guards are alive during this call: 1 when its glue constructed
   // one, and more if an earlier call leaked one.

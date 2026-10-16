@@ -127,6 +127,19 @@ abstract class Type extends AstNode {
     String? objCEnclosingClass,
   }) => value;
 
+  /// Returns generated Dart code that converts [value], which a C++ method
+  /// returned, from its FfiDartType to its DartType.
+  ///
+  /// [isOwnerAlive] is a tear-off of the `_isAlive` method of the Dart object
+  /// that the method was called on, or null for a static method. A returned
+  /// pointer to a C++ class is borrowed from that object, see
+  /// `CppClassPointerType`.
+  String convertReturnedToDartType(
+    Context context,
+    String value, {
+    required String? isOwnerAlive,
+  }) => convertFfiDartTypeToDartType(context, value, objCRetain: false);
+
   /// Returns generated ObjC code that retains a reference to the given value.
   /// Returns null if the Type does not need to be retained.
   String? generateRetain(String value) => null;
@@ -257,6 +270,13 @@ abstract class BindingType extends NoLookUpBinding implements Type {
     required bool objCRetain,
     String? objCEnclosingClass,
   }) => value;
+
+  @override
+  String convertReturnedToDartType(
+    Context context,
+    String value, {
+    required String? isOwnerAlive,
+  }) => convertFfiDartTypeToDartType(context, value, objCRetain: false);
 
   @override
   String? generateRetain(String value) => null;

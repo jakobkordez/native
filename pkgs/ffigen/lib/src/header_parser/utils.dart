@@ -801,3 +801,43 @@ bool _isNameScope(int kind) => switch (kind) {
 /// `outer$inner$Color`.
 String flattenQualifiedName(String qualifiedName) =>
     qualifiedName.replaceAll('::', r'$');
+
+/// Whether [type] is declared as [name] in the `std` namespace.
+bool isStdDecl(clang_types.CXType type, String name) {
+  final decl = clang.clang_getTypeDeclaration(type);
+  // Standard libraries declare these in an inline namespace inside `std`,
+  // like `std::__1` (libc++) or `std::__cxx11` (libstdc++), or in `std`
+  // itself (MSVC).
+  return decl.spelling() == name && decl.usr().startsWith('c:@N@std@');
+}
+
+/// Whether the canonical type [type] is a `std::unique_ptr<T>` with the
+/// default deleter, `std::default_delete<T>`.
+bool isStdUniquePtr(clang_types.CXType type) =>
+    type.kind == clang_types.CXTypeKind.CXType_Record &&
+    clang.clang_Type_getNumTemplateArguments(type) == 2 &&
+    isStdDecl(type, 'unique_ptr') &&
+    isStdDecl(
+      clang.clang_Type_getTemplateArgumentAsType(type, 1),
+      'default_delete',
+    );
+
+/// Whether [type] is a pointer to const at any level, like `const T*` or
+/// `T* const*`, or a `std::unique_ptr` to const, which the C++ glue passes as
+/// a pointer.
+bool isPointerToConst(clang_types.CXType type) {
+  final canonical = clang.clang_getCanonicalType(type);
+  if (isStdUniquePtr(canonical)) {
+    return clang
+        .clang_Type_getTemplateArgumentAsType(canonical, 0)
+        .isConstQualified;
+  }
+  for (
+    var t = canonical;
+    t.kind == clang_types.CXTypeKind.CXType_Pointer;
+    t = clang.clang_getPointeeType(t)
+  ) {
+    if (clang.clang_getPointeeType(t).isConstQualified) return true;
+  }
+  return false;
+}

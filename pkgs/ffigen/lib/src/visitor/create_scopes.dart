@@ -78,9 +78,16 @@ class CreateScopesVisitation extends Visitation {
     // Methods inherited from the first base share their Symbols with the
     // base's methods (see NameCppMethodsVisitation), so the class's scope is
     // a child of the base's scope.
+    // The wrapper's own members, like `dispose`, reserve their names, so a
+    // method of the same name gets a suffix.
     final base = node.bases.firstOrNull;
     visitor.visit(base);
-    createScope(node, base?.localScope ?? context.rootScope, node.originalName);
+    createScope(
+      node,
+      base?.localScope ?? context.rootScope,
+      node.originalName,
+      preUsedNames: CppClass.wrapperMemberNames,
+    );
     node.visitChildren(visitor);
   }
 
