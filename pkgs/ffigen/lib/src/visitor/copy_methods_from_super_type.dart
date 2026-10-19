@@ -49,6 +49,14 @@ class CopyMethodsFromSuperTypesVisitation extends Visitation {
         .toSet();
 
     _copyCppMethodsFromBase(node, node, existingSignatures);
+
+    // A field of the same name as a base's field hides it, rather than
+    // overriding it, so the class gets every field of every base. A base
+    // reached through several paths contributes its fields once.
+    final copiedFields = {
+      for (final field in node.fields) _fieldKey(field, node),
+    };
+    _copyCppFieldsFromBase(node, node, copiedFields);
   }
 
   void _copyCppMethodsFromBase(
@@ -68,6 +76,29 @@ class CopyMethodsFromSuperTypesVisitation extends Visitation {
       _copyCppMethodsFromBase(target, base, existingSignatures);
     }
   }
+
+  void _copyCppFieldsFromBase(
+    CppClass target,
+    CppClass current,
+    Set<String> copiedFields,
+  ) {
+    if (current != target) {
+      for (final field in current.fields) {
+        if (copiedFields.add(_fieldKey(field, current))) {
+          target.copyField(field, current);
+        }
+      }
+    }
+
+    for (final base in current.bases) {
+      _copyCppFieldsFromBase(target, base, copiedFields);
+    }
+  }
+
+  /// Identifies [field] of [owner] by the class that declares it, and its
+  /// name.
+  static String _fieldKey(CppField field, CppClass owner) =>
+      '${(field.originatingClass ?? owner).usr}::${field.originalName}';
 
   @override
   void visitObjCInterface(ObjCInterface node) {

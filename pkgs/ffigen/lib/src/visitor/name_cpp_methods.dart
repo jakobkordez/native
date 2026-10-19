@@ -10,6 +10,9 @@ import 'ast.dart';
 /// Picks the default names of C++ methods and constructors, which have to
 /// account for overloading, since Dart doesn't support it.
 ///
+/// Fields copied from a base class take the name of the base's field, like
+/// inherited methods.
+///
 ///  - A method that overrides, or was copied from, a method of a base class
 ///    takes that method's name, so that the Dart class still implements its
 ///    bases. For the first base, the methods share a [Symbol], and the class's
@@ -40,6 +43,7 @@ class NameCppMethodsVisitation extends Visitation {
     node.bases.forEach(_nameMethods);
 
     final inherited = <CppMethod>{};
+    final inheritedFields = <CppField>{};
     for (final (i, base) in node.bases.indexed) {
       final baseMethods = {
         for (final m in base.methods)
@@ -54,6 +58,25 @@ class NameCppMethodsVisitation extends Visitation {
           method.name = baseMethod.name;
         } else {
           method.name.oldName = baseMethod.name.oldName;
+        }
+      }
+
+      // A field is only ever inherited, never overridden, so the base's field
+      // is the one declared by the same class.
+      final baseFields = {
+        for (final f in base.fields)
+          (f.originatingClass ?? base, f.originalName): f,
+      };
+      for (final field in node.fields) {
+        final declaringClass = field.originatingClass;
+        if (declaringClass == null || inheritedFields.contains(field)) continue;
+        final baseField = baseFields[(declaringClass, field.originalName)];
+        if (baseField == null) continue;
+        inheritedFields.add(field);
+        if (i == 0) {
+          field.name = baseField.name;
+        } else {
+          field.name.oldName = baseField.name.oldName;
         }
       }
     }

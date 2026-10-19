@@ -489,12 +489,19 @@ class CppClass extends DeclNode {
       .map((m) => CppMethod(this, m))
       .toList();
 
+  /// The public fields of this C++ class, including those of its public base
+  /// classes.
+  late final List<CppField> fields = _cppClass.fields
+      .map((f) => CppField(this, f))
+      .toList();
+
   CppClass(this._cppClass);
 
   @override
   void accept(Visitor visitor) {
     visitor.visitCppClass(this);
     visitor.visitAll(methods);
+    visitor.visitAll(fields);
   }
 
   @override
@@ -621,6 +628,38 @@ class CppMethod extends NamedNode {
   /// Whether this CppMethod should be included in code generation.
   bool get isIncluded => _method.isIncluded;
   set isIncluded(bool value) => _method.isIncluded = value;
+}
+
+/// A public field of a C++ class, which the bindings expose as a getter, and
+/// a setter if the field can be assigned.
+class CppField extends NamedNode {
+  final internal.CppField _field;
+
+  /// The parent [CppClass] containing this field.
+  final CppClass parent;
+
+  CppField(this.parent, this._field);
+
+  @override
+  void accept(Visitor visitor) => visitor.visitCppField(this);
+
+  @override
+  String get originalName => _field.originalName;
+
+  /// The Dart name of this field's getter and setter.
+  ///
+  /// A field inherited from the parent's first base class shares its name
+  /// with that class's field, so renaming one renames both. Otherwise the
+  /// Dart class wouldn't implement its base.
+  @override
+  String get name => _field.name.oldName;
+
+  @override
+  set name(String value) => _field.name.oldName = value;
+
+  /// Whether this CppField should be included in code generation.
+  bool get isIncluded => _field.isIncluded;
+  set isIncluded(bool value) => _field.isIncluded = value;
 }
 
 /// An Objective-C method declaration.

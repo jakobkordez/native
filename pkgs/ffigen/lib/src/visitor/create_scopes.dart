@@ -95,6 +95,10 @@ class CreateScopesVisitation extends Visitation {
   void visitCppMethod(CppMethod node) =>
       visitHasLocalScope(node, node.name.oldName);
 
+  @override
+  void visitCppField(CppField node) =>
+      visitHasLocalScope(node, node.name.oldName);
+
   static const objCReservedMethods = {
     'ref',
     'toString',

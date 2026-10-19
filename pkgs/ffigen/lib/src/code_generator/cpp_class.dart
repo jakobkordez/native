@@ -115,27 +115,97 @@ class CppMethod extends AstNode with HasLocalScope {
   }
 }
 
-class CppMember extends CompoundMember {
-  /// Whether this field is declared `const` in the C++ source.
+/// A public non-static data member of a C++ class, which the Dart class
+/// exposes as a getter, and a setter if the field can be assigned.
+class CppField extends AstNode with HasLocalScope {
+  /// The Dart name of the getter and the setter.
   ///
-  /// A const field can only have a getter generated; mutable fields get both
-  /// a getter and a setter.
-  final bool isConst;
+  /// A field copied from the class's first base class shares that field's
+  /// [Symbol], so both get the same name. See `NameCppMethodsVisitation`.
+  Symbol name;
 
-  CppMember({
-    super.originalName,
-    required super.name,
-    required super.type,
-    super.dartDoc,
-    required this.isConst,
+  /// The glue function that reads the field.
+  final Symbol getterSymbol;
+
+  /// The glue function that assigns the field, or null if it can't be
+  /// assigned.
+  final Symbol? setterSymbol;
+
+  final String originalName;
+  final String? dartDoc;
+
+  /// The type of the field, which the setter takes.
+  final Type type;
+
+  /// The type that the getter returns.
+  ///
+  /// That's [type], except for a C++ class, which the getter returns by
+  /// reference, and a `std::unique_ptr`, whose getter returns the pointer it
+  /// holds. Either is borrowed from the object that the field belongs to.
+  final Type getterType;
+
+  /// Whether [getterType] is a pointer or reference to const, see
+  /// [CppMethod.returnsPointerToConst].
+  final bool getterReturnsPointerToConst;
+
+  /// The base class that declares this field, if it was copied from a base.
+  final CppClass? originatingClass;
+
+  bool isIncluded = true;
+
+  CppField({
+    required this.name,
+    required this.getterSymbol,
+    required this.setterSymbol,
+    required this.originalName,
+    this.dartDoc,
+    required this.type,
+    required this.getterType,
+    this.getterReturnsPointerToConst = false,
+    this.originatingClass,
   });
+
+  CppField cloneForClass(CppClass targetClass, CppClass baseClass) {
+    Symbol glueSymbol(String accessor) => Symbol(
+      '${targetClass.cSymbolPrefix}_${accessor}_$originalName',
+      SymbolKind.method,
+    );
+    return CppField(
+      name: name.clone(),
+      getterSymbol: glueSymbol('get'),
+      setterSymbol: setterSymbol == null ? null : glueSymbol('set'),
+      originalName: originalName,
+      dartDoc: dartDoc,
+      type: type,
+      getterType: getterType,
+      getterReturnsPointerToConst: getterReturnsPointerToConst,
+      originatingClass: originatingClass ?? baseClass,
+    );
+  }
+
+  @override
+  void visit(Visitation visitation) => visitation.visitCppField(this);
+
+  @override
+  void visitChildren(Visitor visitor) {
+    super.visitChildren(visitor);
+    visitor.visit(name);
+    visitor.visit(getterSymbol);
+    visitor.visit(setterSymbol);
+    visitor.visit(type);
+    visitor.visit(getterType);
+    visitor.visit(originatingClass);
+  }
 }
 
 /// A binding for a C++ class.
 class CppClass extends BindingType with HasLocalScope {
   final Context context;
   final List<CppMethod> methods;
-  final List<CppMember> fields;
+
+  /// The public non-static data members of this class, including those copied
+  /// from its public base classes.
+  final List<CppField> fields;
   bool isIncluded = false;
 
   /// The public C++ base classes for this class, in declaration order.
@@ -239,6 +309,14 @@ class CppClass extends BindingType with HasLocalScope {
 
   void filterMethods(bool Function(CppMethod method) predicate) {
     methods.retainWhere(predicate);
+  }
+
+  void copyField(CppField field, CppClass originatingBase) {
+    fields.add(field.cloneForClass(this, originatingBase));
+  }
+
+  void filterFields(bool Function(CppField field) predicate) {
+    fields.retainWhere(predicate);
   }
 
   /// Whether the glue catches C++ exceptions, see `Cpp.catchExceptions`.
@@ -533,6 +611,45 @@ class $name implements $implementsClause {
 ''');
     }
 
+    for (final field in fields) {
+      // A returned pointer or reference is borrowed from this object.
+      final getterCall = checkedCall('_${field.getterSymbol.name}(_alivePtr)');
+      final getterExpr = field.getterType.convertReturnedToDartType(
+        ctx,
+        getterCall,
+        isOwnerAlive: '_isAlive',
+      );
+      s.write(makeDartDoc(field.dartDoc));
+      s.write('''
+  ${field.getterType.getDartType(ctx)} get ${field.name} {
+    return $getterExpr;
+  }
+''');
+
+      final setterSymbol = field.setterSymbol;
+      if (setterSymbol == null) continue;
+      final localVars = LocalVariables(field.localScope);
+      final value = field.type.convertDartTypeToFfiDartType(
+        ctx,
+        'value',
+        objCRetain: false,
+        objCAutorelease: false,
+        localVariables: localVars,
+      );
+      final setterCall = '_${setterSymbol.name}(_alivePtr, $value);';
+      final setterBody = localVars.wrapWithCleanups(
+        _catchesExceptions
+            ? '$setterCall\n    ${ctx.cppExceptionHelpers.check.name}();'
+            : setterCall,
+      );
+      s.write('''
+  set ${field.name}(${field.type.getDartType(ctx)} value) {
+    ${localVars.generateDeclarations()}
+    $setterBody
+  }
+''');
+    }
+
     for (final method in classMethods) {
       final glue = '_${method.cBindingSymbol.name}';
       final dartReturn = method.returnType.getDartType(ctx);
@@ -648,6 +765,27 @@ class $name implements $implementsClause {
         ffiParams: ffiParams,
       );
     }
+    for (final field in fields) {
+      final getterSymbol = field.getterSymbol.name;
+      writeNativeDecl(
+        symbol: getterSymbol,
+        glue: '_$getterSymbol',
+        cType: '${field.getterType.getCType(ctx)} Function($ptrVoid)',
+        ffiReturn: field.getterType.getFfiDartType(ctx),
+        ffiParams: '$ptrVoid self',
+      );
+      if (field.setterSymbol?.name case final setterSymbol?) {
+        writeNativeDecl(
+          symbol: setterSymbol,
+          glue: '_$setterSymbol',
+          cType:
+              '$ffiPrefix.Void Function($ptrVoid, '
+              '${field.type.getCType(ctx)})',
+          ffiReturn: 'void',
+          ffiParams: '$ptrVoid self, ${field.type.getFfiDartType(ctx)} value',
+        );
+      }
+    }
     if (isDeletable) {
       writeNativeDecl(
         symbol: deleteSymbol,
@@ -746,9 +884,55 @@ FFIGEN_EXPORT $returnTypeString $symbol($params) {
         })
         .join('\n\n');
 
-    return isDeletable
-        ? '$methodBindings\n\n$deleteWrapper\n\n'
-        : '$methodBindings\n\n';
+    final fieldBindings = fields.map((field) => _fieldGlue(context, field));
+
+    return [
+      methodBindings,
+      ...fieldBindings,
+      if (isDeletable) deleteWrapper,
+    ].map((binding) => '$binding\n\n').join();
+  }
+
+  /// The glue functions that read and assign [field].
+  String _fieldGlue(Context context, CppField field) {
+    // A field of the same name declared in this class would hide a field
+    // copied from a base class, so access the copied field through a pointer
+    // to the base.
+    final receiver = switch (field.originatingClass) {
+      final base? => 'static_cast<${base.originalName}*>(self)',
+      null => 'self',
+    };
+    final access = '$receiver->${field.originalName}';
+
+    final returnType = field.getterType.getExternCType(context).trim();
+    final fieldValue = field.type.typealiasType is CppUniquePtrType
+        ? '$access.get()'
+        : access;
+    final result = field.getterType.convertNativeTypeToExternCType(
+      context,
+      fieldValue,
+    );
+    final getterBody = field.getterReturnsPointerToConst
+        ? 'return const_cast<$returnType>($result);'
+        : 'return $result;';
+    final getter =
+        '''
+FFIGEN_EXPORT $returnType ${Namer.cSafeName(field.getterSymbol.name)}($originalName* self) {
+  ${cppGlueBody(context, getterBody, returnsValue: true)}
+}''';
+
+    final setterSymbol = field.setterSymbol;
+    if (setterSymbol == null) return getter;
+    final valueParam = field.type
+        .getExternCType(context, varName: 'value')
+        .trim();
+    final value = field.type.convertExternCTypeToNativeType(context, 'value');
+    return '''
+$getter
+
+FFIGEN_EXPORT void ${Namer.cSafeName(setterSymbol.name)}($originalName* self, $valueParam) {
+  ${cppGlueBody(context, '$access = $value;', returnsValue: false)}
+}''';
   }
 
   @override

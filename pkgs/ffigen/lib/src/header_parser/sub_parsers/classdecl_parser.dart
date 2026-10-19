@@ -71,7 +71,7 @@ CppClass? parseClassDeclaration(Context context, clang_types.CXCursor cursor) {
     name: flattenQualifiedName(qualifiedName),
     context: context,
     methods: <CppMethod>[],
-    fields: <CppMember>[],
+    fields: <CppField>[],
     bases: <CppClass>[],
     isAbstract: clang.clang_CXXRecord_isAbstract(cursor) != 0,
     hasPublicDestructor: hasPublicDestructor,
@@ -84,6 +84,10 @@ CppClass? parseClassDeclaration(Context context, clang_types.CXCursor cursor) {
   context.bindingsIndex.addCppClassToSeen(usr, cppClass);
 
   cursor.visitChildren((child) {
+    if (child.kind == clang_types.CXCursorKind.CXCursor_FieldDecl) {
+      _parseField(context, child, cppClass);
+      return;
+    }
     final kind = switch (child.kind) {
       clang_types.CXCursorKind.CXCursor_CXXMethod => CppMethodKind.method,
       clang_types.CXCursorKind.CXCursor_Constructor =>
@@ -136,15 +140,17 @@ List<CppClass> _parsePublicBases(Context context, clang_types.CXCursor cursor) {
   return bases;
 }
 
-/// Whether the class at [cursor] can be named from outside of it, which the
-/// generated glue functions need to do.
+/// Whether the class or enum at [cursor] can be named from outside of it,
+/// which the generated glue functions need to do.
 ///
-/// A class nested in a private or protected section of another class can't be,
-/// and neither can anything nested in it.
+/// A class or enum nested in a private or protected section of a class can't
+/// be, and neither can anything nested in it.
 bool _isAccessible(clang_types.CXCursor cursor) {
   for (
     var c = cursor;
-    _isRecordKind(clang.clang_getCursorKind(c));
+    _isRecordKind(clang.clang_getCursorKind(c)) ||
+        clang.clang_getCursorKind(c) ==
+            clang_types.CXCursorKind.CXCursor_EnumDecl;
     c = clang.clang_getCursorSemanticParent(c)
   ) {
     final access = clang.clang_getCXXAccessSpecifier(c);
@@ -222,20 +228,32 @@ bool _isPolymorphic(clang_types.CXCursor cursor) =>
         null ||
     _baseDefinitions(cursor).any(_isPolymorphic);
 
-/// Whether the glue can copy an object of the class at [cursor], which needs
-/// a public copy constructor that isn't deleted.
+/// The ways the glue copies an object.
+enum _Copy {
+  /// Copy constructing a new object, to pass it by value.
+  construction,
+
+  /// Copy assigning to an existing object, to set a field.
+  assignment,
+}
+
+/// Whether the glue can copy an object of the class at [cursor], in the way
+/// of [copy], which needs a public copy constructor, or copy assignment
+/// operator, that isn't deleted.
 ///
-/// libclang doesn't expose an implicit copy constructor, so whether the class
-/// has one is derived from its declarations: it's deleted if the class
-/// declares a move constructor or a move assignment operator, or if a base or
-/// a field can't be copied. [isBase] is whether a derived class copies it,
-/// which can also call a protected copy constructor.
+/// libclang doesn't expose an implicit copy constructor or copy assignment
+/// operator, so whether the class has one is derived from its declarations:
+/// it's deleted if the class declares a move constructor or a move assignment
+/// operator, or if a base or a field can't be copied. [isBase] is whether a
+/// derived class copies it, which can also call a protected copy constructor
+/// or copy assignment operator.
 ///
 /// [visited] holds the USRs of the classes already checked, or being checked,
 /// which a field like `std::vector<Node> children` makes recursive. They count
 /// as copyable, since one that isn't ends the check as soon as it's known.
 bool _isCopyable(
   clang_types.CXCursor cursor, {
+  _Copy copy = _Copy.construction,
   bool isBase = false,
   Set<String>? visited,
 }) {
@@ -243,52 +261,54 @@ bool _isCopyable(
   visited ??= {};
   if (!visited.add(usr)) return true;
 
-  // Whether [function] takes a single reference of [kind] to the class.
-  bool takesClassReference(clang_types.CXCursor function, int kind) {
+  // Whether [function] takes a single parameter of the class, by a reference
+  // of [kind], or by value if [kind] is `CXType_Record`.
+  bool takesClass(clang_types.CXCursor function, int kind) {
     if (clang.clang_Cursor_getNumArguments(function) != 1) return false;
-    final type = clang.clang_getCursorType(
-      clang.clang_Cursor_getArgument(function, 0),
+    final type = clang.clang_getCanonicalType(
+      clang.clang_getCursorType(clang.clang_Cursor_getArgument(function, 0)),
     );
-    return type.kind == kind &&
-        clang
-                .clang_getTypeDeclaration(clang.clang_getPointeeType(type))
-                .usr() ==
-            usr;
+    if (type.kind != kind) return false;
+    final classType = kind == clang_types.CXTypeKind.CXType_Record
+        ? type
+        : clang.clang_getPointeeType(type);
+    return clang.clang_getTypeDeclaration(classType).usr() == usr;
   }
 
-  final copyConstructors = <clang_types.CXCursor>[];
+  final copyFunctions = <clang_types.CXCursor>[];
   var declaresMove = false;
   final fieldTypes = <clang_types.CXType>[];
   cursor.visitChildren((child) {
     switch (child.kind) {
       case clang_types.CXCursorKind.CXCursor_Constructor:
-        if (takesClassReference(
-          child,
-          clang_types.CXTypeKind.CXType_LValueReference,
-        )) {
-          copyConstructors.add(child);
-        } else if (takesClassReference(
+        if (takesClass(child, clang_types.CXTypeKind.CXType_LValueReference)) {
+          if (copy == _Copy.construction) copyFunctions.add(child);
+        } else if (takesClass(
           child,
           clang_types.CXTypeKind.CXType_RValueReference,
         )) {
           declaresMove = true;
         }
       case clang_types.CXCursorKind.CXCursor_CXXMethod
-          when child.spelling() == 'operator=' &&
-              takesClassReference(
-                child,
-                clang_types.CXTypeKind.CXType_RValueReference,
-              ):
-        declaresMove = true;
+          when child.spelling() == 'operator=':
+        if (takesClass(child, clang_types.CXTypeKind.CXType_LValueReference) ||
+            takesClass(child, clang_types.CXTypeKind.CXType_Record)) {
+          if (copy == _Copy.assignment) copyFunctions.add(child);
+        } else if (takesClass(
+          child,
+          clang_types.CXTypeKind.CXType_RValueReference,
+        )) {
+          declaresMove = true;
+        }
       case clang_types.CXCursorKind.CXCursor_FieldDecl:
         fieldTypes.add(clang.clang_getCursorType(child));
     }
   });
 
-  if (copyConstructors.isNotEmpty) {
-    return copyConstructors.any((constructor) {
-      final access = clang.clang_getCXXAccessSpecifier(constructor);
-      return clang.clang_getCursorAvailability(constructor) !=
+  if (copyFunctions.isNotEmpty) {
+    return copyFunctions.any((function) {
+      final access = clang.clang_getCXXAccessSpecifier(function);
+      return clang.clang_getCursorAvailability(function) !=
               clang_types.CXAvailabilityKind.CXAvailability_NotAvailable &&
           (access == clang_types.CX_CXXAccessSpecifier.CX_CXXPublic ||
               isBase &&
@@ -296,36 +316,50 @@ bool _isCopyable(
     });
   }
   return !declaresMove &&
-      _baseDefinitions(
-        cursor,
-      ).every((base) => _isCopyable(base, isBase: true, visited: visited)) &&
-      fieldTypes.every((type) => _isTypeCopyable(type, visited!));
+      _baseDefinitions(cursor).every(
+        (base) => _isCopyable(base, copy: copy, isBase: true, visited: visited),
+      ) &&
+      fieldTypes.every((type) => _isTypeCopyable(type, copy, visited!));
 }
 
-/// Whether the glue can copy a field of [type], see [_isCopyable].
+/// Whether the glue can copy a field of [type], in the way of [copy], see
+/// [_isCopyable].
 ///
 /// libclang doesn't expose the members of an implicit instantiation of a
 /// class template, so of the standard library's templates, only a
 /// `std::unique_ptr`, and a `std::vector` of something that can't be copied,
 /// are known not to be copyable.
-bool _isTypeCopyable(clang_types.CXType type, Set<String> visited) {
+bool _isTypeCopyable(
+  clang_types.CXType type,
+  _Copy copy, [
+  Set<String>? visited,
+]) {
+  visited ??= {};
   var t = clang.clang_getCanonicalType(type);
   while (t.kind == clang_types.CXTypeKind.CXType_ConstantArray) {
     t = clang.clang_getArrayElementType(t);
+  }
+  // A const object can't be assigned, and a reference can't be rebound.
+  if (copy == _Copy.assignment &&
+      (t.isConstQualified ||
+          t.kind == clang_types.CXTypeKind.CXType_LValueReference)) {
+    return false;
   }
   if (t.kind == clang_types.CXTypeKind.CXType_RValueReference) return false;
   if (t.kind != clang_types.CXTypeKind.CXType_Record) return true;
   if (isStdUniquePtr(t)) return false;
   if (isStdDecl(t, 'vector')) {
-    return _isTypeCopyable(
-      clang.clang_Type_getTemplateArgumentAsType(t, 0),
-      visited,
-    );
+    // Assigning a vector copy constructs the elements it doesn't have yet.
+    final element = clang.clang_Type_getTemplateArgumentAsType(t, 0);
+    return _isTypeCopyable(element, copy, visited) &&
+        (copy == _Copy.construction ||
+            _isTypeCopyable(element, _Copy.construction));
   }
   final definition = clang.clang_getCursorDefinition(
     clang.clang_getTypeDeclaration(t),
   );
-  return definition.isNull || _isCopyable(definition, visited: visited);
+  return definition.isNull ||
+      _isCopyable(definition, copy: copy, visited: visited);
 }
 
 /// The definitions of the direct bases of the class at [cursor], whatever
@@ -343,6 +377,139 @@ List<clang_types.CXCursor> _baseDefinitions(clang_types.CXCursor cursor) {
     bases.add(definition.isNull ? declaration : definition);
   });
   return bases;
+}
+
+/// Parses the field at [cursor], a non-static data member of [cppClass].
+///
+/// The Dart class gets a getter for the field, and a setter if the field can
+/// be assigned, which call glue functions that read and assign it.
+void _parseField(
+  Context context,
+  clang_types.CXCursor cursor,
+  CppClass cppClass,
+) {
+  final logger = context.logger;
+  final fieldName = cursor.spelling();
+  // An unnamed bit-field only pads the class's layout.
+  if (fieldName.isEmpty) return;
+  if (clang.clang_getCXXAccessSpecifier(cursor) !=
+      clang_types.CX_CXXAccessSpecifier.CX_CXXPublic) {
+    logger.fine('  ---- Skipping non-public field $fieldName');
+    return;
+  }
+  final apiAvailability = ApiAvailability.fromCursor(cursor, context);
+  if (apiAvailability.availability == Availability.none) {
+    logger.fine('  ---- Skipping unavailable field $fieldName');
+    return;
+  }
+
+  final cxType = clang.clang_getCursorType(cursor);
+  if (_whyCantAccessField(cxType) case final reason?) {
+    logger.fine('  ---- Skipping field $fieldName, $reason');
+    return;
+  }
+  final type = cursor.toCodeGenType(context, cppGlue: true);
+  if (type.baseType is UnimplementedType) {
+    logger.fine('  ---- Skipping field $fieldName due to unsupported type');
+    return;
+  } else if (type.isIncompleteCompound) {
+    logger.fine('  ---- Skipping field $fieldName, incomplete struct');
+    return;
+  }
+
+  // The getter of a C++ class field returns a reference to it, and the getter
+  // of a std::unique_ptr field returns the pointer it holds, rather than
+  // copying or moving it out of the object.
+  final canonical = clang.clang_getCanonicalType(cxType);
+  final getterType = switch (type.typealiasType) {
+    final CppClass cppClass => CppClassReferenceType(
+      cppClass,
+      isConst: canonical.isConstQualified,
+    ),
+    CppUniquePtrType(:final cppClass) => CppClassPointerType(cppClass),
+    CppStdVectorType(isCopyable: false) => null,
+    _ => type,
+  };
+  if (getterType == null) {
+    logger.fine(
+      "  ---- Skipping field $fieldName, its std::vector can't be copied",
+    );
+    return;
+  }
+
+  // A const field can't be assigned, and a reference field can't be rebound.
+  final canAssign =
+      !canonical.isConstQualified &&
+      canonical.kind != clang_types.CXTypeKind.CXType_LValueReference &&
+      canonical.kind != clang_types.CXTypeKind.CXType_RValueReference &&
+      switch (type.typealiasType) {
+        // The glue moves these from the value that Dart passes.
+        CppUniquePtrType() || CppStdStringType() => true,
+        final CppStdVectorType vector => vector.canPassFromDart,
+        _ => _isTypeCopyable(cxType, _Copy.assignment),
+      };
+  if (type.typealiasType case final CppStdVectorType vector when canAssign) {
+    vector.markPassedFromDart();
+  }
+
+  Symbol glueSymbol(String accessor) => Symbol(
+    '${cppClass.cSymbolPrefix}_${accessor}_$fieldName',
+    SymbolKind.method,
+  );
+  logger.fine('  ++++ field: $fieldName (setter=$canAssign)');
+  cppClass.fields.add(
+    CppField(
+      name: Symbol(fieldName, SymbolKind.field),
+      getterSymbol: glueSymbol('get'),
+      setterSymbol: canAssign ? glueSymbol('set') : null,
+      originalName: fieldName,
+      dartDoc: getCursorDocComment(
+        context,
+        cursor,
+        availability: apiAvailability.dartDoc,
+      ),
+      type: type,
+      getterType: getterType,
+      getterReturnsPointerToConst: switch (getterType.typealiasType) {
+        CppClassReferenceType(:final isConst) => isConst,
+        _ => isPointerToConst(cxType),
+      },
+    ),
+  );
+}
+
+/// Why the glue can't access a field of [cxType], or null if it can.
+///
+/// The glue has to return the field's type, and name it.
+String? _whyCantAccessField(clang_types.CXType cxType) {
+  var t = clang.clang_getCanonicalType(cxType);
+  if (t.kind == clang_types.CXTypeKind.CXType_LValueReference ||
+      t.kind == clang_types.CXTypeKind.CXType_RValueReference) {
+    t = clang.clang_getCanonicalType(clang.clang_getPointeeType(t));
+  }
+  switch (t.kind) {
+    case clang_types.CXTypeKind.CXType_ConstantArray ||
+        clang_types.CXTypeKind.CXType_IncompleteArray ||
+        clang_types.CXTypeKind.CXType_VariableArray ||
+        clang_types.CXTypeKind.CXType_DependentSizedArray:
+      return "arrays aren't supported";
+  }
+  while (t.kind == clang_types.CXTypeKind.CXType_Pointer) {
+    t = clang.clang_getCanonicalType(clang.clang_getPointeeType(t));
+  }
+  switch (t.kind) {
+    case clang_types.CXTypeKind.CXType_FunctionProto ||
+        clang_types.CXTypeKind.CXType_FunctionNoProto:
+      return "function pointers aren't supported";
+    case clang_types.CXTypeKind.CXType_Record ||
+        clang_types.CXTypeKind.CXType_Enum:
+      final declaration = clang.clang_getTypeDeclaration(t);
+      if (clang.clang_Cursor_isAnonymous(declaration) != 0) {
+        return 'its type is anonymous';
+      }
+      if (!_isAccessible(declaration)) return "its type isn't public";
+  }
+  return null;
 }
 
 void _parseAnyMethod(

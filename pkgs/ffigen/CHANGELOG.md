@@ -1,5 +1,23 @@
 ## 23.1.0-wip
 
+- Generate getters and setters for the public fields of C++ classes, which
+  call C++ glue that reads and assigns the field. The getter of a field of a
+  C++ class type returns it by reference, borrowed from the object like a
+  returned reference, and its setter copies the given object into the field.
+  The getter of a `std::unique_ptr` field returns the pointer it holds, also
+  borrowed, and its setter takes ownership of the given object, deleting the
+  one the field held. Fields of numbers, `bool`s, enums, pointers, POD
+  structs, `std::string`s and `std::vector`s are read and assigned by value,
+  so the getter of a POD struct field returns a copy. Bit-fields are
+  supported. Const fields, reference fields, and fields of a type that can't
+  be copy assigned, like a class with a const field or a deleted copy
+  assignment operator, only get a getter. Fields inherited from a public base
+  class get accessors too, and keep the base field's name, so that the
+  subclass still implements the base. A subclass field that hides it gets a
+  `$1` suffix. Arrays, function pointers, anonymous types, types that aren't
+  public, and `std::vector`s that can't be copied are still unsupported, and
+  so are static data members. Add `Visitor.cppField` and the `CppField` AST
+  node, to rename or exclude fields.
 - Support `std::string` in the parameters and return types of C++ methods and
   constructors, passed by value, by const reference or by rvalue reference.
   Dart code sees them as `String`s, converted to and from the `std::string` as

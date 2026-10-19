@@ -91,6 +91,7 @@ abstract base class Visitor {
     void Function(Param) param,
     void Function(ObjCMethod) objCMethod,
     void Function(CppMethod) cppMethod,
+    void Function(CppField) cppField,
   }) = _CallbackVisitor;
 
   void visitAll(Iterable<AstNode> nodes) {
@@ -116,6 +117,7 @@ abstract base class Visitor {
   void visitParam(Param node) {}
   void visitObjCMethod(ObjCMethod node) {}
   void visitCppMethod(CppMethod node) {}
+  void visitCppField(CppField node) {}
 }
 
 final class _CallbackVisitor extends Visitor {
@@ -136,6 +138,7 @@ final class _CallbackVisitor extends Visitor {
   final void Function(Param) _param;
   final void Function(ObjCMethod) _objCMethod;
   final void Function(CppMethod) _cppMethod;
+  final void Function(CppField) _cppField;
 
   const _CallbackVisitor({
     void Function(Func) func = _defaultVisit,
@@ -155,6 +158,7 @@ final class _CallbackVisitor extends Visitor {
     void Function(Param) param = _defaultVisit,
     void Function(ObjCMethod) objCMethod = _defaultVisit,
     void Function(CppMethod) cppMethod = _defaultVisit,
+    void Function(CppField) cppField = _defaultVisit,
   }) : _func = func,
        _struct = struct,
        _union = union,
@@ -172,6 +176,7 @@ final class _CallbackVisitor extends Visitor {
        _param = param,
        _objCMethod = objCMethod,
        _cppMethod = cppMethod,
+       _cppField = cppField,
        super.base();
 
   static void _defaultVisit(Object _) {}
@@ -227,4 +232,7 @@ final class _CallbackVisitor extends Visitor {
 
   @override
   void visitCppMethod(CppMethod node) => _cppMethod(node);
+
+  @override
+  void visitCppField(CppField node) => _cppField(node);
 }

@@ -165,6 +165,14 @@ class Animal implements ffi.Finalizable {
   factory Animal(int age) {
     return Animal.fromPointer(_Animal_new(age), takeOwnership: true);
   }
+  int get age {
+    return _Animal_get_age(_alivePtr);
+  }
+
+  set age(int value) {
+    _Animal_set_age(_alivePtr, value);
+  }
+
   void speak() {
     _Animal_speak(_alivePtr);
   }
@@ -290,6 +298,14 @@ external bool _Animal_haveSameAge(
   ffi.Pointer<ffi.Void> a,
   ffi.Pointer<ffi.Void> b,
 );
+
+@ffi.Native<ffi.Int Function(ffi.Pointer<ffi.Void>)>(symbol: 'Animal_get_age')
+external int _Animal_get_age(ffi.Pointer<ffi.Void> self);
+
+@ffi.Native<ffi.Void Function(ffi.Pointer<ffi.Void>, ffi.Int)>(
+  symbol: 'Animal_set_age',
+)
+external void _Animal_set_age(ffi.Pointer<ffi.Void> self, int value);
 
 @ffi.Native<ffi.Void Function(ffi.Pointer<ffi.Void>)>(symbol: 'Animal_delete')
 external void _Animal_delete(ffi.Pointer<ffi.Void> self);

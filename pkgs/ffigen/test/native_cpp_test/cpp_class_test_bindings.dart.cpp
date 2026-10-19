@@ -58,6 +58,14 @@ FFIGEN_EXPORT bool Animal_haveSameAge(Animal* a, Animal* b) {
   return Animal::haveSameAge(*a, *b);
 }
 
+FFIGEN_EXPORT int Animal_get_age(Animal* self) {
+  return self->age;
+}
+
+FFIGEN_EXPORT void Animal_set_age(Animal* self, int value) {
+  self->age = value;
+}
+
 FFIGEN_EXPORT void Animal_delete(Animal* self) {
   delete self;
 }
