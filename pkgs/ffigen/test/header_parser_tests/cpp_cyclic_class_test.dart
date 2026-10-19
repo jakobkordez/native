@@ -64,8 +64,12 @@ void main() {
           (m) => m.originalName == methodName,
           orElse: () => fail('${cls.originalName} has no method $methodName'),
         );
-        expect(method.returnType, isA<cg.CppClassPointerType>());
-        return (method.returnType as cg.CppClassPointerType).cppClass;
+        // A returned pointer can be null.
+        final returnType = method.returnType;
+        expect(returnType, isA<cg.CppNullablePointerType>());
+        final pointer = (returnType as cg.CppNullablePointerType).child;
+        expect(pointer, isA<cg.CppClassPointerType>());
+        return (pointer as cg.CppClassPointerType).cppClass;
       }
 
       final node = classNamed('Node');

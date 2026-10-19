@@ -469,7 +469,7 @@ void _parseField(
         availability: apiAvailability.dartDoc,
       ),
       type: type,
-      getterType: getterType,
+      getterType: _nullableIfPointer(getterType),
       getterReturnsPointerToConst: switch (getterType.typealiasType) {
         CppClassReferenceType(:final isConst) => isConst,
         _ => isPointerToConst(cxType),
@@ -608,7 +608,7 @@ void _parseAnyMethod(
         SymbolKind.method,
       ),
       originalName: methodName,
-      returnType: returnType,
+      returnType: _nullableIfPointer(returnType),
       parameters: parameters,
       isConstant: isConst,
       isStatic: isStatic,
@@ -633,6 +633,17 @@ String? _whyCantPass(Type type) => switch (type.typealiasType) {
   CppStdVectorType(canPassFromDart: false) =>
     "the elements of a std::vector parameter can't be passed from Dart",
   _ => null,
+};
+
+/// [type], which a C++ method or a field getter returns, as nullable if it's a
+/// pointer to a C++ class, or a `std::unique_ptr` to one, since C++ can return
+/// a null one.
+///
+/// A reference can't be null.
+Type _nullableIfPointer(Type type) => switch (type.typealiasType) {
+  CppClassReferenceType() => type,
+  CppClassPointerType() => CppNullablePointerType(type),
+  _ => type,
 };
 
 /// Whether a glue function can return [type] by value.

@@ -30,8 +30,8 @@ void main() {
       final experiment = lab$Experiment.new$1(1);
 
       // Both overloads return the same object.
-      experiment.properties().setLimit(42);
-      expect(experiment.propertiesConst().getLimit(), 42);
+      experiment.properties()!.setLimit(42);
+      expect(experiment.propertiesConst()!.getLimit(), 42);
 
       expect(experiment.results().value, 1);
       expect(experiment.resultsConst().value, 3);
@@ -123,7 +123,7 @@ void main() {
       expect(variant.describe$1(5), 205);
       expect(asBase.describe$1(5), 205);
 
-      expect(variant.propertiesConst().getLimit(), 10);
+      expect(variant.propertiesConst()!.getLimit(), 10);
       // The visitor renamed Experiment's method, which renamed Variant's too.
       expect(variant.constStreams(), 'const streams');
 

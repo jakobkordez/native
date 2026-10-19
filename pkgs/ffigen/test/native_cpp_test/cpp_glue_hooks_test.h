@@ -43,6 +43,9 @@ class Thrower {
   // Throws std::invalid_argument for a negative value.
   explicit Thrower(int value);
 
+  // Counts the destruction, and how many guards were alive during it.
+  ~Thrower();
+
   // Never throws.
   int value() const;
 
@@ -87,6 +90,19 @@ class Thrower {
   // Makes the constructor of the guard of the next glue call throw
   // std::runtime_error.
   static void failNextGuard();
+
+  // How many Throwers have been destroyed, and how many guards were alive
+  // during the last destruction.
+  static int destroyedCount();
+  static int destroyGuardDepth();
+
+  // How many objects the finalizer hook has queued for deletion, and how many
+  // guards were alive when it last queued one.
+  static int pendingFinalizations();
+  static int finalizeGuardDepth();
+
+  // Deletes the objects the finalizer hook queued.
+  static void runPendingFinalizations();
 
  private:
   int value_;

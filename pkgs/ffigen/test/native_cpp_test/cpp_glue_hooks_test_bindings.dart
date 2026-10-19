@@ -181,7 +181,7 @@ class hooks$Copyable implements ffi.Finalizable {
   static final _defaultFinalizer = ffi.NativeFinalizer(
     ffi.Native.addressOf<
       ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>
-    >(_hooks$Copyable_delete),
+    >(_hooks_Copyable_finalize),
   );
 
   /// The finalizer currently attached for this instance, or [null] if this
@@ -271,6 +271,22 @@ class hooks$Copyable implements ffi.Finalizable {
     this._isOwnerAlive, {
     bool isReference = false,
   }) : _isReference = isReference;
+
+  /// Wraps [ptr], a pointer that C++ returned, without taking ownership of
+  /// it, or returns null if [ptr] is null.
+  ///
+  /// See [hooks$Copyable._borrowed] for [isOwnerAlive].
+  static hooks$Copyable? _borrowedOrNull(
+    ffi.Pointer<ffi.Void> ptr,
+    bool Function()? isOwnerAlive,
+  ) => ptr == ffi.nullptr ? null : hooks$Copyable._borrowed(ptr, isOwnerAlive);
+
+  /// Wraps [ptr], the pointer of a `std::unique_ptr` that C++ returned, and
+  /// takes ownership of it, or returns null if [ptr] is null.
+  static hooks$Copyable? _ownedOrNull(ffi.Pointer<ffi.Void> ptr) =>
+      ptr == ffi.nullptr
+      ? null
+      : hooks$Copyable.fromPointer(ptr, takeOwnership: true);
 
   /// Whether neither this object, nor the object it's borrowed from, if any,
   /// has been disposed.
@@ -406,12 +422,17 @@ external int _hooks_Copyable_destroyGuardDepth();
 )
 external void _hooks$Copyable_delete(ffi.Pointer<ffi.Void> self);
 
+@ffi.Native<ffi.Void Function(ffi.Pointer<ffi.Void>)>(
+  symbol: 'hooks_Copyable_finalize',
+)
+external void _hooks_Copyable_finalize(ffi.Pointer<ffi.Void> self);
+
 class hooks$Thrower implements ffi.Finalizable {
   ffi.Pointer<ffi.Void> _ptr;
   static final _defaultFinalizer = ffi.NativeFinalizer(
     ffi.Native.addressOf<
       ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>
-    >(_hooks$Thrower_delete),
+    >(_hooks_Thrower_finalize),
   );
 
   /// The finalizer currently attached for this instance, or [null] if this
@@ -501,6 +522,22 @@ class hooks$Thrower implements ffi.Finalizable {
     this._isOwnerAlive, {
     bool isReference = false,
   }) : _isReference = isReference;
+
+  /// Wraps [ptr], a pointer that C++ returned, without taking ownership of
+  /// it, or returns null if [ptr] is null.
+  ///
+  /// See [hooks$Thrower._borrowed] for [isOwnerAlive].
+  static hooks$Thrower? _borrowedOrNull(
+    ffi.Pointer<ffi.Void> ptr,
+    bool Function()? isOwnerAlive,
+  ) => ptr == ffi.nullptr ? null : hooks$Thrower._borrowed(ptr, isOwnerAlive);
+
+  /// Wraps [ptr], the pointer of a `std::unique_ptr` that C++ returned, and
+  /// takes ownership of it, or returns null if [ptr] is null.
+  static hooks$Thrower? _ownedOrNull(ffi.Pointer<ffi.Void> ptr) =>
+      ptr == ffi.nullptr
+      ? null
+      : hooks$Thrower.fromPointer(ptr, takeOwnership: true);
 
   /// Whether neither this object, nor the object it's borrowed from, if any,
   /// has been disposed.
@@ -604,8 +641,8 @@ class hooks$Thrower implements ffi.Finalizable {
     _cppCheckException();
   }
 
-  hooks$Thrower self(bool fail) {
-    return hooks$Thrower._borrowed(
+  hooks$Thrower? self(bool fail) {
+    return hooks$Thrower._borrowedOrNull(
       _cppChecked(_hooks_Thrower_self(_alivePtr, fail)),
       _isAlive,
     );
@@ -640,6 +677,27 @@ class hooks$Thrower implements ffi.Finalizable {
 
   static void failNextGuard() {
     _hooks_Thrower_failNextGuard();
+    _cppCheckException();
+  }
+
+  static int destroyedCount() {
+    return _cppChecked(_hooks_Thrower_destroyedCount());
+  }
+
+  static int destroyGuardDepth() {
+    return _cppChecked(_hooks_Thrower_destroyGuardDepth());
+  }
+
+  static int pendingFinalizations() {
+    return _cppChecked(_hooks_Thrower_pendingFinalizations());
+  }
+
+  static int finalizeGuardDepth() {
+    return _cppChecked(_hooks_Thrower_finalizeGuardDepth());
+  }
+
+  static void runPendingFinalizations() {
+    _hooks_Thrower_runPendingFinalizations();
     _cppCheckException();
   }
 
@@ -736,7 +794,29 @@ external int _hooks_Thrower_guardCount();
 @ffi.Native<ffi.Void Function()>(symbol: 'hooks_Thrower_failNextGuard')
 external void _hooks_Thrower_failNextGuard();
 
+@ffi.Native<ffi.Int Function()>(symbol: 'hooks_Thrower_destroyedCount')
+external int _hooks_Thrower_destroyedCount();
+
+@ffi.Native<ffi.Int Function()>(symbol: 'hooks_Thrower_destroyGuardDepth')
+external int _hooks_Thrower_destroyGuardDepth();
+
+@ffi.Native<ffi.Int Function()>(symbol: 'hooks_Thrower_pendingFinalizations')
+external int _hooks_Thrower_pendingFinalizations();
+
+@ffi.Native<ffi.Int Function()>(symbol: 'hooks_Thrower_finalizeGuardDepth')
+external int _hooks_Thrower_finalizeGuardDepth();
+
+@ffi.Native<ffi.Void Function()>(
+  symbol: 'hooks_Thrower_runPendingFinalizations',
+)
+external void _hooks_Thrower_runPendingFinalizations();
+
 @ffi.Native<ffi.Void Function(ffi.Pointer<ffi.Void>)>(
   symbol: 'hooks_Thrower_delete',
 )
 external void _hooks$Thrower_delete(ffi.Pointer<ffi.Void> self);
+
+@ffi.Native<ffi.Void Function(ffi.Pointer<ffi.Void>)>(
+  symbol: 'hooks_Thrower_finalize',
+)
+external void _hooks_Thrower_finalize(ffi.Pointer<ffi.Void> self);

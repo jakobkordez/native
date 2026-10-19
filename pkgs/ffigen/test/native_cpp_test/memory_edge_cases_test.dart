@@ -69,7 +69,7 @@ void main() {
 
     test('getNode() returns unowned pointer by default', () {
       final manager = NodeManager();
-      final node = manager.getNode(100, nullptr);
+      final node = manager.getNode(100, nullptr)!;
       expect(node.getValue(), 100);
 
       // Wrapper is unowned by default, releaseOwnership throws StateError.
@@ -79,7 +79,7 @@ void main() {
     test('getNode() can take ownership via retainOwnership()', () {
       final counter = calloc<Int32>()..value = 0;
       final manager = NodeManager();
-      final node = manager.getNode(100, counter.cast())..retainOwnership();
+      final node = manager.getNode(100, counter.cast())!..retainOwnership();
       expect(node.getValue(), 100);
       expect(counter.value, 0);
 
@@ -91,7 +91,7 @@ void main() {
     test('newNode() returns unowned by default, counter stays 0', () {
       final counter = calloc<Int32>()..value = 0;
       final manager = NodeManager();
-      final node = manager.newNode(100, counter.cast());
+      final node = manager.newNode(100, counter.cast())!;
       expect(node.getValue(), 100);
 
       // Wrapper is unowned, Dart will never call Node_delete automatically.
@@ -107,7 +107,7 @@ void main() {
     test('getSingletonNode() returns unowned pointer', () {
       final counter = calloc<Int32>()..value = 0;
       final manager = NodeManager();
-      final node = manager.getSingletonNode(200, counter.cast());
+      final node = manager.getSingletonNode(200, counter.cast())!;
       expect(node.getValue(), 200);
 
       // Wrapper is unowned, releaseOwnership throws StateError.
@@ -155,7 +155,7 @@ void main() {
     test('makeNode() returns owned Node (takeOwnership: true)', () {
       final counter = calloc<Int32>()..value = 0;
       final manager = NodeManager();
-      final node = manager.makeNode(42, counter.cast());
+      final node = manager.makeNode(42, counter.cast())!;
 
       expect(node.getValue(), 42);
       expect(counter.value, 0); // not destroyed yet
@@ -184,7 +184,7 @@ void main() {
     test('makeNode() cannot call retainOwnership() again (already owned)', () {
       final counter = calloc<Int32>()..value = 0;
       final manager = NodeManager();
-      final node = manager.makeNode(1, counter.cast());
+      final node = manager.makeNode(1, counter.cast())!;
       expect(node.retainOwnership, throwsStateError);
       node.dispose();
       calloc.free(counter);
@@ -195,7 +195,7 @@ void main() {
       () {
         final counter = calloc<Int32>()..value = 0;
         final manager = NodeManager();
-        final node = manager.makeNode(77, counter.cast());
+        final node = manager.makeNode(77, counter.cast())!;
         expect(counter.value, 0); // not yet destroyed
 
         final val = manager.consumeNode(node);
@@ -208,7 +208,7 @@ void main() {
     test('consumeNode() invalidates the Dart wrapper', () {
       final counter = calloc<Int32>()..value = 0;
       final manager = NodeManager();
-      final node = manager.makeNode(55, counter.cast());
+      final node = manager.makeNode(55, counter.cast())!;
 
       manager.consumeNode(node);
 
@@ -220,7 +220,7 @@ void main() {
     test('double consumeNode() throws StateError on second call', () {
       final counter = calloc<Int32>()..value = 0;
       final manager = NodeManager();
-      final node = manager.makeNode(33, counter.cast());
+      final node = manager.makeNode(33, counter.cast())!;
 
       manager.consumeNode(node); // first call: succeeds
       expect(
@@ -249,7 +249,7 @@ void main() {
     test('consumeNode() with already-disposed wrapper throws StateError', () {
       final counter = calloc<Int32>()..value = 0;
       final manager = NodeManager();
-      final node = manager.makeNode(222, counter.cast());
+      final node = manager.makeNode(222, counter.cast())!;
 
       node.dispose();
       expect(counter.value, 1); // already destroyed by dispose()
@@ -279,7 +279,7 @@ void main() {
       () {
         final counter = calloc<Int32>()..value = 0;
         final manager = NodeManager();
-        final node = manager.makeNode(444, counter.cast());
+        final node = manager.makeNode(444, counter.cast())!;
 
         final container = NodeContainer(node);
         expect(container.getValue(), 444);

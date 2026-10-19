@@ -1050,6 +1050,21 @@ class vec$Item implements ffi.Finalizable {
   vec$Item._borrowed(this._ptr, this._isOwnerAlive, {bool isReference = false})
     : _isReference = isReference;
 
+  /// Wraps [ptr], a pointer that C++ returned, without taking ownership of
+  /// it, or returns null if [ptr] is null.
+  ///
+  /// See [vec$Item._borrowed] for [isOwnerAlive].
+  static vec$Item? _borrowedOrNull(
+    ffi.Pointer<ffi.Void> ptr,
+    bool Function()? isOwnerAlive,
+  ) => ptr == ffi.nullptr ? null : vec$Item._borrowed(ptr, isOwnerAlive);
+
+  /// Wraps [ptr], the pointer of a `std::unique_ptr` that C++ returned, and
+  /// takes ownership of it, or returns null if [ptr] is null.
+  static vec$Item? _ownedOrNull(ffi.Pointer<ffi.Void> ptr) => ptr == ffi.nullptr
+      ? null
+      : vec$Item.fromPointer(ptr, takeOwnership: true);
+
   /// Whether neither this object, nor the object it's borrowed from, if any,
   /// has been disposed.
   bool _isAlive() => _ptr != ffi.nullptr && (_isOwnerAlive?.call() ?? true);
@@ -1259,6 +1274,22 @@ class vec$MoveOnly implements ffi.Finalizable {
     this._isOwnerAlive, {
     bool isReference = false,
   }) : _isReference = isReference;
+
+  /// Wraps [ptr], a pointer that C++ returned, without taking ownership of
+  /// it, or returns null if [ptr] is null.
+  ///
+  /// See [vec$MoveOnly._borrowed] for [isOwnerAlive].
+  static vec$MoveOnly? _borrowedOrNull(
+    ffi.Pointer<ffi.Void> ptr,
+    bool Function()? isOwnerAlive,
+  ) => ptr == ffi.nullptr ? null : vec$MoveOnly._borrowed(ptr, isOwnerAlive);
+
+  /// Wraps [ptr], the pointer of a `std::unique_ptr` that C++ returned, and
+  /// takes ownership of it, or returns null if [ptr] is null.
+  static vec$MoveOnly? _ownedOrNull(ffi.Pointer<ffi.Void> ptr) =>
+      ptr == ffi.nullptr
+      ? null
+      : vec$MoveOnly.fromPointer(ptr, takeOwnership: true);
 
   /// Whether neither this object, nor the object it's borrowed from, if any,
   /// has been disposed.
@@ -1474,6 +1505,22 @@ class vec$Point implements ffi.Finalizable {
   vec$Point._borrowed(this._ptr, this._isOwnerAlive, {bool isReference = false})
     : _isReference = isReference;
 
+  /// Wraps [ptr], a pointer that C++ returned, without taking ownership of
+  /// it, or returns null if [ptr] is null.
+  ///
+  /// See [vec$Point._borrowed] for [isOwnerAlive].
+  static vec$Point? _borrowedOrNull(
+    ffi.Pointer<ffi.Void> ptr,
+    bool Function()? isOwnerAlive,
+  ) => ptr == ffi.nullptr ? null : vec$Point._borrowed(ptr, isOwnerAlive);
+
+  /// Wraps [ptr], the pointer of a `std::unique_ptr` that C++ returned, and
+  /// takes ownership of it, or returns null if [ptr] is null.
+  static vec$Point? _ownedOrNull(ffi.Pointer<ffi.Void> ptr) =>
+      ptr == ffi.nullptr
+      ? null
+      : vec$Point.fromPointer(ptr, takeOwnership: true);
+
   /// Whether neither this object, nor the object it's borrowed from, if any,
   /// has been disposed.
   bool _isAlive() => _ptr != ffi.nullptr && (_isOwnerAlive?.call() ?? true);
@@ -1678,6 +1725,22 @@ class vec$Registry implements ffi.Finalizable {
     this._isOwnerAlive, {
     bool isReference = false,
   }) : _isReference = isReference;
+
+  /// Wraps [ptr], a pointer that C++ returned, without taking ownership of
+  /// it, or returns null if [ptr] is null.
+  ///
+  /// See [vec$Registry._borrowed] for [isOwnerAlive].
+  static vec$Registry? _borrowedOrNull(
+    ffi.Pointer<ffi.Void> ptr,
+    bool Function()? isOwnerAlive,
+  ) => ptr == ffi.nullptr ? null : vec$Registry._borrowed(ptr, isOwnerAlive);
+
+  /// Wraps [ptr], the pointer of a `std::unique_ptr` that C++ returned, and
+  /// takes ownership of it, or returns null if [ptr] is null.
+  static vec$Registry? _ownedOrNull(ffi.Pointer<ffi.Void> ptr) =>
+      ptr == ffi.nullptr
+      ? null
+      : vec$Registry.fromPointer(ptr, takeOwnership: true);
 
   /// Whether neither this object, nor the object it's borrowed from, if any,
   /// has been disposed.

@@ -100,6 +100,21 @@ class Creature implements ffi.Finalizable {
   Creature._borrowed(this._ptr, this._isOwnerAlive, {bool isReference = false})
     : _isReference = isReference;
 
+  /// Wraps [ptr], a pointer that C++ returned, without taking ownership of
+  /// it, or returns null if [ptr] is null.
+  ///
+  /// See [Creature._borrowed] for [isOwnerAlive].
+  static Creature? _borrowedOrNull(
+    ffi.Pointer<ffi.Void> ptr,
+    bool Function()? isOwnerAlive,
+  ) => ptr == ffi.nullptr ? null : Creature._borrowed(ptr, isOwnerAlive);
+
+  /// Wraps [ptr], the pointer of a `std::unique_ptr` that C++ returned, and
+  /// takes ownership of it, or returns null if [ptr] is null.
+  static Creature? _ownedOrNull(ffi.Pointer<ffi.Void> ptr) => ptr == ffi.nullptr
+      ? null
+      : Creature.fromPointer(ptr, takeOwnership: true);
+
   /// Whether neither this object, nor the object it's borrowed from, if any,
   /// has been disposed.
   bool _isAlive() => _ptr != ffi.nullptr && (_isOwnerAlive?.call() ?? true);
@@ -304,6 +319,22 @@ class farm$Creature implements ffi.Finalizable, zoo$Creature {
     bool isReference = false,
   }) : _isReference = isReference;
 
+  /// Wraps [ptr], a pointer that C++ returned, without taking ownership of
+  /// it, or returns null if [ptr] is null.
+  ///
+  /// See [farm$Creature._borrowed] for [isOwnerAlive].
+  static farm$Creature? _borrowedOrNull(
+    ffi.Pointer<ffi.Void> ptr,
+    bool Function()? isOwnerAlive,
+  ) => ptr == ffi.nullptr ? null : farm$Creature._borrowed(ptr, isOwnerAlive);
+
+  /// Wraps [ptr], the pointer of a `std::unique_ptr` that C++ returned, and
+  /// takes ownership of it, or returns null if [ptr] is null.
+  static farm$Creature? _ownedOrNull(ffi.Pointer<ffi.Void> ptr) =>
+      ptr == ffi.nullptr
+      ? null
+      : farm$Creature.fromPointer(ptr, takeOwnership: true);
+
   /// Whether neither this object, nor the object it's borrowed from, if any,
   /// has been disposed.
   bool _isAlive() => _ptr != ffi.nullptr && (_isOwnerAlive?.call() ?? true);
@@ -403,8 +434,8 @@ class farm$Creature implements ffi.Finalizable, zoo$Creature {
     );
   }
 
-  static zoo$Creature create(int age) {
-    return zoo$Creature.fromPointer(_farm_Creature_create(age));
+  static zoo$Creature? create(int age) {
+    return zoo$Creature._borrowedOrNull(_farm_Creature_create(age), null);
   }
 
   @override
@@ -578,6 +609,22 @@ class zoo$Creature implements ffi.Finalizable {
     bool isReference = false,
   }) : _isReference = isReference;
 
+  /// Wraps [ptr], a pointer that C++ returned, without taking ownership of
+  /// it, or returns null if [ptr] is null.
+  ///
+  /// See [zoo$Creature._borrowed] for [isOwnerAlive].
+  static zoo$Creature? _borrowedOrNull(
+    ffi.Pointer<ffi.Void> ptr,
+    bool Function()? isOwnerAlive,
+  ) => ptr == ffi.nullptr ? null : zoo$Creature._borrowed(ptr, isOwnerAlive);
+
+  /// Wraps [ptr], the pointer of a `std::unique_ptr` that C++ returned, and
+  /// takes ownership of it, or returns null if [ptr] is null.
+  static zoo$Creature? _ownedOrNull(ffi.Pointer<ffi.Void> ptr) =>
+      ptr == ffi.nullptr
+      ? null
+      : zoo$Creature.fromPointer(ptr, takeOwnership: true);
+
   /// Whether neither this object, nor the object it's borrowed from, if any,
   /// has been disposed.
   bool _isAlive() => _ptr != ffi.nullptr && (_isOwnerAlive?.call() ?? true);
@@ -673,8 +720,8 @@ class zoo$Creature implements ffi.Finalizable {
     );
   }
 
-  static zoo$Creature create(int age) {
-    return zoo$Creature.fromPointer(_zoo_Creature_create(age));
+  static zoo$Creature? create(int age) {
+    return zoo$Creature._borrowedOrNull(_zoo_Creature_create(age), null);
   }
 
   void dispose() {
@@ -837,6 +884,20 @@ class zoo$Dog implements ffi.Finalizable, zoo$Creature {
   zoo$Dog._borrowed(this._ptr, this._isOwnerAlive, {bool isReference = false})
     : _isReference = isReference;
 
+  /// Wraps [ptr], a pointer that C++ returned, without taking ownership of
+  /// it, or returns null if [ptr] is null.
+  ///
+  /// See [zoo$Dog._borrowed] for [isOwnerAlive].
+  static zoo$Dog? _borrowedOrNull(
+    ffi.Pointer<ffi.Void> ptr,
+    bool Function()? isOwnerAlive,
+  ) => ptr == ffi.nullptr ? null : zoo$Dog._borrowed(ptr, isOwnerAlive);
+
+  /// Wraps [ptr], the pointer of a `std::unique_ptr` that C++ returned, and
+  /// takes ownership of it, or returns null if [ptr] is null.
+  static zoo$Dog? _ownedOrNull(ffi.Pointer<ffi.Void> ptr) =>
+      ptr == ffi.nullptr ? null : zoo$Dog.fromPointer(ptr, takeOwnership: true);
+
   /// Whether neither this object, nor the object it's borrowed from, if any,
   /// has been disposed.
   bool _isAlive() => _ptr != ffi.nullptr && (_isOwnerAlive?.call() ?? true);
@@ -933,8 +994,8 @@ class zoo$Dog implements ffi.Finalizable, zoo$Creature {
     );
   }
 
-  static zoo$Creature create(int age) {
-    return zoo$Creature.fromPointer(_zoo_Dog_create(age));
+  static zoo$Creature? create(int age) {
+    return zoo$Creature._borrowedOrNull(_zoo_Dog_create(age), null);
   }
 
   @override
@@ -1098,6 +1159,22 @@ class zoo$Keeper implements ffi.Finalizable {
     bool isReference = false,
   }) : _isReference = isReference;
 
+  /// Wraps [ptr], a pointer that C++ returned, without taking ownership of
+  /// it, or returns null if [ptr] is null.
+  ///
+  /// See [zoo$Keeper._borrowed] for [isOwnerAlive].
+  static zoo$Keeper? _borrowedOrNull(
+    ffi.Pointer<ffi.Void> ptr,
+    bool Function()? isOwnerAlive,
+  ) => ptr == ffi.nullptr ? null : zoo$Keeper._borrowed(ptr, isOwnerAlive);
+
+  /// Wraps [ptr], the pointer of a `std::unique_ptr` that C++ returned, and
+  /// takes ownership of it, or returns null if [ptr] is null.
+  static zoo$Keeper? _ownedOrNull(ffi.Pointer<ffi.Void> ptr) =>
+      ptr == ffi.nullptr
+      ? null
+      : zoo$Keeper.fromPointer(ptr, takeOwnership: true);
+
   /// Whether neither this object, nor the object it's borrowed from, if any,
   /// has been disposed.
   bool _isAlive() => _ptr != ffi.nullptr && (_isOwnerAlive?.call() ?? true);
@@ -1166,8 +1243,8 @@ class zoo$Keeper implements ffi.Finalizable {
       takeOwnership: true,
     );
   }
-  zoo$Keeper$Badge getBadge() {
-    return zoo$Keeper$Badge._borrowed(
+  zoo$Keeper$Badge? getBadge() {
+    return zoo$Keeper$Badge._borrowedOrNull(
       _zoo_Keeper_getBadge(_alivePtr),
       _isAlive,
     );
@@ -1313,6 +1390,23 @@ class zoo$Keeper$Badge implements ffi.Finalizable {
     this._isOwnerAlive, {
     bool isReference = false,
   }) : _isReference = isReference;
+
+  /// Wraps [ptr], a pointer that C++ returned, without taking ownership of
+  /// it, or returns null if [ptr] is null.
+  ///
+  /// See [zoo$Keeper$Badge._borrowed] for [isOwnerAlive].
+  static zoo$Keeper$Badge? _borrowedOrNull(
+    ffi.Pointer<ffi.Void> ptr,
+    bool Function()? isOwnerAlive,
+  ) =>
+      ptr == ffi.nullptr ? null : zoo$Keeper$Badge._borrowed(ptr, isOwnerAlive);
+
+  /// Wraps [ptr], the pointer of a `std::unique_ptr` that C++ returned, and
+  /// takes ownership of it, or returns null if [ptr] is null.
+  static zoo$Keeper$Badge? _ownedOrNull(ffi.Pointer<ffi.Void> ptr) =>
+      ptr == ffi.nullptr
+      ? null
+      : zoo$Keeper$Badge.fromPointer(ptr, takeOwnership: true);
 
   /// Whether neither this object, nor the object it's borrowed from, if any,
   /// has been disposed.
@@ -1532,6 +1626,24 @@ class zoo$aquarium$Creature implements ffi.Finalizable {
     this._isOwnerAlive, {
     bool isReference = false,
   }) : _isReference = isReference;
+
+  /// Wraps [ptr], a pointer that C++ returned, without taking ownership of
+  /// it, or returns null if [ptr] is null.
+  ///
+  /// See [zoo$aquarium$Creature._borrowed] for [isOwnerAlive].
+  static zoo$aquarium$Creature? _borrowedOrNull(
+    ffi.Pointer<ffi.Void> ptr,
+    bool Function()? isOwnerAlive,
+  ) => ptr == ffi.nullptr
+      ? null
+      : zoo$aquarium$Creature._borrowed(ptr, isOwnerAlive);
+
+  /// Wraps [ptr], the pointer of a `std::unique_ptr` that C++ returned, and
+  /// takes ownership of it, or returns null if [ptr] is null.
+  static zoo$aquarium$Creature? _ownedOrNull(ffi.Pointer<ffi.Void> ptr) =>
+      ptr == ffi.nullptr
+      ? null
+      : zoo$aquarium$Creature.fromPointer(ptr, takeOwnership: true);
 
   /// Whether neither this object, nor the object it's borrowed from, if any,
   /// has been disposed.

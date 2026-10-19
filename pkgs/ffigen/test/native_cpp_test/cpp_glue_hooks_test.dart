@@ -4,10 +4,15 @@
 
 import 'package:test/test.dart';
 
+import '../test_utils.dart';
 import 'cpp_glue_hooks_test_bindings.dart';
 
 Matcher throwsCppException(String message) =>
     throwsA(isA<CppException>().having((e) => e.message, 'message', message));
+
+/// Creates a Thrower that owns its pointer, and drops it.
+@pragma('vm:never-inline')
+void dropOwnedThrower() => hooks$Thrower(7);
 
 void main() {
   group('catchExceptions', () {
@@ -53,7 +58,7 @@ void main() {
 
     test('a pointer return is not wrapped when it throws', () {
       expect(() => thrower.self(true), throwsCppException('no self'));
-      expect(thrower.self(false).value(), 10);
+      expect(thrower.self(false)!.value(), 10);
     });
 
     test('a static method is checked', () {
@@ -117,6 +122,41 @@ void main() {
       expect(thrower.value, throwsCppException('guard failed'));
       expect(thrower.value(), 1);
       expect(hooks$Thrower.guardDepth(), 1);
+    });
+  });
+
+  group('finalizerHook', () {
+    test('the finalizer hands the object to the hook, without a guard', () {
+      hooks$Thrower.runPendingFinalizations();
+      final destroyed = hooks$Thrower.destroyedCount();
+
+      dropOwnedThrower();
+      doGC();
+
+      // Queued, not deleted, and the glue the finalizer called constructed no
+      // guard.
+      expect(hooks$Thrower.pendingFinalizations(), greaterThan(0));
+      expect(hooks$Thrower.finalizeGuardDepth(), 0);
+      expect(hooks$Thrower.destroyedCount(), destroyed);
+
+      // The deleter the hook got deletes it through the delete glue, which
+      // constructs a guard: one more than the call running the deleters.
+      hooks$Thrower.runPendingFinalizations();
+      expect(hooks$Thrower.destroyedCount(), destroyed + 1);
+      expect(hooks$Thrower.destroyGuardDepth(), 2);
+      expect(hooks$Thrower.pendingFinalizations(), 0);
+    }, skip: !canDoGC);
+
+    test('dispose deletes right away, through the delete glue', () {
+      final thrower = hooks$Thrower(8);
+      final pending = hooks$Thrower.pendingFinalizations();
+      final destroyed = hooks$Thrower.destroyedCount();
+
+      thrower.dispose();
+
+      expect(hooks$Thrower.destroyedCount(), destroyed + 1);
+      expect(hooks$Thrower.destroyGuardDepth(), 1);
+      expect(hooks$Thrower.pendingFinalizations(), pending);
     });
   });
 

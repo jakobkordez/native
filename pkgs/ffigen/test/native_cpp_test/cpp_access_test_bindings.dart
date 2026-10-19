@@ -87,6 +87,15 @@ class access$Counted implements ffi.Finalizable {
     bool isReference = false,
   }) : _isReference = isReference;
 
+  /// Wraps [ptr], a pointer that C++ returned, without taking ownership of
+  /// it, or returns null if [ptr] is null.
+  ///
+  /// See [access$Counted._borrowed] for [isOwnerAlive].
+  static access$Counted? _borrowedOrNull(
+    ffi.Pointer<ffi.Void> ptr,
+    bool Function()? isOwnerAlive,
+  ) => ptr == ffi.nullptr ? null : access$Counted._borrowed(ptr, isOwnerAlive);
+
   /// Whether neither this object, nor the object it's borrowed from, if any,
   /// has been disposed.
   bool _isAlive() => _ptr != ffi.nullptr && (_isOwnerAlive?.call() ?? true);
@@ -300,6 +309,15 @@ class access$Drawable implements ffi.Finalizable {
     bool isReference = false,
   }) : _isReference = isReference;
 
+  /// Wraps [ptr], a pointer that C++ returned, without taking ownership of
+  /// it, or returns null if [ptr] is null.
+  ///
+  /// See [access$Drawable._borrowed] for [isOwnerAlive].
+  static access$Drawable? _borrowedOrNull(
+    ffi.Pointer<ffi.Void> ptr,
+    bool Function()? isOwnerAlive,
+  ) => ptr == ffi.nullptr ? null : access$Drawable._borrowed(ptr, isOwnerAlive);
+
   /// Whether neither this object, nor the object it's borrowed from, if any,
   /// has been disposed.
   bool _isAlive() => _ptr != ffi.nullptr && (_isOwnerAlive?.call() ?? true);
@@ -486,6 +504,22 @@ class access$Gate implements ffi.Finalizable {
     this._isOwnerAlive, {
     bool isReference = false,
   }) : _isReference = isReference;
+
+  /// Wraps [ptr], a pointer that C++ returned, without taking ownership of
+  /// it, or returns null if [ptr] is null.
+  ///
+  /// See [access$Gate._borrowed] for [isOwnerAlive].
+  static access$Gate? _borrowedOrNull(
+    ffi.Pointer<ffi.Void> ptr,
+    bool Function()? isOwnerAlive,
+  ) => ptr == ffi.nullptr ? null : access$Gate._borrowed(ptr, isOwnerAlive);
+
+  /// Wraps [ptr], the pointer of a `std::unique_ptr` that C++ returned, and
+  /// takes ownership of it, or returns null if [ptr] is null.
+  static access$Gate? _ownedOrNull(ffi.Pointer<ffi.Void> ptr) =>
+      ptr == ffi.nullptr
+      ? null
+      : access$Gate.fromPointer(ptr, takeOwnership: true);
 
   /// Whether neither this object, nor the object it's borrowed from, if any,
   /// has been disposed.
@@ -705,6 +739,15 @@ class access$Listener implements ffi.Finalizable {
     bool isReference = false,
   }) : _isReference = isReference;
 
+  /// Wraps [ptr], a pointer that C++ returned, without taking ownership of
+  /// it, or returns null if [ptr] is null.
+  ///
+  /// See [access$Listener._borrowed] for [isOwnerAlive].
+  static access$Listener? _borrowedOrNull(
+    ffi.Pointer<ffi.Void> ptr,
+    bool Function()? isOwnerAlive,
+  ) => ptr == ffi.nullptr ? null : access$Listener._borrowed(ptr, isOwnerAlive);
+
   /// Whether neither this object, nor the object it's borrowed from, if any,
   /// has been disposed.
   bool _isAlive() => _ptr != ffi.nullptr && (_isOwnerAlive?.call() ?? true);
@@ -892,6 +935,22 @@ class access$Polygon implements ffi.Finalizable, access$Shape {
     bool isReference = false,
   }) : _isReference = isReference;
 
+  /// Wraps [ptr], a pointer that C++ returned, without taking ownership of
+  /// it, or returns null if [ptr] is null.
+  ///
+  /// See [access$Polygon._borrowed] for [isOwnerAlive].
+  static access$Polygon? _borrowedOrNull(
+    ffi.Pointer<ffi.Void> ptr,
+    bool Function()? isOwnerAlive,
+  ) => ptr == ffi.nullptr ? null : access$Polygon._borrowed(ptr, isOwnerAlive);
+
+  /// Wraps [ptr], the pointer of a `std::unique_ptr` that C++ returned, and
+  /// takes ownership of it, or returns null if [ptr] is null.
+  static access$Polygon? _ownedOrNull(ffi.Pointer<ffi.Void> ptr) =>
+      ptr == ffi.nullptr
+      ? null
+      : access$Polygon.fromPointer(ptr, takeOwnership: true);
+
   /// Whether neither this object, nor the object it's borrowed from, if any,
   /// has been disposed.
   bool _isAlive() => _ptr != ffi.nullptr && (_isOwnerAlive?.call() ?? true);
@@ -962,15 +1021,12 @@ class access$Polygon implements ffi.Finalizable, access$Shape {
     return _access_Polygon_area(_alivePtr);
   }
 
-  static access$Shape makeSquare(double side) {
-    return access$Shape.fromPointer(_access_Polygon_makeSquare(side));
+  static access$Shape? makeSquare(double side) {
+    return access$Shape._borrowedOrNull(_access_Polygon_makeSquare(side), null);
   }
 
-  static access$Shape makeOwnedSquare(double side) {
-    return access$Shape.fromPointer(
-      _access_Polygon_makeOwnedSquare(side),
-      takeOwnership: true,
-    );
+  static access$Shape? makeOwnedSquare(double side) {
+    return access$Shape._ownedOrNull(_access_Polygon_makeOwnedSquare(side));
   }
 
   static int liveCount() {
@@ -1122,6 +1178,22 @@ class access$Recorder implements ffi.Finalizable, access$Listener {
     bool isReference = false,
   }) : _isReference = isReference;
 
+  /// Wraps [ptr], a pointer that C++ returned, without taking ownership of
+  /// it, or returns null if [ptr] is null.
+  ///
+  /// See [access$Recorder._borrowed] for [isOwnerAlive].
+  static access$Recorder? _borrowedOrNull(
+    ffi.Pointer<ffi.Void> ptr,
+    bool Function()? isOwnerAlive,
+  ) => ptr == ffi.nullptr ? null : access$Recorder._borrowed(ptr, isOwnerAlive);
+
+  /// Wraps [ptr], the pointer of a `std::unique_ptr` that C++ returned, and
+  /// takes ownership of it, or returns null if [ptr] is null.
+  static access$Recorder? _ownedOrNull(ffi.Pointer<ffi.Void> ptr) =>
+      ptr == ffi.nullptr
+      ? null
+      : access$Recorder.fromPointer(ptr, takeOwnership: true);
+
   /// Whether neither this object, nor the object it's borrowed from, if any,
   /// has been disposed.
   bool _isAlive() => _ptr != ffi.nullptr && (_isOwnerAlive?.call() ?? true);
@@ -1198,8 +1270,8 @@ class access$Recorder implements ffi.Finalizable, access$Listener {
     return _access_Recorder_last(_alivePtr);
   }
 
-  access$Listener asListener() {
-    return access$Listener._borrowed(
+  access$Listener? asListener() {
+    return access$Listener._borrowedOrNull(
       _access_Recorder_asListener(_alivePtr),
       _isAlive,
     );
@@ -1331,6 +1403,15 @@ class access$Registry implements ffi.Finalizable {
     bool isReference = false,
   }) : _isReference = isReference;
 
+  /// Wraps [ptr], a pointer that C++ returned, without taking ownership of
+  /// it, or returns null if [ptr] is null.
+  ///
+  /// See [access$Registry._borrowed] for [isOwnerAlive].
+  static access$Registry? _borrowedOrNull(
+    ffi.Pointer<ffi.Void> ptr,
+    bool Function()? isOwnerAlive,
+  ) => ptr == ffi.nullptr ? null : access$Registry._borrowed(ptr, isOwnerAlive);
+
   /// Whether neither this object, nor the object it's borrowed from, if any,
   /// has been disposed.
   bool _isAlive() => _ptr != ffi.nullptr && (_isOwnerAlive?.call() ?? true);
@@ -1393,8 +1474,8 @@ class access$Registry implements ffi.Finalizable {
     return rawPtr;
   }
 
-  static access$Registry instance() {
-    return access$Registry.fromPointer(_access_Registry_instance());
+  static access$Registry? instance() {
+    return access$Registry._borrowedOrNull(_access_Registry_instance(), null);
   }
 
   int size() {
@@ -1527,6 +1608,22 @@ class access$Shape implements ffi.Finalizable {
     bool isReference = false,
   }) : _isReference = isReference;
 
+  /// Wraps [ptr], a pointer that C++ returned, without taking ownership of
+  /// it, or returns null if [ptr] is null.
+  ///
+  /// See [access$Shape._borrowed] for [isOwnerAlive].
+  static access$Shape? _borrowedOrNull(
+    ffi.Pointer<ffi.Void> ptr,
+    bool Function()? isOwnerAlive,
+  ) => ptr == ffi.nullptr ? null : access$Shape._borrowed(ptr, isOwnerAlive);
+
+  /// Wraps [ptr], the pointer of a `std::unique_ptr` that C++ returned, and
+  /// takes ownership of it, or returns null if [ptr] is null.
+  static access$Shape? _ownedOrNull(ffi.Pointer<ffi.Void> ptr) =>
+      ptr == ffi.nullptr
+      ? null
+      : access$Shape.fromPointer(ptr, takeOwnership: true);
+
   /// Whether neither this object, nor the object it's borrowed from, if any,
   /// has been disposed.
   bool _isAlive() => _ptr != ffi.nullptr && (_isOwnerAlive?.call() ?? true);
@@ -1597,15 +1694,12 @@ class access$Shape implements ffi.Finalizable {
     return _access_Shape_sides(_alivePtr);
   }
 
-  static access$Shape makeSquare(double side) {
-    return access$Shape.fromPointer(_access_Shape_makeSquare(side));
+  static access$Shape? makeSquare(double side) {
+    return access$Shape._borrowedOrNull(_access_Shape_makeSquare(side), null);
   }
 
-  static access$Shape makeOwnedSquare(double side) {
-    return access$Shape.fromPointer(
-      _access_Shape_makeOwnedSquare(side),
-      takeOwnership: true,
-    );
+  static access$Shape? makeOwnedSquare(double side) {
+    return access$Shape._ownedOrNull(_access_Shape_makeOwnedSquare(side));
   }
 
   static int liveCount() {
@@ -1756,6 +1850,22 @@ class access$Square implements ffi.Finalizable, access$Polygon {
     bool isReference = false,
   }) : _isReference = isReference;
 
+  /// Wraps [ptr], a pointer that C++ returned, without taking ownership of
+  /// it, or returns null if [ptr] is null.
+  ///
+  /// See [access$Square._borrowed] for [isOwnerAlive].
+  static access$Square? _borrowedOrNull(
+    ffi.Pointer<ffi.Void> ptr,
+    bool Function()? isOwnerAlive,
+  ) => ptr == ffi.nullptr ? null : access$Square._borrowed(ptr, isOwnerAlive);
+
+  /// Wraps [ptr], the pointer of a `std::unique_ptr` that C++ returned, and
+  /// takes ownership of it, or returns null if [ptr] is null.
+  static access$Square? _ownedOrNull(ffi.Pointer<ffi.Void> ptr) =>
+      ptr == ffi.nullptr
+      ? null
+      : access$Square.fromPointer(ptr, takeOwnership: true);
+
   /// Whether neither this object, nor the object it's borrowed from, if any,
   /// has been disposed.
   bool _isAlive() => _ptr != ffi.nullptr && (_isOwnerAlive?.call() ?? true);
@@ -1832,15 +1942,12 @@ class access$Square implements ffi.Finalizable, access$Polygon {
     return _access_Square_sides(_alivePtr);
   }
 
-  static access$Shape makeSquare(double side) {
-    return access$Shape.fromPointer(_access_Square_makeSquare(side));
+  static access$Shape? makeSquare(double side) {
+    return access$Shape._borrowedOrNull(_access_Square_makeSquare(side), null);
   }
 
-  static access$Shape makeOwnedSquare(double side) {
-    return access$Shape.fromPointer(
-      _access_Square_makeOwnedSquare(side),
-      takeOwnership: true,
-    );
+  static access$Shape? makeOwnedSquare(double side) {
+    return access$Shape._ownedOrNull(_access_Square_makeOwnedSquare(side));
   }
 
   static int liveCount() {
@@ -1981,6 +2088,17 @@ class access$SubRegistry implements ffi.Finalizable, access$Registry {
     bool isReference = false,
   }) : _isReference = isReference;
 
+  /// Wraps [ptr], a pointer that C++ returned, without taking ownership of
+  /// it, or returns null if [ptr] is null.
+  ///
+  /// See [access$SubRegistry._borrowed] for [isOwnerAlive].
+  static access$SubRegistry? _borrowedOrNull(
+    ffi.Pointer<ffi.Void> ptr,
+    bool Function()? isOwnerAlive,
+  ) => ptr == ffi.nullptr
+      ? null
+      : access$SubRegistry._borrowed(ptr, isOwnerAlive);
+
   /// Whether neither this object, nor the object it's borrowed from, if any,
   /// has been disposed.
   bool _isAlive() => _ptr != ffi.nullptr && (_isOwnerAlive?.call() ?? true);
@@ -2047,8 +2165,11 @@ class access$SubRegistry implements ffi.Finalizable, access$Registry {
     return _access_SubRegistry_depth(_alivePtr);
   }
 
-  static access$Registry instance() {
-    return access$Registry.fromPointer(_access_SubRegistry_instance());
+  static access$Registry? instance() {
+    return access$Registry._borrowedOrNull(
+      _access_SubRegistry_instance(),
+      null,
+    );
   }
 
   int size() {
@@ -2170,6 +2291,15 @@ class access$Widget implements ffi.Finalizable, access$Drawable {
     this._isOwnerAlive, {
     bool isReference = false,
   }) : _isReference = isReference;
+
+  /// Wraps [ptr], a pointer that C++ returned, without taking ownership of
+  /// it, or returns null if [ptr] is null.
+  ///
+  /// See [access$Widget._borrowed] for [isOwnerAlive].
+  static access$Widget? _borrowedOrNull(
+    ffi.Pointer<ffi.Void> ptr,
+    bool Function()? isOwnerAlive,
+  ) => ptr == ffi.nullptr ? null : access$Widget._borrowed(ptr, isOwnerAlive);
 
   /// Whether neither this object, nor the object it's borrowed from, if any,
   /// has been disposed.

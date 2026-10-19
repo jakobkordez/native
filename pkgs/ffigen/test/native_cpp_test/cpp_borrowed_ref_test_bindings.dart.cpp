@@ -113,8 +113,16 @@ FFIGEN_EXPORT borrow::Property* borrow_PropertyList_release(borrow::PropertyList
   return self->release(index);
 }
 
+FFIGEN_EXPORT borrow::Property* borrow_PropertyList_take(borrow::PropertyList* self, int32_t index) {
+  return self->take(index).release();
+}
+
 FFIGEN_EXPORT borrow::Registry* borrow_Registry_instance() {
   return std::addressof(borrow::Registry::instance());
+}
+
+FFIGEN_EXPORT borrow::Registry* borrow_Registry_instanceIf(bool condition) {
+  return borrow::Registry::instanceIf(condition);
 }
 
 FFIGEN_EXPORT int32_t borrow_Registry_size(const borrow::Registry* self) {

@@ -103,6 +103,22 @@ class borrow$Core implements ffi.Finalizable {
     bool isReference = false,
   }) : _isReference = isReference;
 
+  /// Wraps [ptr], a pointer that C++ returned, without taking ownership of
+  /// it, or returns null if [ptr] is null.
+  ///
+  /// See [borrow$Core._borrowed] for [isOwnerAlive].
+  static borrow$Core? _borrowedOrNull(
+    ffi.Pointer<ffi.Void> ptr,
+    bool Function()? isOwnerAlive,
+  ) => ptr == ffi.nullptr ? null : borrow$Core._borrowed(ptr, isOwnerAlive);
+
+  /// Wraps [ptr], the pointer of a `std::unique_ptr` that C++ returned, and
+  /// takes ownership of it, or returns null if [ptr] is null.
+  static borrow$Core? _ownedOrNull(ffi.Pointer<ffi.Void> ptr) =>
+      ptr == ffi.nullptr
+      ? null
+      : borrow$Core.fromPointer(ptr, takeOwnership: true);
+
   /// Whether neither this object, nor the object it's borrowed from, if any,
   /// has been disposed.
   bool _isAlive() => _ptr != ffi.nullptr && (_isOwnerAlive?.call() ?? true);
@@ -301,6 +317,15 @@ class borrow$Device implements ffi.Finalizable {
     bool isReference = false,
   }) : _isReference = isReference;
 
+  /// Wraps [ptr], a pointer that C++ returned, without taking ownership of
+  /// it, or returns null if [ptr] is null.
+  ///
+  /// See [borrow$Device._borrowed] for [isOwnerAlive].
+  static borrow$Device? _borrowedOrNull(
+    ffi.Pointer<ffi.Void> ptr,
+    bool Function()? isOwnerAlive,
+  ) => ptr == ffi.nullptr ? null : borrow$Device._borrowed(ptr, isOwnerAlive);
+
   /// Whether neither this object, nor the object it's borrowed from, if any,
   /// has been disposed.
   bool _isAlive() => _ptr != ffi.nullptr && (_isOwnerAlive?.call() ?? true);
@@ -395,8 +420,8 @@ class borrow$Device implements ffi.Finalizable {
     );
   }
 
-  borrow$Property property(int id) {
-    return borrow$Property._borrowed(
+  borrow$Property? property(int id) {
+    return borrow$Property._borrowedOrNull(
       _borrow_Device_property(_alivePtr, id),
       _isAlive,
     );
@@ -604,6 +629,22 @@ class borrow$Property implements ffi.Finalizable {
     this._isOwnerAlive, {
     bool isReference = false,
   }) : _isReference = isReference;
+
+  /// Wraps [ptr], a pointer that C++ returned, without taking ownership of
+  /// it, or returns null if [ptr] is null.
+  ///
+  /// See [borrow$Property._borrowed] for [isOwnerAlive].
+  static borrow$Property? _borrowedOrNull(
+    ffi.Pointer<ffi.Void> ptr,
+    bool Function()? isOwnerAlive,
+  ) => ptr == ffi.nullptr ? null : borrow$Property._borrowed(ptr, isOwnerAlive);
+
+  /// Wraps [ptr], the pointer of a `std::unique_ptr` that C++ returned, and
+  /// takes ownership of it, or returns null if [ptr] is null.
+  static borrow$Property? _ownedOrNull(ffi.Pointer<ffi.Void> ptr) =>
+      ptr == ffi.nullptr
+      ? null
+      : borrow$Property.fromPointer(ptr, takeOwnership: true);
 
   /// Whether neither this object, nor the object it's borrowed from, if any,
   /// has been disposed.
@@ -817,6 +858,17 @@ class borrow$PropertyList implements ffi.Finalizable {
     bool isReference = false,
   }) : _isReference = isReference;
 
+  /// Wraps [ptr], a pointer that C++ returned, without taking ownership of
+  /// it, or returns null if [ptr] is null.
+  ///
+  /// See [borrow$PropertyList._borrowed] for [isOwnerAlive].
+  static borrow$PropertyList? _borrowedOrNull(
+    ffi.Pointer<ffi.Void> ptr,
+    bool Function()? isOwnerAlive,
+  ) => ptr == ffi.nullptr
+      ? null
+      : borrow$PropertyList._borrowed(ptr, isOwnerAlive);
+
   /// Whether neither this object, nor the object it's borrowed from, if any,
   /// has been disposed.
   bool _isAlive() => _ptr != ffi.nullptr && (_isOwnerAlive?.call() ?? true);
@@ -883,15 +935,15 @@ class borrow$PropertyList implements ffi.Finalizable {
     return _borrow_PropertyList_size(_alivePtr);
   }
 
-  borrow$Property at(int index) {
-    return borrow$Property._borrowed(
+  borrow$Property? at(int index) {
+    return borrow$Property._borrowedOrNull(
       _borrow_PropertyList_at(_alivePtr, index),
       _isAlive,
     );
   }
 
-  borrow$Property atConst(int index) {
-    return borrow$Property._borrowed(
+  borrow$Property? atConst(int index) {
+    return borrow$Property._borrowedOrNull(
       _borrow_PropertyList_atConst(_alivePtr, index),
       _isAlive,
     );
@@ -905,10 +957,16 @@ class borrow$PropertyList implements ffi.Finalizable {
     );
   }
 
-  borrow$Property release(int index) {
-    return borrow$Property._borrowed(
+  borrow$Property? release(int index) {
+    return borrow$Property._borrowedOrNull(
       _borrow_PropertyList_release(_alivePtr, index),
       _isAlive,
+    );
+  }
+
+  borrow$Property? take(int index) {
+    return borrow$Property._ownedOrNull(
+      _borrow_PropertyList_take(_alivePtr, index),
     );
   }
 
@@ -964,6 +1022,14 @@ external ffi.Pointer<ffi.Void> _borrow_PropertyList_front(
   symbol: 'borrow_PropertyList_release',
 )
 external ffi.Pointer<ffi.Void> _borrow_PropertyList_release(
+  ffi.Pointer<ffi.Void> self,
+  int index,
+);
+
+@ffi.Native<ffi.Pointer<ffi.Void> Function(ffi.Pointer<ffi.Void>, ffi.Int32)>(
+  symbol: 'borrow_PropertyList_take',
+)
+external ffi.Pointer<ffi.Void> _borrow_PropertyList_take(
   ffi.Pointer<ffi.Void> self,
   int index,
 );
@@ -1048,6 +1114,15 @@ class borrow$Registry implements ffi.Finalizable {
     bool isReference = false,
   }) : _isReference = isReference;
 
+  /// Wraps [ptr], a pointer that C++ returned, without taking ownership of
+  /// it, or returns null if [ptr] is null.
+  ///
+  /// See [borrow$Registry._borrowed] for [isOwnerAlive].
+  static borrow$Registry? _borrowedOrNull(
+    ffi.Pointer<ffi.Void> ptr,
+    bool Function()? isOwnerAlive,
+  ) => ptr == ffi.nullptr ? null : borrow$Registry._borrowed(ptr, isOwnerAlive);
+
   /// Whether neither this object, nor the object it's borrowed from, if any,
   /// has been disposed.
   bool _isAlive() => _ptr != ffi.nullptr && (_isOwnerAlive?.call() ?? true);
@@ -1118,6 +1193,13 @@ class borrow$Registry implements ffi.Finalizable {
     );
   }
 
+  static borrow$Registry? instanceIf(bool condition) {
+    return borrow$Registry._borrowedOrNull(
+      _borrow_Registry_instanceIf(condition),
+      null,
+    );
+  }
+
   int size() {
     return _borrow_Registry_size(_alivePtr);
   }
@@ -1146,6 +1228,11 @@ class borrow$Registry implements ffi.Finalizable {
   symbol: 'borrow_Registry_instance',
 )
 external ffi.Pointer<ffi.Void> _borrow_Registry_instance();
+
+@ffi.Native<ffi.Pointer<ffi.Void> Function(ffi.Bool)>(
+  symbol: 'borrow_Registry_instanceIf',
+)
+external ffi.Pointer<ffi.Void> _borrow_Registry_instanceIf(bool condition);
 
 @ffi.Native<ffi.Int32 Function(ffi.Pointer<ffi.Void>)>(
   symbol: 'borrow_Registry_size',
@@ -1247,6 +1334,24 @@ class borrow$StatusFlag implements ffi.Finalizable {
     this._isOwnerAlive, {
     bool isReference = false,
   }) : _isReference = isReference;
+
+  /// Wraps [ptr], a pointer that C++ returned, without taking ownership of
+  /// it, or returns null if [ptr] is null.
+  ///
+  /// See [borrow$StatusFlag._borrowed] for [isOwnerAlive].
+  static borrow$StatusFlag? _borrowedOrNull(
+    ffi.Pointer<ffi.Void> ptr,
+    bool Function()? isOwnerAlive,
+  ) => ptr == ffi.nullptr
+      ? null
+      : borrow$StatusFlag._borrowed(ptr, isOwnerAlive);
+
+  /// Wraps [ptr], the pointer of a `std::unique_ptr` that C++ returned, and
+  /// takes ownership of it, or returns null if [ptr] is null.
+  static borrow$StatusFlag? _ownedOrNull(ffi.Pointer<ffi.Void> ptr) =>
+      ptr == ffi.nullptr
+      ? null
+      : borrow$StatusFlag.fromPointer(ptr, takeOwnership: true);
 
   /// Whether neither this object, nor the object it's borrowed from, if any,
   /// has been disposed.

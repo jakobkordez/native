@@ -150,6 +150,22 @@ class lab$Experiment implements ffi.Finalizable {
     bool isReference = false,
   }) : _isReference = isReference;
 
+  /// Wraps [ptr], a pointer that C++ returned, without taking ownership of
+  /// it, or returns null if [ptr] is null.
+  ///
+  /// See [lab$Experiment._borrowed] for [isOwnerAlive].
+  static lab$Experiment? _borrowedOrNull(
+    ffi.Pointer<ffi.Void> ptr,
+    bool Function()? isOwnerAlive,
+  ) => ptr == ffi.nullptr ? null : lab$Experiment._borrowed(ptr, isOwnerAlive);
+
+  /// Wraps [ptr], the pointer of a `std::unique_ptr` that C++ returned, and
+  /// takes ownership of it, or returns null if [ptr] is null.
+  static lab$Experiment? _ownedOrNull(ffi.Pointer<ffi.Void> ptr) =>
+      ptr == ffi.nullptr
+      ? null
+      : lab$Experiment.fromPointer(ptr, takeOwnership: true);
+
   /// Whether neither this object, nor the object it's borrowed from, if any,
   /// has been disposed.
   bool _isAlive() => _ptr != ffi.nullptr && (_isOwnerAlive?.call() ?? true);
@@ -230,15 +246,15 @@ class lab$Experiment implements ffi.Finalizable {
       takeOwnership: true,
     );
   }
-  lab$Properties propertiesConst() {
-    return lab$Properties._borrowed(
+  lab$Properties? propertiesConst() {
+    return lab$Properties._borrowedOrNull(
       _lab_Experiment_propertiesConst(_alivePtr),
       _isAlive,
     );
   }
 
-  lab$Properties properties() {
-    return lab$Properties._borrowed(
+  lab$Properties? properties() {
+    return lab$Properties._borrowedOrNull(
       _lab_Experiment_properties(_alivePtr),
       _isAlive,
     );
@@ -730,6 +746,22 @@ class lab$Properties implements ffi.Finalizable {
     bool isReference = false,
   }) : _isReference = isReference;
 
+  /// Wraps [ptr], a pointer that C++ returned, without taking ownership of
+  /// it, or returns null if [ptr] is null.
+  ///
+  /// See [lab$Properties._borrowed] for [isOwnerAlive].
+  static lab$Properties? _borrowedOrNull(
+    ffi.Pointer<ffi.Void> ptr,
+    bool Function()? isOwnerAlive,
+  ) => ptr == ffi.nullptr ? null : lab$Properties._borrowed(ptr, isOwnerAlive);
+
+  /// Wraps [ptr], the pointer of a `std::unique_ptr` that C++ returned, and
+  /// takes ownership of it, or returns null if [ptr] is null.
+  static lab$Properties? _ownedOrNull(ffi.Pointer<ffi.Void> ptr) =>
+      ptr == ffi.nullptr
+      ? null
+      : lab$Properties.fromPointer(ptr, takeOwnership: true);
+
   /// Whether neither this object, nor the object it's borrowed from, if any,
   /// has been disposed.
   bool _isAlive() => _ptr != ffi.nullptr && (_isOwnerAlive?.call() ?? true);
@@ -942,6 +974,22 @@ class lab$Refinement implements ffi.Finalizable, lab$Variant {
     bool isReference = false,
   }) : _isReference = isReference;
 
+  /// Wraps [ptr], a pointer that C++ returned, without taking ownership of
+  /// it, or returns null if [ptr] is null.
+  ///
+  /// See [lab$Refinement._borrowed] for [isOwnerAlive].
+  static lab$Refinement? _borrowedOrNull(
+    ffi.Pointer<ffi.Void> ptr,
+    bool Function()? isOwnerAlive,
+  ) => ptr == ffi.nullptr ? null : lab$Refinement._borrowed(ptr, isOwnerAlive);
+
+  /// Wraps [ptr], the pointer of a `std::unique_ptr` that C++ returned, and
+  /// takes ownership of it, or returns null if [ptr] is null.
+  static lab$Refinement? _ownedOrNull(ffi.Pointer<ffi.Void> ptr) =>
+      ptr == ffi.nullptr
+      ? null
+      : lab$Refinement.fromPointer(ptr, takeOwnership: true);
+
   /// Whether neither this object, nor the object it's borrowed from, if any,
   /// has been disposed.
   bool _isAlive() => _ptr != ffi.nullptr && (_isOwnerAlive?.call() ?? true);
@@ -1018,15 +1066,15 @@ class lab$Refinement implements ffi.Finalizable, lab$Variant {
     return _lab_Refinement_describe(_alivePtr, detail);
   }
 
-  lab$Properties propertiesConst() {
-    return lab$Properties._borrowed(
+  lab$Properties? propertiesConst() {
+    return lab$Properties._borrowedOrNull(
       _lab_Refinement_propertiesConst(_alivePtr),
       _isAlive,
     );
   }
 
-  lab$Properties properties() {
-    return lab$Properties._borrowed(
+  lab$Properties? properties() {
+    return lab$Properties._borrowedOrNull(
       _lab_Refinement_properties(_alivePtr),
       _isAlive,
     );
@@ -1503,6 +1551,22 @@ class lab$Variant implements ffi.Finalizable, lab$Experiment {
     bool isReference = false,
   }) : _isReference = isReference;
 
+  /// Wraps [ptr], a pointer that C++ returned, without taking ownership of
+  /// it, or returns null if [ptr] is null.
+  ///
+  /// See [lab$Variant._borrowed] for [isOwnerAlive].
+  static lab$Variant? _borrowedOrNull(
+    ffi.Pointer<ffi.Void> ptr,
+    bool Function()? isOwnerAlive,
+  ) => ptr == ffi.nullptr ? null : lab$Variant._borrowed(ptr, isOwnerAlive);
+
+  /// Wraps [ptr], the pointer of a `std::unique_ptr` that C++ returned, and
+  /// takes ownership of it, or returns null if [ptr] is null.
+  static lab$Variant? _ownedOrNull(ffi.Pointer<ffi.Void> ptr) =>
+      ptr == ffi.nullptr
+      ? null
+      : lab$Variant.fromPointer(ptr, takeOwnership: true);
+
   /// Whether neither this object, nor the object it's borrowed from, if any,
   /// has been disposed.
   bool _isAlive() => _ptr != ffi.nullptr && (_isOwnerAlive?.call() ?? true);
@@ -1576,15 +1640,15 @@ class lab$Variant implements ffi.Finalizable, lab$Experiment {
     return _lab_Variant_describe(_alivePtr, detail);
   }
 
-  lab$Properties propertiesConst() {
-    return lab$Properties._borrowed(
+  lab$Properties? propertiesConst() {
+    return lab$Properties._borrowedOrNull(
       _lab_Variant_propertiesConst(_alivePtr),
       _isAlive,
     );
   }
 
-  lab$Properties properties() {
-    return lab$Properties._borrowed(
+  lab$Properties? properties() {
+    return lab$Properties._borrowedOrNull(
       _lab_Variant_properties(_alivePtr),
       _isAlive,
     );

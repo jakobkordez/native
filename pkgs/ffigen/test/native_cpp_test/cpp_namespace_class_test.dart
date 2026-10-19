@@ -31,7 +31,7 @@ void main() {
     test('static methods', () {
       expect(zoo$Creature.sum(3, 4), 7);
 
-      final created = zoo$Creature.create(8);
+      final created = zoo$Creature.create(8)!;
       expect(created.getAge(), 8);
       created.retainOwnership();
       created.dispose();
@@ -81,7 +81,7 @@ void main() {
 
       final keeper = zoo$Keeper(9);
       // The badge is owned by the keeper, so the wrapper must not own it.
-      final keeperBadge = keeper.getBadge();
+      final keeperBadge = keeper.getBadge()!;
       expect(keeperBadge.getNumber(), 9);
       expect(keeperBadge.dispose, throwsStateError);
       keeper.dispose();

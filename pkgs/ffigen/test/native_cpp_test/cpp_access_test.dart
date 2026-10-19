@@ -22,7 +22,7 @@ void main() {
     });
 
     test('abstract class with a virtual destructor', () {
-      final shape = access$Shape.makeSquare(3);
+      final shape = access$Shape.makeSquare(3)!;
       expect(shape.area(), 9);
       expect(shape.sides(), 4);
       expect(access$Shape.liveCount(), 1);
@@ -35,7 +35,7 @@ void main() {
     });
 
     test('unique_ptr of an abstract class', () {
-      final shape = access$Shape.makeOwnedSquare(2);
+      final shape = access$Shape.makeOwnedSquare(2)!;
       expect(shape.area(), 4);
 
       shape.dispose();
@@ -53,7 +53,7 @@ void main() {
 
     test('interface with a protected destructor', () {
       final recorder = access$Recorder();
-      final listener = recorder.asListener();
+      final listener = recorder.asListener()!;
       expect(listener.notify(5), 10);
       expect(recorder.last(), 5);
 
@@ -99,7 +99,7 @@ void main() {
     });
 
     test('class with a private destructor', () {
-      expect(access$Registry.instance().size(), 3);
+      expect(access$Registry.instance()!.size(), 3);
     });
   });
 }

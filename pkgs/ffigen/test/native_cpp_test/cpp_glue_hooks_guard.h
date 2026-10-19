@@ -26,6 +26,11 @@ class CallGuard {
   static void failNext();
 };
 
+// The `Cpp.finalizerHook` of cpp_glue_hooks_config.dart. It records how many
+// guards were alive when a finalizer called it, and queues the deletion for
+// Thrower::runPendingFinalizations.
+void finalizeLater(void* object, void (*deleteObject)(void*));
+
 }  // namespace hooks
 
 #endif  // CPP_GLUE_HOOKS_GUARD_H_

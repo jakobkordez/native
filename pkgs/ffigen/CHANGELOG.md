@@ -85,6 +85,12 @@
   instead of using a dangling pointer. Taking ownership of a returned pointer
   with `retainOwnership` ends the borrow. A returned reference can never take
   ownership: `retainOwnership` throws a `StateError`.
+- C++ methods and field getters that return a pointer to a C++ class, or a
+  `std::unique_ptr` to one, now return a nullable wrapper, which is `null`
+  when C++ returns a null pointer, instead of a wrapper that throws a
+  `StateError` as if it had been disposed. A returned reference stays
+  non-nullable. The elements of a returned `std::vector` of pointers are
+  still non-nullable.
 - Passing a disposed C++ class wrapper, or one borrowed from a disposed object,
   to a C++ method or constructor now throws a `StateError`, instead of passing
   a null or dangling pointer.
@@ -120,6 +126,14 @@
   default-constructs around its call, e.g. a lock guard serializing the calls
   into a library that isn't thread safe, and `Cpp.glueIncludes`, headers the
   glue file includes, e.g. the one declaring that type.
+- Add `Cpp.finalizerHook`, a C++ function that the `NativeFinalizer` of an
+  object hands the object to, with a function deleting it, instead of deleting
+  it during garbage collection. With a `Cpp.glueGuard` that takes a lock, a
+  finalizer deleting the object deadlocks when a garbage collection on another
+  thread waits for the lock, which a C++ call calling back into Dart holds
+  while the callback waits for that garbage collection. The hook can instead
+  queue the deletion for a thread that can take the lock. `dispose` still
+  deletes the object right away.
 
 ## 23.0.0
 

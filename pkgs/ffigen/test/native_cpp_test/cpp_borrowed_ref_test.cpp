@@ -80,6 +80,11 @@ Property* PropertyList::release(int32_t index) {
   return property;
 }
 
+std::unique_ptr<Property> PropertyList::take(int32_t index) {
+  if (index < 0 || index >= size_) return nullptr;
+  return std::unique_ptr<Property>(release(index));
+}
+
 Device::Device(int32_t id) : id_(id), status_(0) {}
 
 Device::~Device() {}
@@ -128,6 +133,10 @@ Registry::~Registry() {}
 Registry& Registry::instance() {
   static Registry registry;
   return registry;
+}
+
+Registry* Registry::instanceIf(bool condition) {
+  return condition ? &instance() : nullptr;
 }
 
 int32_t Registry::size() const { return 7; }

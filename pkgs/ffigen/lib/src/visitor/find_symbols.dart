@@ -84,6 +84,14 @@ class FindSymbolsVisitation extends Visitation {
       visitInsideScope(node, node.localScope);
 
   @override
+  void visitCppClass(CppClass node) {
+    if (node.finalizesThroughHook) {
+      context.rootCppScope.add(node.finalizeSymbol);
+    }
+    super.visitCppClass(node);
+  }
+
+  @override
   void visitCppMethod(CppMethod node) {
     context.rootCppScope.add(node.cBindingSymbol);
     if (!node.isUnnamedConstructor) currentScope.add(node.name);

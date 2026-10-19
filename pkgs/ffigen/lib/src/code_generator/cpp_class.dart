@@ -29,6 +29,10 @@ class CppMethod extends AstNode with HasLocalScope {
   final Symbol cBindingSymbol;
   final String originalName;
 
+  /// The type that this method returns.
+  ///
+  /// A pointer to a C++ class, or a `std::unique_ptr` to one, is a
+  /// [CppNullablePointerType], since it can be null.
   final Type returnType;
   final List<Parameter> parameters;
   final bool isConstant;
@@ -142,6 +146,9 @@ class CppField extends AstNode with HasLocalScope {
   /// That's [type], except for a C++ class, which the getter returns by
   /// reference, and a `std::unique_ptr`, whose getter returns the pointer it
   /// holds. Either is borrowed from the object that the field belongs to.
+  ///
+  /// A pointer to a C++ class, including that of a `std::unique_ptr`, is a
+  /// [CppNullablePointerType], since it can be null.
   final Type getterType;
 
   /// Whether [getterType] is a pointer or reference to const, see
@@ -240,6 +247,16 @@ class CppClass extends BindingType with HasLocalScope {
   /// `std::vector`.
   final bool isCopyable;
 
+  /// The C glue function that the `NativeFinalizer` calls to hand an object
+  /// to the `Cpp.finalizerHook`, see [finalizesThroughHook].
+  ///
+  /// It's in the root C++ scope, like the methods' glue functions, so a method
+  /// named `finalize` doesn't clash with it.
+  late final Symbol finalizeSymbol = Symbol(
+    '${cSymbolPrefix}_finalize',
+    SymbolKind.method,
+  );
+
   CppClass({
     super.usr,
     super.originalName,
@@ -276,6 +293,8 @@ class CppClass extends BindingType with HasLocalScope {
     '_isOwnerAlive',
     '_isReference',
     '_borrowed',
+    '_borrowedOrNull',
+    '_ownedOrNull',
     '_isAlive',
     '_alivePtr',
   };
@@ -322,6 +341,12 @@ class CppClass extends BindingType with HasLocalScope {
   /// Whether the glue catches C++ exceptions, see `Cpp.catchExceptions`.
   bool get _catchesExceptions => context.config.cpp?.catchExceptions ?? false;
 
+  /// Whether the default `NativeFinalizer` hands an object to the
+  /// `Cpp.finalizerHook` through the [finalizeSymbol] glue, rather than
+  /// deleting it.
+  bool get finalizesThroughHook =>
+      isDeletable && context.config.cpp?.finalizerHook != null;
+
   @override
   BindingString toBindingString(Writer w) {
     final s = StringBuffer();
@@ -344,6 +369,11 @@ class CppClass extends BindingType with HasLocalScope {
 
     final deleteSymbol = '${name}_delete';
     final deleteGlue = '_$deleteSymbol';
+    // What the default finalizer calls: the hook's glue, or the delete glue.
+    // [dispose] calls the delete glue either way.
+    final finalizerGlue = finalizesThroughHook
+        ? '_${finalizeSymbol.name}'
+        : deleteGlue;
 
     s.write(makeDartDoc(dartDoc));
     // Build the implements clause: ffi.Finalizable + public base classes.
@@ -359,7 +389,7 @@ class $name implements $implementsClause {
     if (isDeletable) {
       s.write('''
   static final _defaultFinalizer = $ffiPrefix.NativeFinalizer(
-    $ffiPrefix.Native.addressOf<$ffiPrefix.NativeFunction<$ffiPrefix.Void Function($ptrVoid)>>($deleteGlue),
+    $ffiPrefix.Native.addressOf<$ffiPrefix.NativeFunction<$ffiPrefix.Void Function($ptrVoid)>>($finalizerGlue),
   );
 
 ''');
@@ -507,6 +537,25 @@ class $name implements $implementsClause {
     bool isReference = false,
   }) : _isReference = isReference;
 
+  /// Wraps [ptr], a pointer that C++ returned, without taking ownership of
+  /// it, or returns null if [ptr] is null.
+  ///
+  /// See [$name._borrowed] for [isOwnerAlive].
+  static $name? _borrowedOrNull($ptrVoid ptr, bool Function()? isOwnerAlive) =>
+      ptr == $ffiPrefix.nullptr ? null : $name._borrowed(ptr, isOwnerAlive);
+
+''');
+    if (isDeletable) {
+      s.write('''
+  /// Wraps [ptr], the pointer of a `std::unique_ptr` that C++ returned, and
+  /// takes ownership of it, or returns null if [ptr] is null.
+  static $name? _ownedOrNull($ptrVoid ptr) => ptr == $ffiPrefix.nullptr
+      ? null
+      : $name.fromPointer(ptr, takeOwnership: true);
+
+''');
+    }
+    s.write('''
   /// Whether neither this object, nor the object it's borrowed from, if any,
   /// has been disposed.
   bool _isAlive() =>
@@ -795,6 +844,15 @@ class $name implements $implementsClause {
         ffiParams: '$ptrVoid self',
       );
     }
+    if (finalizesThroughHook) {
+      writeNativeDecl(
+        symbol: finalizeSymbol.name,
+        glue: finalizerGlue,
+        cType: '$ffiPrefix.Void Function($ptrVoid)',
+        ffiReturn: 'void',
+        ffiParams: '$ptrVoid self',
+      );
+    }
 
     return BindingString(
       type: BindingStringType.cppClass,
@@ -813,11 +871,24 @@ class $name implements $implementsClause {
     //
     // `delete` doesn't catch exceptions: the NativeFinalizer calls it during
     // garbage collection, where no Dart caller could rethrow the exception.
+    final deleteName = Namer.cSafeName('${name}_delete');
     final deleteWrapper =
         '''
-FFIGEN_EXPORT void ${Namer.cSafeName('${name}_delete')}($originalName* self) {
+FFIGEN_EXPORT void $deleteName($originalName* self) {
   ${cppGlueBody(context, 'delete self;', returnsValue: false, catchExceptions: false)}
 }''';
+
+    // The NativeFinalizer's glue with a `Cpp.finalizerHook`: it neither
+    // constructs the guard nor deletes, it hands the object to the hook with a
+    // function that deletes it through the delete glue above.
+    final finalizeWrapper = switch (context.config.cpp?.finalizerHook) {
+      final hook? when finalizesThroughHook =>
+        '''
+FFIGEN_EXPORT void ${Namer.cSafeName(finalizeSymbol.name)}($originalName* self) {
+  $hook(self, [](void* object) { $deleteName(static_cast<$originalName*>(object)); });
+}''',
+      _ => null,
+    };
 
     final methodBindings = methods
         .map((method) {
@@ -890,6 +961,7 @@ FFIGEN_EXPORT $returnTypeString $symbol($params) {
       methodBindings,
       ...fieldBindings,
       if (isDeletable) deleteWrapper,
+      ?finalizeWrapper,
     ].map((binding) => '$binding\n\n').join();
   }
 

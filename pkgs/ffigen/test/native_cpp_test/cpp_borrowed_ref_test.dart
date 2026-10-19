@@ -42,15 +42,21 @@ void main() {
     test('returned pointer', () {
       final core = borrow$Core(1);
       final device = core.device();
-      final property = device.property(2);
+      final property = device.property(2)!;
       expect(property.value(), 20);
 
       // The pointer is borrowed, so changes show up in the device.
       property.setValue(25);
-      expect(device.property(2).value(), 25);
-      expect(device.properties().atConst(1).value(), 25);
+      expect(device.property(2)!.value(), 25);
+      expect(device.properties().atConst(1)!.value(), 25);
       expect(property.dispose, throwsStateError);
 
+      core.dispose();
+    });
+
+    test('returned null pointer', () {
+      final core = borrow$Core(1);
+      expect(core.device().property(4), isNull);
       core.dispose();
     });
 
@@ -58,7 +64,7 @@ void main() {
       final core = borrow$Core(1);
       final properties = core.device().properties();
       expect(properties.size(), 3);
-      expect(properties.at(2).id(), 3);
+      expect(properties.at(2)!.id(), 3);
       expect(properties.front().id(), 1);
 
       core.dispose();
@@ -68,7 +74,7 @@ void main() {
       final core = borrow$Core(1);
       final device = core.device();
       final status = device.status();
-      final property = device.properties().at(0);
+      final property = device.properties().at(0)!;
 
       core.dispose();
       expect(device.id, throwsStateError);
@@ -101,7 +107,8 @@ void main() {
 
     test('taking ownership of a returned pointer ends the borrow', () {
       final core = borrow$Core(1);
-      final property = core.device().properties().release(0)..retainOwnership();
+      final property = core.device().properties().release(0)!
+        ..retainOwnership();
       expect(core.device().properties().size(), 2);
 
       // The property no longer depends on the core.
@@ -112,11 +119,36 @@ void main() {
       property.dispose();
     });
 
+    test('returned std::unique_ptr', () {
+      final core = borrow$Core(1);
+      final properties = core.device().properties();
+      expect(properties.take(3), isNull);
+      expect(properties.size(), 3);
+
+      // The caller owns the property, so it outlives the core.
+      final property = properties.take(2)!;
+      expect(properties.size(), 2);
+      core.dispose();
+      expect(property.id(), 3);
+      expect(borrow$Property.liveCount(), 1);
+
+      property.dispose();
+      expect(borrow$Property.liveCount(), 0);
+    });
+
     test('static method returning a reference', () {
       final registry = borrow$Registry.instance();
       expect(registry.size(), 7);
       expect(registry.dispose, throwsStateError);
       expect(registry.retainOwnership, throwsStateError);
+    });
+
+    test('static method returning a pointer', () {
+      expect(borrow$Registry.instanceIf(false), isNull);
+
+      final registry = borrow$Registry.instanceIf(true)!;
+      expect(registry.size(), 7);
+      expect(registry.dispose, throwsStateError);
     });
 
     test('reference parameters', () {
@@ -159,7 +191,7 @@ void main() {
     // are unreachable after they return.
     @pragma('vm:never-inline')
     borrow$Property borrowProperty() =>
-        borrow$Core(1).device().properties().at(1);
+        borrow$Core(1).device().properties().at(1)!;
 
     @pragma('vm:never-inline')
     void useBorrowedProperty() {

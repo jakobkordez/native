@@ -261,6 +261,9 @@ class ObjCObjectPointerWithProtocols extends ObjCObjectPointer {
 ///
 /// A pointer returned by an instance method is borrowed from the object the
 /// method was called on. See [convertReturnedToDartType].
+///
+/// A C++ method or a field getter returns it as a [CppNullablePointerType],
+/// since it can be null.
 class CppClassPointerType extends PointerType {
   final CppClass cppClass;
 
@@ -320,6 +323,13 @@ class CppClassPointerType extends PointerType {
       ? convertFfiDartTypeToDartType(context, value, objCRetain: false)
       : '${cppClass.name}._borrowed($value, $isOwnerAlive)';
 
+  /// Like [convertReturnedToDartType], but a null pointer becomes null.
+  String convertReturnedToNullableDartType(
+    Context context,
+    String value, {
+    required String? isOwnerAlive,
+  }) => '${cppClass.name}._borrowedOrNull($value, $isOwnerAlive)';
+
   @override
   String toString() => '${cppClass.name}*';
 
@@ -362,6 +372,13 @@ class CppUniquePtrType extends CppClassPointerType {
     String value, {
     required String? isOwnerAlive,
   }) => convertFfiDartTypeToDartType(context, value, objCRetain: false);
+
+  @override
+  String convertReturnedToNullableDartType(
+    Context context,
+    String value, {
+    required String? isOwnerAlive,
+  }) => '${cppClass.name}._ownedOrNull($value)';
 
   @override
   bool get sameNativeAndExternCType => false;
@@ -434,4 +451,99 @@ class CppClassReferenceType extends CppClassPointerType {
 
   @override
   String cacheKey() => '${isConst ? 'const ' : ''}${cppClass.cacheKey()}&';
+}
+
+/// A pointer to a C++ class that a C++ method or a field getter returns, like
+/// `T*` or `std::unique_ptr<T>`, which can be null.
+///
+/// Its Dart type is the nullable Dart type of [child], and a null pointer
+/// becomes null. A reference can't be null, so it isn't wrapped in one.
+///
+/// It's only a return type, so it doesn't convert Dart values to pass them to
+/// C++.
+class CppNullablePointerType extends Type {
+  /// The pointer type, whose [typealiasType] is a [CppClassPointerType], but
+  /// not a [CppClassReferenceType].
+  final Type child;
+
+  CppNullablePointerType(this.child)
+    : assert(
+        child.typealiasType is CppClassPointerType &&
+            child.typealiasType is! CppClassReferenceType,
+        'Only a pointer to a C++ class can be null, not $child',
+      );
+
+  CppClassPointerType get _pointer =>
+      child.typealiasType as CppClassPointerType;
+
+  @override
+  Type get baseType => child.baseType;
+
+  @override
+  String getCType(Context context) => child.getCType(context);
+
+  @override
+  String getFfiDartType(Context context) => child.getFfiDartType(context);
+
+  @override
+  String getDartType(Context context) => '${child.getDartType(context)}?';
+
+  @override
+  String getNativeType(Context context, {String varName = ''}) =>
+      child.getNativeType(context, varName: varName);
+
+  @override
+  String getExternCType(Context context, {String varName = ''}) =>
+      child.getExternCType(context, varName: varName);
+
+  @override
+  bool get sameNativeAndExternCType => child.sameNativeAndExternCType;
+
+  @override
+  String convertExternCTypeToNativeType(Context context, String value) =>
+      child.convertExternCTypeToNativeType(context, value);
+
+  @override
+  String convertNativeTypeToExternCType(Context context, String value) =>
+      child.convertNativeTypeToExternCType(context, value);
+
+  @override
+  bool get sameFfiDartAndCType => child.sameFfiDartAndCType;
+
+  @override
+  bool get sameDartAndCType => false;
+
+  @override
+  bool get sameDartAndFfiDartType => false;
+
+  @override
+  String convertFfiDartTypeToDartType(
+    Context context,
+    String value, {
+    required bool objCRetain,
+    String? objCEnclosingClass,
+  }) => convertReturnedToDartType(context, value, isOwnerAlive: null);
+
+  @override
+  String convertReturnedToDartType(
+    Context context,
+    String value, {
+    required String? isOwnerAlive,
+  }) => _pointer.convertReturnedToNullableDartType(
+    context,
+    value,
+    isOwnerAlive: isOwnerAlive,
+  );
+
+  @override
+  String toString() => '$child?';
+
+  @override
+  String cacheKey() => '${child.cacheKey()}?';
+
+  @override
+  void visitChildren(Visitor visitor) {
+    super.visitChildren(visitor);
+    visitor.visit(child);
+  }
 }

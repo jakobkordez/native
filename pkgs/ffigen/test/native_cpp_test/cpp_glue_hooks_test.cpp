@@ -4,7 +4,9 @@
 
 #include "cpp_glue_hooks_test.h"
 
+#include <mutex>
 #include <stdexcept>
+#include <utility>
 
 #include "cpp_glue_hooks_guard.h"
 
@@ -16,6 +18,14 @@ int guardCount_ = 0;
 bool failNextGuard_ = false;
 int copyGuardDepth_ = 0;
 int destroyGuardDepth_ = 0;
+int throwersDestroyed_ = 0;
+int throwerDestroyGuardDepth_ = 0;
+
+// What finalizeLater queued. The finalizer calls it during garbage collection,
+// on any thread.
+std::mutex pendingMutex_;
+std::vector<std::pair<void*, void (*)(void*)>> pending_;
+int finalizeGuardDepth_ = -1;
 
 class NullWhatError : public std::exception {
  public:
@@ -40,6 +50,12 @@ int CallGuard::count() { return guardCount_; }
 
 void CallGuard::failNext() { failNextGuard_ = true; }
 
+void finalizeLater(void* object, void (*deleteObject)(void*)) {
+  std::lock_guard<std::mutex> lock(pendingMutex_);
+  finalizeGuardDepth_ = guardDepth_;
+  pending_.emplace_back(object, deleteObject);
+}
+
 Copyable::Copyable(int value) : value_(value) {}
 
 Copyable::Copyable(const Copyable& other) : value_(other.value_) {
@@ -57,6 +73,11 @@ int Copyable::destroyGuardDepth() { return destroyGuardDepth_; }
 
 Thrower::Thrower(int value) : value_(value) {
   if (value < 0) throw std::invalid_argument("negative value");
+}
+
+Thrower::~Thrower() {
+  ++throwersDestroyed_;
+  throwerDestroyGuardDepth_ = guardDepth_;
 }
 
 int Thrower::value() const { return value_; }
@@ -114,5 +135,28 @@ int Thrower::guardDepth() { return CallGuard::depth(); }
 int Thrower::guardCount() { return CallGuard::count(); }
 
 void Thrower::failNextGuard() { CallGuard::failNext(); }
+
+int Thrower::destroyedCount() { return throwersDestroyed_; }
+
+int Thrower::destroyGuardDepth() { return throwerDestroyGuardDepth_; }
+
+int Thrower::pendingFinalizations() {
+  std::lock_guard<std::mutex> lock(pendingMutex_);
+  return static_cast<int>(pending_.size());
+}
+
+int Thrower::finalizeGuardDepth() {
+  std::lock_guard<std::mutex> lock(pendingMutex_);
+  return finalizeGuardDepth_;
+}
+
+void Thrower::runPendingFinalizations() {
+  std::vector<std::pair<void*, void (*)(void*)>> pending;
+  {
+    std::lock_guard<std::mutex> lock(pendingMutex_);
+    pending.swap(pending_);
+  }
+  for (const auto& entry : pending) entry.second(entry.first);
+}
 
 }  // namespace hooks

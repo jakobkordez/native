@@ -100,6 +100,20 @@ class Node implements ffi.Finalizable {
   Node._borrowed(this._ptr, this._isOwnerAlive, {bool isReference = false})
     : _isReference = isReference;
 
+  /// Wraps [ptr], a pointer that C++ returned, without taking ownership of
+  /// it, or returns null if [ptr] is null.
+  ///
+  /// See [Node._borrowed] for [isOwnerAlive].
+  static Node? _borrowedOrNull(
+    ffi.Pointer<ffi.Void> ptr,
+    bool Function()? isOwnerAlive,
+  ) => ptr == ffi.nullptr ? null : Node._borrowed(ptr, isOwnerAlive);
+
+  /// Wraps [ptr], the pointer of a `std::unique_ptr` that C++ returned, and
+  /// takes ownership of it, or returns null if [ptr] is null.
+  static Node? _ownedOrNull(ffi.Pointer<ffi.Void> ptr) =>
+      ptr == ffi.nullptr ? null : Node.fromPointer(ptr, takeOwnership: true);
+
   /// Whether neither this object, nor the object it's borrowed from, if any,
   /// has been disposed.
   bool _isAlive() => _ptr != ffi.nullptr && (_isOwnerAlive?.call() ?? true);
@@ -301,6 +315,22 @@ class NodeContainer implements ffi.Finalizable {
     this._isOwnerAlive, {
     bool isReference = false,
   }) : _isReference = isReference;
+
+  /// Wraps [ptr], a pointer that C++ returned, without taking ownership of
+  /// it, or returns null if [ptr] is null.
+  ///
+  /// See [NodeContainer._borrowed] for [isOwnerAlive].
+  static NodeContainer? _borrowedOrNull(
+    ffi.Pointer<ffi.Void> ptr,
+    bool Function()? isOwnerAlive,
+  ) => ptr == ffi.nullptr ? null : NodeContainer._borrowed(ptr, isOwnerAlive);
+
+  /// Wraps [ptr], the pointer of a `std::unique_ptr` that C++ returned, and
+  /// takes ownership of it, or returns null if [ptr] is null.
+  static NodeContainer? _ownedOrNull(ffi.Pointer<ffi.Void> ptr) =>
+      ptr == ffi.nullptr
+      ? null
+      : NodeContainer.fromPointer(ptr, takeOwnership: true);
 
   /// Whether neither this object, nor the object it's borrowed from, if any,
   /// has been disposed.
@@ -505,6 +535,22 @@ class NodeManager implements ffi.Finalizable {
     bool isReference = false,
   }) : _isReference = isReference;
 
+  /// Wraps [ptr], a pointer that C++ returned, without taking ownership of
+  /// it, or returns null if [ptr] is null.
+  ///
+  /// See [NodeManager._borrowed] for [isOwnerAlive].
+  static NodeManager? _borrowedOrNull(
+    ffi.Pointer<ffi.Void> ptr,
+    bool Function()? isOwnerAlive,
+  ) => ptr == ffi.nullptr ? null : NodeManager._borrowed(ptr, isOwnerAlive);
+
+  /// Wraps [ptr], the pointer of a `std::unique_ptr` that C++ returned, and
+  /// takes ownership of it, or returns null if [ptr] is null.
+  static NodeManager? _ownedOrNull(ffi.Pointer<ffi.Void> ptr) =>
+      ptr == ffi.nullptr
+      ? null
+      : NodeManager.fromPointer(ptr, takeOwnership: true);
+
   /// Whether neither this object, nor the object it's borrowed from, if any,
   /// has been disposed.
   bool _isAlive() => _ptr != ffi.nullptr && (_isOwnerAlive?.call() ?? true);
@@ -574,22 +620,22 @@ class NodeManager implements ffi.Finalizable {
     return _NodeManager_foo(_alivePtr, node._alivePtr);
   }
 
-  Node getNode(int value, ffi.Pointer<ffi.Int> destructorCounter) {
-    return Node._borrowed(
+  Node? getNode(int value, ffi.Pointer<ffi.Int> destructorCounter) {
+    return Node._borrowedOrNull(
       _NodeManager_getNode(_alivePtr, value, destructorCounter),
       _isAlive,
     );
   }
 
-  Node newNode(int value, ffi.Pointer<ffi.Int> destructorCounter) {
-    return Node._borrowed(
+  Node? newNode(int value, ffi.Pointer<ffi.Int> destructorCounter) {
+    return Node._borrowedOrNull(
       _NodeManager_newNode(_alivePtr, value, destructorCounter),
       _isAlive,
     );
   }
 
-  Node getSingletonNode(int value, ffi.Pointer<ffi.Int> destructorCounter) {
-    return Node._borrowed(
+  Node? getSingletonNode(int value, ffi.Pointer<ffi.Int> destructorCounter) {
+    return Node._borrowedOrNull(
       _NodeManager_getSingletonNode(_alivePtr, value, destructorCounter),
       _isAlive,
     );
@@ -603,10 +649,9 @@ class NodeManager implements ffi.Finalizable {
     return _NodeManager_takeNode(_alivePtr, node._alivePtr);
   }
 
-  Node makeNode(int value, ffi.Pointer<ffi.Int> destructorCounter) {
-    return Node.fromPointer(
+  Node? makeNode(int value, ffi.Pointer<ffi.Int> destructorCounter) {
+    return Node._ownedOrNull(
       _NodeManager_makeNode(_alivePtr, value, destructorCounter),
-      takeOwnership: true,
     );
   }
 

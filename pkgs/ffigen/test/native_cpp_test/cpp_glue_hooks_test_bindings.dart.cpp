@@ -190,6 +190,10 @@ FFIGEN_EXPORT void hooks_Copyable_delete(hooks::Copyable* self) {
   delete self;
 }
 
+FFIGEN_EXPORT void hooks_Copyable_finalize(hooks::Copyable* self) {
+  ::hooks::finalizeLater(self, [](void* object) { hooks_Copyable_delete(static_cast<hooks::Copyable*>(object)); });
+}
+
 FFIGEN_EXPORT hooks::Thrower* hooks_Thrower_new(int value) {
   try {
     const ::hooks::CallGuard ffigen_guard{};
@@ -395,9 +399,82 @@ FFIGEN_EXPORT void hooks_Thrower_failNextGuard() {
   }
 }
 
+FFIGEN_EXPORT int hooks_Thrower_destroyedCount() {
+  try {
+    const ::hooks::CallGuard ffigen_guard{};
+    try {
+      return hooks::Thrower::destroyedCount();
+    } catch (...) {
+      ffigen_1qtx5pv_exception_catch();
+    }
+  } catch (...) {
+    ffigen_1qtx5pv_exception_catch();
+  }
+  return {};
+}
+
+FFIGEN_EXPORT int hooks_Thrower_destroyGuardDepth() {
+  try {
+    const ::hooks::CallGuard ffigen_guard{};
+    try {
+      return hooks::Thrower::destroyGuardDepth();
+    } catch (...) {
+      ffigen_1qtx5pv_exception_catch();
+    }
+  } catch (...) {
+    ffigen_1qtx5pv_exception_catch();
+  }
+  return {};
+}
+
+FFIGEN_EXPORT int hooks_Thrower_pendingFinalizations() {
+  try {
+    const ::hooks::CallGuard ffigen_guard{};
+    try {
+      return hooks::Thrower::pendingFinalizations();
+    } catch (...) {
+      ffigen_1qtx5pv_exception_catch();
+    }
+  } catch (...) {
+    ffigen_1qtx5pv_exception_catch();
+  }
+  return {};
+}
+
+FFIGEN_EXPORT int hooks_Thrower_finalizeGuardDepth() {
+  try {
+    const ::hooks::CallGuard ffigen_guard{};
+    try {
+      return hooks::Thrower::finalizeGuardDepth();
+    } catch (...) {
+      ffigen_1qtx5pv_exception_catch();
+    }
+  } catch (...) {
+    ffigen_1qtx5pv_exception_catch();
+  }
+  return {};
+}
+
+FFIGEN_EXPORT void hooks_Thrower_runPendingFinalizations() {
+  try {
+    const ::hooks::CallGuard ffigen_guard{};
+    try {
+      hooks::Thrower::runPendingFinalizations();
+    } catch (...) {
+      ffigen_1qtx5pv_exception_catch();
+    }
+  } catch (...) {
+    ffigen_1qtx5pv_exception_catch();
+  }
+}
+
 FFIGEN_EXPORT void hooks_Thrower_delete(hooks::Thrower* self) {
   const ::hooks::CallGuard ffigen_guard{};
   delete self;
+}
+
+FFIGEN_EXPORT void hooks_Thrower_finalize(hooks::Thrower* self) {
+  ::hooks::finalizeLater(self, [](void* object) { hooks_Thrower_delete(static_cast<hooks::Thrower*>(object)); });
 }
 
 }

@@ -275,6 +275,21 @@ class fld$Base implements ffi.Finalizable {
   fld$Base._borrowed(this._ptr, this._isOwnerAlive, {bool isReference = false})
     : _isReference = isReference;
 
+  /// Wraps [ptr], a pointer that C++ returned, without taking ownership of
+  /// it, or returns null if [ptr] is null.
+  ///
+  /// See [fld$Base._borrowed] for [isOwnerAlive].
+  static fld$Base? _borrowedOrNull(
+    ffi.Pointer<ffi.Void> ptr,
+    bool Function()? isOwnerAlive,
+  ) => ptr == ffi.nullptr ? null : fld$Base._borrowed(ptr, isOwnerAlive);
+
+  /// Wraps [ptr], the pointer of a `std::unique_ptr` that C++ returned, and
+  /// takes ownership of it, or returns null if [ptr] is null.
+  static fld$Base? _ownedOrNull(ffi.Pointer<ffi.Void> ptr) => ptr == ffi.nullptr
+      ? null
+      : fld$Base.fromPointer(ptr, takeOwnership: true);
+
   /// Whether neither this object, nor the object it's borrowed from, if any,
   /// has been disposed.
   bool _isAlive() => _ptr != ffi.nullptr && (_isOwnerAlive?.call() ?? true);
@@ -497,6 +512,22 @@ class fld$Derived implements ffi.Finalizable, fld$Base {
     this._isOwnerAlive, {
     bool isReference = false,
   }) : _isReference = isReference;
+
+  /// Wraps [ptr], a pointer that C++ returned, without taking ownership of
+  /// it, or returns null if [ptr] is null.
+  ///
+  /// See [fld$Derived._borrowed] for [isOwnerAlive].
+  static fld$Derived? _borrowedOrNull(
+    ffi.Pointer<ffi.Void> ptr,
+    bool Function()? isOwnerAlive,
+  ) => ptr == ffi.nullptr ? null : fld$Derived._borrowed(ptr, isOwnerAlive);
+
+  /// Wraps [ptr], the pointer of a `std::unique_ptr` that C++ returned, and
+  /// takes ownership of it, or returns null if [ptr] is null.
+  static fld$Derived? _ownedOrNull(ffi.Pointer<ffi.Void> ptr) =>
+      ptr == ffi.nullptr
+      ? null
+      : fld$Derived.fromPointer(ptr, takeOwnership: true);
 
   /// Whether neither this object, nor the object it's borrowed from, if any,
   /// has been disposed.
@@ -766,6 +797,22 @@ class fld$Frozen implements ffi.Finalizable {
     bool isReference = false,
   }) : _isReference = isReference;
 
+  /// Wraps [ptr], a pointer that C++ returned, without taking ownership of
+  /// it, or returns null if [ptr] is null.
+  ///
+  /// See [fld$Frozen._borrowed] for [isOwnerAlive].
+  static fld$Frozen? _borrowedOrNull(
+    ffi.Pointer<ffi.Void> ptr,
+    bool Function()? isOwnerAlive,
+  ) => ptr == ffi.nullptr ? null : fld$Frozen._borrowed(ptr, isOwnerAlive);
+
+  /// Wraps [ptr], the pointer of a `std::unique_ptr` that C++ returned, and
+  /// takes ownership of it, or returns null if [ptr] is null.
+  static fld$Frozen? _ownedOrNull(ffi.Pointer<ffi.Void> ptr) =>
+      ptr == ffi.nullptr
+      ? null
+      : fld$Frozen.fromPointer(ptr, takeOwnership: true);
+
   /// Whether neither this object, nor the object it's borrowed from, if any,
   /// has been disposed.
   bool _isAlive() => _ptr != ffi.nullptr && (_isOwnerAlive?.call() ?? true);
@@ -979,6 +1026,22 @@ class fld$Sealed implements ffi.Finalizable {
     this._isOwnerAlive, {
     bool isReference = false,
   }) : _isReference = isReference;
+
+  /// Wraps [ptr], a pointer that C++ returned, without taking ownership of
+  /// it, or returns null if [ptr] is null.
+  ///
+  /// See [fld$Sealed._borrowed] for [isOwnerAlive].
+  static fld$Sealed? _borrowedOrNull(
+    ffi.Pointer<ffi.Void> ptr,
+    bool Function()? isOwnerAlive,
+  ) => ptr == ffi.nullptr ? null : fld$Sealed._borrowed(ptr, isOwnerAlive);
+
+  /// Wraps [ptr], the pointer of a `std::unique_ptr` that C++ returned, and
+  /// takes ownership of it, or returns null if [ptr] is null.
+  static fld$Sealed? _ownedOrNull(ffi.Pointer<ffi.Void> ptr) =>
+      ptr == ffi.nullptr
+      ? null
+      : fld$Sealed.fromPointer(ptr, takeOwnership: true);
 
   /// Whether neither this object, nor the object it's borrowed from, if any,
   /// has been disposed.
@@ -1198,6 +1261,22 @@ class fld$Settings implements ffi.Finalizable {
     bool isReference = false,
   }) : _isReference = isReference;
 
+  /// Wraps [ptr], a pointer that C++ returned, without taking ownership of
+  /// it, or returns null if [ptr] is null.
+  ///
+  /// See [fld$Settings._borrowed] for [isOwnerAlive].
+  static fld$Settings? _borrowedOrNull(
+    ffi.Pointer<ffi.Void> ptr,
+    bool Function()? isOwnerAlive,
+  ) => ptr == ffi.nullptr ? null : fld$Settings._borrowed(ptr, isOwnerAlive);
+
+  /// Wraps [ptr], the pointer of a `std::unique_ptr` that C++ returned, and
+  /// takes ownership of it, or returns null if [ptr] is null.
+  static fld$Settings? _ownedOrNull(ffi.Pointer<ffi.Void> ptr) =>
+      ptr == ffi.nullptr
+      ? null
+      : fld$Settings.fromPointer(ptr, takeOwnership: true);
+
   /// Whether neither this object, nor the object it's borrowed from, if any,
   /// has been disposed.
   bool _isAlive() => _ptr != ffi.nullptr && (_isOwnerAlive?.call() ?? true);
@@ -1382,8 +1461,8 @@ class fld$Settings implements ffi.Finalizable {
     return _fld_Settings_get_version(_alivePtr);
   }
 
-  fld$Tag get link {
-    return fld$Tag._borrowed(_fld_Settings_get_link(_alivePtr), _isAlive);
+  fld$Tag? get link {
+    return fld$Tag._borrowedOrNull(_fld_Settings_get_link(_alivePtr), _isAlive);
   }
 
   set link(fld$Tag value) {
@@ -1398,16 +1477,22 @@ class fld$Settings implements ffi.Finalizable {
     _fld_Settings_set_label(_alivePtr, value);
   }
 
-  fld$Tag get owned {
-    return fld$Tag._borrowed(_fld_Settings_get_owned(_alivePtr), _isAlive);
+  fld$Tag? get owned {
+    return fld$Tag._borrowedOrNull(
+      _fld_Settings_get_owned(_alivePtr),
+      _isAlive,
+    );
   }
 
   set owned(fld$Tag value) {
     _fld_Settings_set_owned(_alivePtr, value.detachPointer());
   }
 
-  fld$Tag get ownedConst {
-    return fld$Tag._borrowed(_fld_Settings_get_ownedConst(_alivePtr), _isAlive);
+  fld$Tag? get ownedConst {
+    return fld$Tag._borrowedOrNull(
+      _fld_Settings_get_ownedConst(_alivePtr),
+      _isAlive,
+    );
   }
 
   set ownedConst(fld$Tag value) {
@@ -1776,6 +1861,22 @@ class fld$Skipped implements ffi.Finalizable {
     bool isReference = false,
   }) : _isReference = isReference;
 
+  /// Wraps [ptr], a pointer that C++ returned, without taking ownership of
+  /// it, or returns null if [ptr] is null.
+  ///
+  /// See [fld$Skipped._borrowed] for [isOwnerAlive].
+  static fld$Skipped? _borrowedOrNull(
+    ffi.Pointer<ffi.Void> ptr,
+    bool Function()? isOwnerAlive,
+  ) => ptr == ffi.nullptr ? null : fld$Skipped._borrowed(ptr, isOwnerAlive);
+
+  /// Wraps [ptr], the pointer of a `std::unique_ptr` that C++ returned, and
+  /// takes ownership of it, or returns null if [ptr] is null.
+  static fld$Skipped? _ownedOrNull(ffi.Pointer<ffi.Void> ptr) =>
+      ptr == ffi.nullptr
+      ? null
+      : fld$Skipped.fromPointer(ptr, takeOwnership: true);
+
   /// Whether neither this object, nor the object it's borrowed from, if any,
   /// has been disposed.
   bool _isAlive() => _ptr != ffi.nullptr && (_isOwnerAlive?.call() ?? true);
@@ -1979,6 +2080,20 @@ class fld$Tag implements ffi.Finalizable {
   /// object. [isReference] is whether [_ptr] comes from a C++ reference.
   fld$Tag._borrowed(this._ptr, this._isOwnerAlive, {bool isReference = false})
     : _isReference = isReference;
+
+  /// Wraps [ptr], a pointer that C++ returned, without taking ownership of
+  /// it, or returns null if [ptr] is null.
+  ///
+  /// See [fld$Tag._borrowed] for [isOwnerAlive].
+  static fld$Tag? _borrowedOrNull(
+    ffi.Pointer<ffi.Void> ptr,
+    bool Function()? isOwnerAlive,
+  ) => ptr == ffi.nullptr ? null : fld$Tag._borrowed(ptr, isOwnerAlive);
+
+  /// Wraps [ptr], the pointer of a `std::unique_ptr` that C++ returned, and
+  /// takes ownership of it, or returns null if [ptr] is null.
+  static fld$Tag? _ownedOrNull(ffi.Pointer<ffi.Void> ptr) =>
+      ptr == ffi.nullptr ? null : fld$Tag.fromPointer(ptr, takeOwnership: true);
 
   /// Whether neither this object, nor the object it's borrowed from, if any,
   /// has been disposed.
@@ -2213,6 +2328,21 @@ class fld$View implements ffi.Finalizable {
   /// object. [isReference] is whether [_ptr] comes from a C++ reference.
   fld$View._borrowed(this._ptr, this._isOwnerAlive, {bool isReference = false})
     : _isReference = isReference;
+
+  /// Wraps [ptr], a pointer that C++ returned, without taking ownership of
+  /// it, or returns null if [ptr] is null.
+  ///
+  /// See [fld$View._borrowed] for [isOwnerAlive].
+  static fld$View? _borrowedOrNull(
+    ffi.Pointer<ffi.Void> ptr,
+    bool Function()? isOwnerAlive,
+  ) => ptr == ffi.nullptr ? null : fld$View._borrowed(ptr, isOwnerAlive);
+
+  /// Wraps [ptr], the pointer of a `std::unique_ptr` that C++ returned, and
+  /// takes ownership of it, or returns null if [ptr] is null.
+  static fld$View? _ownedOrNull(ffi.Pointer<ffi.Void> ptr) => ptr == ffi.nullptr
+      ? null
+      : fld$View.fromPointer(ptr, takeOwnership: true);
 
   /// Whether neither this object, nor the object it's borrowed from, if any,
   /// has been disposed.

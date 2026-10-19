@@ -19,6 +19,7 @@ FfiGenerator getConfig([Uri? packageRoot]) {
     input: Input(entryPoints: [testDir.resolve('cpp_glue_hooks_test.h')]),
     cpp: const Cpp(
       glueGuard: '::hooks::CallGuard',
+      finalizerHook: '::hooks::finalizeLater',
       glueIncludes: ['cpp_glue_hooks_guard.h'],
       catchExceptions: true,
     ),

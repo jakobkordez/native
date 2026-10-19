@@ -6,6 +6,7 @@
 // pointer or by reference, which the object it was called on owns.
 
 #include <cstdint>
+#include <memory>
 
 namespace borrow {
 
@@ -52,6 +53,10 @@ class PropertyList {
 
   // Removes the property at index, and returns it. The caller owns it.
   Property* release(int32_t index);
+
+  // Like release, but returns an empty std::unique_ptr if there's no property
+  // at index.
+  std::unique_ptr<Property> take(int32_t index);
 
  private:
   friend class Device;
@@ -110,6 +115,8 @@ class Core {
 class Registry {
  public:
   static Registry& instance();
+  // The registry if condition is true, or null.
+  static Registry* instanceIf(bool condition);
   int32_t size() const;
 
  private:

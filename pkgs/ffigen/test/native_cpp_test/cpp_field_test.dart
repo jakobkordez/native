@@ -121,11 +121,11 @@ void main() {
 
     test('pointer to a C++ class', () {
       final settings = fld$Settings();
-      expect(() => settings.link.pointer, throwsStateError);
+      expect(settings.link, isNull);
 
       final tag = fld$Tag(3);
       settings.link = tag;
-      final link = settings.link;
+      final link = settings.link!;
       expect(link.id, 3);
       expect(link.pointer, tag.pointer);
       expect(link.dispose, throwsStateError);
@@ -150,7 +150,8 @@ void main() {
 
     test('std::unique_ptr', () {
       final settings = fld$Settings();
-      expect(() => settings.owned.pointer, throwsStateError);
+      expect(settings.owned, isNull);
+      expect(settings.ownedConst, isNull);
 
       // The setter takes ownership.
       final tag = fld$Tag(4);
@@ -159,22 +160,22 @@ void main() {
       expect(fld$Tag.liveCount(), 2);
 
       // The getter borrows the pointer.
-      final owned = settings.owned;
+      final owned = settings.owned!;
       expect(owned.id, 4);
       expect(owned.dispose, throwsStateError);
 
       // Assigning deletes the previous object.
       settings.owned = fld$Tag(5);
-      expect(settings.owned.id, 5);
+      expect(settings.owned!.id, 5);
       expect(fld$Tag.liveCount(), 2);
 
       settings.ownedConst = fld$Tag(6);
-      expect(settings.ownedConst.id, 6);
+      expect(settings.ownedConst!.id, 6);
       expect(fld$Tag.liveCount(), 3);
 
       // A wrapper that doesn't own its pointer can't give it away.
       expect(() => settings.owned = settings.tag, throwsStateError);
-      expect(settings.owned.id, 5);
+      expect(settings.owned!.id, 5);
 
       settings.dispose();
       expect(() => owned.id, throwsStateError);

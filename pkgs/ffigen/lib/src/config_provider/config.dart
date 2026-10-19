@@ -225,15 +225,34 @@ final class Cpp {
   /// it, and neither do the `std::vector` ones, unless copying, moving or
   /// destroying the elements runs the code of a C++ class.
   ///
-  /// The glue deleting an object constructs it too, and the `NativeFinalizer`
-  /// calls that glue during garbage collection, on any thread. A C++ call that
-  /// calls back into Dart holds the guard while the callback runs, so the
-  /// callback constructs another guard on the same thread if it calls a
-  /// binding, or triggers a garbage collection that deletes an object: a
-  /// non-recursive lock deadlocks then. Even a recursive lock deadlocks if a
-  /// garbage collection on another thread waits for it to delete an object,
-  /// while the callback waits for that garbage collection to finish.
+  /// The glue deleting an object constructs it too, and without a
+  /// [finalizerHook], the `NativeFinalizer` calls that glue during garbage
+  /// collection, on any thread. A C++ call that calls back into Dart holds the
+  /// guard while the callback runs, so the callback constructs another guard
+  /// on the same thread if it calls a binding, or triggers a garbage
+  /// collection that deletes an object: a non-recursive lock deadlocks then.
+  /// Even a recursive lock deadlocks if a garbage collection on another thread
+  /// waits for it to delete an object, while the callback waits for that
+  /// garbage collection to finish. Set [finalizerHook] to keep the guard out
+  /// of garbage collection.
   final String? glueGuard;
+
+  /// A C++ function that the `NativeFinalizer` of an object hands the object
+  /// to, instead of deleting it during garbage collection.
+  ///
+  /// It's called as `hook(object, deleteObject)`, with a `void*` to the object
+  /// and a `void (*)(void*)` that deletes it through the glue deleting an
+  /// object, which constructs the [glueGuard]. The hook runs during garbage
+  /// collection, on any thread, so it must neither block nor call into Dart,
+  /// and must not throw. It's meant to queue `deleteObject(object)` for a
+  /// thread that can construct the guard, e.g. the next one to release the
+  /// lock the guard takes.
+  ///
+  /// `dispose` still deletes the object right away, through the same glue.
+  ///
+  /// It's written into the glue as is, so name it fully qualified, and declare
+  /// it in one of the entry points or in [glueIncludes].
+  final String? finalizerHook;
 
   /// Headers the C++ glue file includes after the entry points, written into
   /// `#include "..."` as is, e.g. the header declaring [glueGuard]'s type. A
@@ -260,6 +279,7 @@ final class Cpp {
 
   const Cpp({
     this.glueGuard,
+    this.finalizerHook,
     this.glueIncludes = const [],
     this.catchExceptions = false,
   });
