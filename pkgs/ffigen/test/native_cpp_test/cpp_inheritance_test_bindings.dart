@@ -391,6 +391,21 @@ class Circle implements ffi.Finalizable, Shape {
   factory Circle(double x, double y, double radius) {
     return Circle.fromPointer(_Circle_new(x, y, radius), takeOwnership: true);
   }
+
+  /// Returns [object] as a [Circle], or null if it isn't one, which C++'s
+  /// `dynamic_cast` checks.
+  ///
+  /// Unless [object] is already a [Circle] object, the returned object is a new
+  /// one, which is borrowed from [object], like a pointer that an instance
+  /// method returns.
+  static Circle? castOrNull(Shape object) {
+    if (object is Circle) return object;
+    return Circle._borrowedOrNull(
+      _Circle_castOrNull(object._alivePtr),
+      object._isAlive,
+    );
+  }
+
   double area() {
     return _Circle_area(_alivePtr);
   }
@@ -440,6 +455,11 @@ external double _Circle_getY(ffi.Pointer<ffi.Void> self);
 
 @ffi.Native<ffi.Void Function(ffi.Pointer<ffi.Void>)>(symbol: 'Circle_delete')
 external void _Circle_delete(ffi.Pointer<ffi.Void> self);
+
+@ffi.Native<ffi.Pointer<ffi.Void> Function(ffi.Pointer<ffi.Void>)>(
+  symbol: 'Circle_castOrNull',
+)
+external ffi.Pointer<ffi.Void> _Circle_castOrNull(ffi.Pointer<ffi.Void> object);
 
 class ColoredCircle implements ffi.Finalizable, Circle, Drawable {
   ffi.Pointer<ffi.Void> _ptr;
@@ -621,6 +641,21 @@ class ColoredCircle implements ffi.Finalizable, Circle, Drawable {
       takeOwnership: true,
     );
   }
+
+  /// Returns [object] as a [ColoredCircle], or null if it isn't one, which C++'s
+  /// `dynamic_cast` checks.
+  ///
+  /// Unless [object] is already a [ColoredCircle] object, the returned object is a new
+  /// one, which is borrowed from [object], like a pointer that an instance
+  /// method returns.
+  static ColoredCircle? castOrNull(Shape object) {
+    if (object is ColoredCircle) return object;
+    return ColoredCircle._borrowedOrNull(
+      _ColoredCircle_castOrNull(object._alivePtr),
+      object._isAlive,
+    );
+  }
+
   int getColor() {
     return _ColoredCircle_getColor(_alivePtr);
   }
@@ -701,6 +736,13 @@ external int _ColoredCircle_draw(ffi.Pointer<ffi.Void> self);
   symbol: 'ColoredCircle_delete',
 )
 external void _ColoredCircle_delete(ffi.Pointer<ffi.Void> self);
+
+@ffi.Native<ffi.Pointer<ffi.Void> Function(ffi.Pointer<ffi.Void>)>(
+  symbol: 'ColoredCircle_castOrNull',
+)
+external ffi.Pointer<ffi.Void> _ColoredCircle_castOrNull(
+  ffi.Pointer<ffi.Void> object,
+);
 
 class DiamondBase implements ffi.Finalizable {
   ffi.Pointer<ffi.Void> _ptr;
@@ -1105,6 +1147,21 @@ class DiamondDerived implements ffi.Finalizable, DiamondLeft, DiamondRight {
       takeOwnership: true,
     );
   }
+
+  /// Returns [object] as a [DiamondDerived], or null if it isn't one, which C++'s
+  /// `dynamic_cast` checks.
+  ///
+  /// Unless [object] is already a [DiamondDerived] object, the returned object is a new
+  /// one, which is borrowed from [object], like a pointer that an instance
+  /// method returns.
+  static DiamondDerived? castOrNull(DiamondLeft object) {
+    if (object is DiamondDerived) return object;
+    return DiamondDerived._borrowedOrNull(
+      _DiamondDerived_castOrNull(object._alivePtr),
+      object._isAlive,
+    );
+  }
+
   int virtVal() {
     return _DiamondDerived_virtVal(_alivePtr);
   }
@@ -1151,6 +1208,13 @@ external int _DiamondDerived_baseVal(ffi.Pointer<ffi.Void> self);
   symbol: 'DiamondDerived_delete',
 )
 external void _DiamondDerived_delete(ffi.Pointer<ffi.Void> self);
+
+@ffi.Native<ffi.Pointer<ffi.Void> Function(ffi.Pointer<ffi.Void>)>(
+  symbol: 'DiamondDerived_castOrNull',
+)
+external ffi.Pointer<ffi.Void> _DiamondDerived_castOrNull(
+  ffi.Pointer<ffi.Void> object,
+);
 
 class DiamondLeft implements ffi.Finalizable, DiamondBase {
   ffi.Pointer<ffi.Void> _ptr;
@@ -2212,6 +2276,21 @@ class OverloadDerived implements ffi.Finalizable, OverloadBase {
       takeOwnership: true,
     );
   }
+
+  /// Returns [object] as a [OverloadDerived], or null if it isn't one, which C++'s
+  /// `dynamic_cast` checks.
+  ///
+  /// Unless [object] is already a [OverloadDerived] object, the returned object is a new
+  /// one, which is borrowed from [object], like a pointer that an instance
+  /// method returns.
+  static OverloadDerived? castOrNull(OverloadBase object) {
+    if (object is OverloadDerived) return object;
+    return OverloadDerived._borrowedOrNull(
+      _OverloadDerived_castOrNull(object._alivePtr),
+      object._isAlive,
+    );
+  }
+
   int getValue(int x) {
     return _OverloadDerived_getValue(_alivePtr, x);
   }
@@ -2261,6 +2340,13 @@ external double _OverloadDerived_getValueDouble(
   symbol: 'OverloadDerived_delete',
 )
 external void _OverloadDerived_delete(ffi.Pointer<ffi.Void> self);
+
+@ffi.Native<ffi.Pointer<ffi.Void> Function(ffi.Pointer<ffi.Void>)>(
+  symbol: 'OverloadDerived_castOrNull',
+)
+external ffi.Pointer<ffi.Void> _OverloadDerived_castOrNull(
+  ffi.Pointer<ffi.Void> object,
+);
 
 class PrivateDerived implements ffi.Finalizable {
   ffi.Pointer<ffi.Void> _ptr;
@@ -3280,6 +3366,21 @@ class Square implements ffi.Finalizable, Shape {
   factory Square(double x, double y, double side) {
     return Square.fromPointer(_Square_new(x, y, side), takeOwnership: true);
   }
+
+  /// Returns [object] as a [Square], or null if it isn't one, which C++'s
+  /// `dynamic_cast` checks.
+  ///
+  /// Unless [object] is already a [Square] object, the returned object is a new
+  /// one, which is borrowed from [object], like a pointer that an instance
+  /// method returns.
+  static Square? castOrNull(Shape object) {
+    if (object is Square) return object;
+    return Square._borrowedOrNull(
+      _Square_castOrNull(object._alivePtr),
+      object._isAlive,
+    );
+  }
+
   double getX() {
     return _Square_getX(_alivePtr);
   }
@@ -3329,3 +3430,8 @@ external double _Square_getY(ffi.Pointer<ffi.Void> self);
 
 @ffi.Native<ffi.Void Function(ffi.Pointer<ffi.Void>)>(symbol: 'Square_delete')
 external void _Square_delete(ffi.Pointer<ffi.Void> self);
+
+@ffi.Native<ffi.Pointer<ffi.Void> Function(ffi.Pointer<ffi.Void>)>(
+  symbol: 'Square_castOrNull',
+)
+external ffi.Pointer<ffi.Void> _Square_castOrNull(ffi.Pointer<ffi.Void> object);

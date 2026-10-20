@@ -247,6 +247,18 @@ class CppClass extends BindingType with HasLocalScope {
   /// `std::vector`.
   final bool isCopyable;
 
+  /// Whether the class declares or inherits a virtual method, so C++ can tell
+  /// the class of an object through a pointer to it.
+  final bool isPolymorphic;
+
+  /// Whether the first of [bases] is the first base that the class declares,
+  /// and isn't virtual.
+  ///
+  /// If both classes are polymorphic, an object of this class then starts with
+  /// that base, so a pointer to the object is also one to the base, which a
+  /// Dart object of this class passes where the base is expected.
+  bool startsWithFirstBase = false;
+
   /// The C glue function that the `NativeFinalizer` calls to hand an object
   /// to the `Cpp.finalizerHook`, see [finalizesThroughHook].
   ///
@@ -256,6 +268,33 @@ class CppClass extends BindingType with HasLocalScope {
     '${cSymbolPrefix}_finalize',
     SymbolKind.method,
   );
+
+  /// The C glue function that `castOrNull` calls to downcast an object to
+  /// this class, see [castRoot].
+  late final Symbol castSymbol = Symbol(
+    '${cSymbolPrefix}_castOrNull',
+    SymbolKind.method,
+  );
+
+  /// The class that `castOrNull` downcasts from, or null if this class has
+  /// none.
+  ///
+  /// That's the topmost of this class's first base, its first base's first
+  /// base and so on, as long as each is polymorphic, so that C++'s
+  /// `dynamic_cast` can check the object's class, and [startsWithFirstBase],
+  /// so that the pointer of a Dart object of any class along the way is also
+  /// one to it.
+  CppClass? get castRoot {
+    CppClass? root;
+    for (
+      var c = this;
+      c.startsWithFirstBase && c.bases.first.isPolymorphic;
+      c = c.bases.first
+    ) {
+      root = c.bases.first;
+    }
+    return root;
+  }
 
   CppClass({
     super.usr,
@@ -270,6 +309,7 @@ class CppClass extends BindingType with HasLocalScope {
     this.hasPublicDestructor = true,
     this.isDeletable = true,
     this.isCopyable = true,
+    this.isPolymorphic = false,
   });
 
   /// The names of the members that every class wrapper has, including those
@@ -281,6 +321,7 @@ class CppClass extends BindingType with HasLocalScope {
     'noSuchMethod',
     'toString',
     'fromPointer',
+    'castOrNull',
     'retainOwnership',
     'releaseOwnership',
     'detachPointer',
@@ -660,6 +701,25 @@ class $name implements $implementsClause {
 ''');
     }
 
+    if (castRoot case final root?) {
+      s.write('''
+  /// Returns [object] as a [$name], or null if it isn't one, which C++'s
+  /// `dynamic_cast` checks.
+  ///
+  /// Unless [object] is already a [$name] object, the returned object is a new
+  /// one, which is borrowed from [object], like a pointer that an instance
+  /// method returns.
+  static $name? castOrNull(${root.name} object) {
+    if (object is $name) return object;
+    return $name._borrowedOrNull(
+      _${castSymbol.name}(object._alivePtr),
+      object._isAlive,
+    );
+  }
+
+''');
+    }
+
     for (final field in fields) {
       // A returned pointer or reference is borrowed from this object.
       final getterCall = checkedCall('_${field.getterSymbol.name}(_alivePtr)');
@@ -853,6 +913,15 @@ class $name implements $implementsClause {
         ffiParams: '$ptrVoid self',
       );
     }
+    if (castRoot != null) {
+      writeNativeDecl(
+        symbol: castSymbol.name,
+        glue: '_${castSymbol.name}',
+        cType: '$ptrVoid Function($ptrVoid)',
+        ffiReturn: ptrVoid,
+        ffiParams: '$ptrVoid object',
+      );
+    }
 
     return BindingString(
       type: BindingStringType.cppClass,
@@ -888,6 +957,18 @@ FFIGEN_EXPORT void ${Namer.cSafeName(finalizeSymbol.name)}($originalName* self) 
   $hook(self, [](void* object) { $deleteName(static_cast<$originalName*>(object)); });
 }''',
       _ => null,
+    };
+
+    // `castOrNull`'s glue. It only reads the object's class, without calling
+    // into the library, so it constructs no `Cpp.glueGuard`, and
+    // `dynamic_cast` of a pointer doesn't throw.
+    final castWrapper = switch (castRoot) {
+      final root? =>
+        '''
+FFIGEN_EXPORT $originalName* ${Namer.cSafeName(castSymbol.name)}(${root.originalName}* object) {
+  return dynamic_cast<$originalName*>(object);
+}''',
+      null => null,
     };
 
     final methodBindings = methods
@@ -962,6 +1043,7 @@ FFIGEN_EXPORT $returnTypeString $symbol($params) {
       ...fieldBindings,
       if (isDeletable) deleteWrapper,
       ?finalizeWrapper,
+      ?castWrapper,
     ].map((binding) => '$binding\n\n').join();
   }
 

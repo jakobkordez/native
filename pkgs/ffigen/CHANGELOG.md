@@ -172,6 +172,14 @@
   or reference field, and a class template instantiation other than the
   standard library's containers, strings and smart pointers, count as ones
   that can't.
+- Add a static `castOrNull` method to the Dart class of a C++ class whose
+  first base is polymorphic, which downcasts an object of that base, or of the
+  base's own first base and so on, to the class, checked by C++'s
+  `dynamic_cast`, so the C++ code needs RTTI. It returns null if the object
+  isn't of the class, the object itself if its Dart object already is, and
+  otherwise a new object borrowed from it. It downcasts from the topmost
+  polymorphic class reachable through first bases that aren't virtual, since
+  a Dart object's pointer is only also a pointer to those.
 
 ## 23.0.0
 

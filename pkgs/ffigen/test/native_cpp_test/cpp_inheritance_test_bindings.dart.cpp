@@ -41,6 +41,10 @@ FFIGEN_EXPORT void Circle_delete(Circle* self) {
   delete self;
 }
 
+FFIGEN_EXPORT Circle* Circle_castOrNull(Shape* object) {
+  return dynamic_cast<Circle*>(object);
+}
+
 FFIGEN_EXPORT ColoredCircle* ColoredCircle_new(double x, double y, double radius, int color) {
   return new ColoredCircle(x, y, radius, color);
 }
@@ -67,6 +71,10 @@ FFIGEN_EXPORT int ColoredCircle_draw(const ColoredCircle* self) {
 
 FFIGEN_EXPORT void ColoredCircle_delete(ColoredCircle* self) {
   delete self;
+}
+
+FFIGEN_EXPORT ColoredCircle* ColoredCircle_castOrNull(Shape* object) {
+  return dynamic_cast<ColoredCircle*>(object);
 }
 
 FFIGEN_EXPORT DiamondBase* DiamondBase_new() {
@@ -99,6 +107,10 @@ FFIGEN_EXPORT int DiamondDerived_baseVal(const DiamondDerived* self) {
 
 FFIGEN_EXPORT void DiamondDerived_delete(DiamondDerived* self) {
   delete self;
+}
+
+FFIGEN_EXPORT DiamondDerived* DiamondDerived_castOrNull(DiamondLeft* object) {
+  return dynamic_cast<DiamondDerived*>(object);
 }
 
 FFIGEN_EXPORT DiamondLeft* DiamondLeft_new() {
@@ -177,6 +189,10 @@ FFIGEN_EXPORT void OverloadDerived_delete(OverloadDerived* self) {
   delete self;
 }
 
+FFIGEN_EXPORT OverloadDerived* OverloadDerived_castOrNull(OverloadBase* object) {
+  return dynamic_cast<OverloadDerived*>(object);
+}
+
 FFIGEN_EXPORT PrivateDerived* PrivateDerived_new() {
   return new PrivateDerived();
 }
@@ -239,6 +255,10 @@ FFIGEN_EXPORT double Square_getY(const Square* self) {
 
 FFIGEN_EXPORT void Square_delete(Square* self) {
   delete self;
+}
+
+FFIGEN_EXPORT Square* Square_castOrNull(Shape* object) {
+  return dynamic_cast<Square*>(object);
 }
 
 }

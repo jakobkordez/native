@@ -61,6 +61,10 @@ FFIGEN_EXPORT void farm_Creature_delete(farm::Creature* self) {
   delete self;
 }
 
+FFIGEN_EXPORT farm::Creature* farm_Creature_castOrNull(zoo::Creature* object) {
+  return dynamic_cast<farm::Creature*>(object);
+}
+
 FFIGEN_EXPORT zoo::Creature* zoo_Creature_new(int age) {
   return new zoo::Creature(age);
 }
@@ -135,6 +139,10 @@ FFIGEN_EXPORT zoo::Creature* zoo_Dog_create(int age) {
 
 FFIGEN_EXPORT void zoo_Dog_delete(zoo::Dog* self) {
   delete self;
+}
+
+FFIGEN_EXPORT zoo::Dog* zoo_Dog_castOrNull(zoo::Creature* object) {
+  return dynamic_cast<zoo::Dog*>(object);
 }
 
 FFIGEN_EXPORT zoo::Keeper* zoo_Keeper_new(int badgeNumber) {

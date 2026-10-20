@@ -128,5 +128,48 @@ void main() {
 
       d.dispose();
     });
+
+    test('castOrNull checks the class of a base object', () {
+      final shape = Shape.fromPointer(
+        Circle(1.0, 2.0, 3.0).detachPointer(),
+        takeOwnership: true,
+      );
+
+      final circle = Circle.castOrNull(shape);
+      expect(circle, isNotNull);
+      expect(circle!.area(), closeTo(28.2743, 0.001));
+      expect(Square.castOrNull(shape), isNull);
+      expect(ColoredCircle.castOrNull(shape), isNull);
+
+      // The cast object is borrowed from the base object.
+      shape.dispose();
+      expect(circle.area, throwsStateError);
+    });
+
+    test('castOrNull returns an object that is already of the class', () {
+      final circle = Circle(1.0, 2.0, 3.0);
+      expect(Circle.castOrNull(circle), same(circle));
+      circle.dispose();
+    });
+
+    test('castOrNull takes an object of any class along the first bases', () {
+      final coloredCircle = ColoredCircle(1.0, 2.0, 3.0, 0xFF00FF);
+      final shape = Shape.fromPointer(coloredCircle.pointer);
+
+      final circle = Circle.castOrNull(shape)!;
+      expect(ColoredCircle.castOrNull(shape)!.getColor(), 0xFF00FF);
+      expect(ColoredCircle.castOrNull(circle)!.getColor(), 0xFF00FF);
+
+      coloredCircle.dispose();
+    });
+
+    test('castOrNull stops at a virtual base', () {
+      // DiamondLeft's first base is virtual, so DiamondDerived downcasts from
+      // DiamondLeft, its first base, and DiamondLeft downcasts from nothing.
+      final d = DiamondDerived();
+      final left = DiamondLeft.fromPointer(d.pointer);
+      expect(DiamondDerived.castOrNull(left)!.virtVal(), 200);
+      d.dispose();
+    });
   });
 }

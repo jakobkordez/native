@@ -97,6 +97,10 @@ FFIGEN_EXPORT void access_Polygon_delete(access::Polygon* self) {
   delete self;
 }
 
+FFIGEN_EXPORT access::Polygon* access_Polygon_castOrNull(access::Shape* object) {
+  return dynamic_cast<access::Polygon*>(object);
+}
+
 FFIGEN_EXPORT access::Recorder* access_Recorder_new() {
   return new access::Recorder();
 }
@@ -115,6 +119,10 @@ FFIGEN_EXPORT access::Listener* access_Recorder_asListener(access::Recorder* sel
 
 FFIGEN_EXPORT void access_Recorder_delete(access::Recorder* self) {
   delete self;
+}
+
+FFIGEN_EXPORT access::Recorder* access_Recorder_castOrNull(access::Listener* object) {
+  return dynamic_cast<access::Recorder*>(object);
 }
 
 FFIGEN_EXPORT access::Registry* access_Registry_instance() {
@@ -177,6 +185,10 @@ FFIGEN_EXPORT void access_Square_delete(access::Square* self) {
   delete self;
 }
 
+FFIGEN_EXPORT access::Square* access_Square_castOrNull(access::Shape* object) {
+  return dynamic_cast<access::Square*>(object);
+}
+
 FFIGEN_EXPORT int32_t access_SubRegistry_depth(const access::SubRegistry* self) {
   return self->depth();
 }
@@ -211,6 +223,10 @@ FFIGEN_EXPORT void access_Widget_destroy(access::Widget* widget) {
 
 FFIGEN_EXPORT int32_t access_Widget_drawCopy(access::Widget* widget) {
   return access::Widget::drawCopy(*widget);
+}
+
+FFIGEN_EXPORT access::Widget* access_Widget_castOrNull(access::Drawable* object) {
+  return dynamic_cast<access::Widget*>(object);
 }
 
 }

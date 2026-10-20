@@ -88,6 +88,7 @@ class FindSymbolsVisitation extends Visitation {
     if (node.finalizesThroughHook) {
       context.rootCppScope.add(node.finalizeSymbol);
     }
+    if (node.castRoot != null) context.rootCppScope.add(node.castSymbol);
     super.visitCppClass(node);
   }
 

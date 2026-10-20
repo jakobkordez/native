@@ -79,6 +79,7 @@ CppClass? parseClassDeclaration(Context context, clang_types.CXCursor cursor) {
         hasPublicDestructor &&
         (destructor.isVirtual || !_isPolymorphic(cursor)),
     isCopyable: _isCopyable(cursor),
+    isPolymorphic: _isPolymorphic(cursor),
   );
 
   context.bindingsIndex.addCppClassToSeen(usr, cppClass);
@@ -127,7 +128,9 @@ CppClass? parseClassDeclaration(Context context, clang_types.CXCursor cursor) {
   }
 
   // Parse public base classes (only public specifiers; non-public are ignored).
-  cppClass.bases.addAll(_parsePublicBases(context, cursor));
+  final (:bases, :startsWithFirstBase) = _parsePublicBases(context, cursor);
+  cppClass.bases.addAll(bases);
+  cppClass.startsWithFirstBase = startsWithFirstBase;
 
   return cppClass;
 }
@@ -245,12 +248,22 @@ const _defaultConstructibleStdTemplates = [
 ];
 
 /// Parses the direct public base classes of [cursor].
-List<CppClass> _parsePublicBases(Context context, clang_types.CXCursor cursor) {
+///
+/// Also returns whether the first of them is the first base that the class
+/// declares, and isn't virtual, see [CppClass.startsWithFirstBase].
+({List<CppClass> bases, bool startsWithFirstBase}) _parsePublicBases(
+  Context context,
+  clang_types.CXCursor cursor,
+) {
   final bases = <CppClass>[];
+  var isFirstSpecifier = true;
+  var startsWithFirstBase = false;
 
   cursor.visitChildren((child) {
     final kind = clang.clang_getCursorKind(child);
     if (kind != clang_types.CXCursorKind.CXCursor_CXXBaseSpecifier) return;
+    final isFirst = isFirstSpecifier;
+    isFirstSpecifier = false;
 
     final access = clang.clang_getCXXAccessSpecifier(child);
     if (access != clang_types.CX_CXXAccessSpecifier.CX_CXXPublic) return;
@@ -259,16 +272,17 @@ List<CppClass> _parsePublicBases(Context context, clang_types.CXCursor cursor) {
     final baseDeclCursor = clang.clang_getTypeDeclaration(baseType);
     final baseUsr = baseDeclCursor.usr();
 
-    final baseClass = context.bindingsIndex.getSeenCppClass(baseUsr);
-    if (baseClass == null) {
-      final parsed = parseClassDeclaration(context, baseDeclCursor);
-      if (parsed != null) bases.add(parsed);
-    } else {
-      bases.add(baseClass);
+    final baseClass =
+        context.bindingsIndex.getSeenCppClass(baseUsr) ??
+        parseClassDeclaration(context, baseDeclCursor);
+    if (baseClass == null) return;
+    if (isFirst) {
+      startsWithFirstBase = clang.clang_isVirtualBase(child) == 0;
     }
+    bases.add(baseClass);
   });
 
-  return bases;
+  return (bases: bases, startsWithFirstBase: startsWithFirstBase);
 }
 
 /// Whether the class or enum at [cursor] can be named from outside of it,

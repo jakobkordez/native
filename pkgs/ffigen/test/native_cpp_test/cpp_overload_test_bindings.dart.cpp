@@ -313,6 +313,10 @@ FFIGEN_EXPORT void lab_Refinement_delete(lab::Refinement* self) {
   delete self;
 }
 
+FFIGEN_EXPORT lab::Refinement* lab_Refinement_castOrNull(lab::Experiment* object) {
+  return dynamic_cast<lab::Refinement*>(object);
+}
+
 FFIGEN_EXPORT lab::Variant* lab_Variant_new(int32_t id) {
   return new lab::Variant(id);
 }
@@ -443,6 +447,10 @@ FFIGEN_EXPORT bool lab_Variant_operatorLogicalNot(const lab::Variant* self) {
 
 FFIGEN_EXPORT void lab_Variant_delete(lab::Variant* self) {
   delete self;
+}
+
+FFIGEN_EXPORT lab::Variant* lab_Variant_castOrNull(lab::Experiment* object) {
+  return dynamic_cast<lab::Variant*>(object);
 }
 
 }

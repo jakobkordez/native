@@ -1070,6 +1070,21 @@ class lab$Refinement implements ffi.Finalizable, lab$Variant {
       takeOwnership: true,
     );
   }
+
+  /// Returns [object] as a [lab$Refinement], or null if it isn't one, which C++'s
+  /// `dynamic_cast` checks.
+  ///
+  /// Unless [object] is already a [lab$Refinement] object, the returned object is a new
+  /// one, which is borrowed from [object], like a pointer that an instance
+  /// method returns.
+  static lab$Refinement? castOrNull(lab$Experiment object) {
+    if (object is lab$Refinement) return object;
+    return lab$Refinement._borrowedOrNull(
+      _lab_Refinement_castOrNull(object._alivePtr),
+      object._isAlive,
+    );
+  }
+
   double add$1(double a, double b) {
     return _lab_Refinement_add(_alivePtr, a, b);
   }
@@ -1479,6 +1494,13 @@ external bool _lab_Refinement_operatorLogicalNot(ffi.Pointer<ffi.Void> self);
 )
 external void _lab$Refinement_delete(ffi.Pointer<ffi.Void> self);
 
+@ffi.Native<ffi.Pointer<ffi.Void> Function(ffi.Pointer<ffi.Void>)>(
+  symbol: 'lab_Refinement_castOrNull',
+)
+external ffi.Pointer<ffi.Void> _lab_Refinement_castOrNull(
+  ffi.Pointer<ffi.Void> object,
+);
+
 class lab$Variant implements ffi.Finalizable, lab$Experiment {
   ffi.Pointer<ffi.Void> _ptr;
   static final _defaultFinalizer = ffi.NativeFinalizer(
@@ -1656,6 +1678,21 @@ class lab$Variant implements ffi.Finalizable, lab$Experiment {
   factory lab$Variant(int id) {
     return lab$Variant.fromPointer(_lab_Variant_new(id), takeOwnership: true);
   }
+
+  /// Returns [object] as a [lab$Variant], or null if it isn't one, which C++'s
+  /// `dynamic_cast` checks.
+  ///
+  /// Unless [object] is already a [lab$Variant] object, the returned object is a new
+  /// one, which is borrowed from [object], like a pointer that an instance
+  /// method returns.
+  static lab$Variant? castOrNull(lab$Experiment object) {
+    if (object is lab$Variant) return object;
+    return lab$Variant._borrowedOrNull(
+      _lab_Variant_castOrNull(object._alivePtr),
+      object._isAlive,
+    );
+  }
+
   double add$1(double a, double b) {
     return _lab_Variant_add(_alivePtr, a, b);
   }
@@ -2056,3 +2093,10 @@ external bool _lab_Variant_operatorLogicalNot(ffi.Pointer<ffi.Void> self);
   symbol: 'lab_Variant_delete',
 )
 external void _lab$Variant_delete(ffi.Pointer<ffi.Void> self);
+
+@ffi.Native<ffi.Pointer<ffi.Void> Function(ffi.Pointer<ffi.Void>)>(
+  symbol: 'lab_Variant_castOrNull',
+)
+external ffi.Pointer<ffi.Void> _lab_Variant_castOrNull(
+  ffi.Pointer<ffi.Void> object,
+);

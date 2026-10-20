@@ -1021,6 +1021,20 @@ class access$Polygon implements ffi.Finalizable, access$Shape {
     return rawPtr;
   }
 
+  /// Returns [object] as a [access$Polygon], or null if it isn't one, which C++'s
+  /// `dynamic_cast` checks.
+  ///
+  /// Unless [object] is already a [access$Polygon] object, the returned object is a new
+  /// one, which is borrowed from [object], like a pointer that an instance
+  /// method returns.
+  static access$Polygon? castOrNull(access$Shape object) {
+    if (object is access$Polygon) return object;
+    return access$Polygon._borrowedOrNull(
+      _access_Polygon_castOrNull(object._alivePtr),
+      object._isAlive,
+    );
+  }
+
   int sides() {
     return _access_Polygon_sides(_alivePtr);
   }
@@ -1089,6 +1103,13 @@ external int _access_Polygon_liveCount();
   symbol: 'access_Polygon_delete',
 )
 external void _access$Polygon_delete(ffi.Pointer<ffi.Void> self);
+
+@ffi.Native<ffi.Pointer<ffi.Void> Function(ffi.Pointer<ffi.Void>)>(
+  symbol: 'access_Polygon_castOrNull',
+)
+external ffi.Pointer<ffi.Void> _access_Polygon_castOrNull(
+  ffi.Pointer<ffi.Void> object,
+);
 
 class access$Recorder implements ffi.Finalizable, access$Listener {
   ffi.Pointer<ffi.Void> _ptr;
@@ -1270,6 +1291,21 @@ class access$Recorder implements ffi.Finalizable, access$Listener {
       takeOwnership: true,
     );
   }
+
+  /// Returns [object] as a [access$Recorder], or null if it isn't one, which C++'s
+  /// `dynamic_cast` checks.
+  ///
+  /// Unless [object] is already a [access$Recorder] object, the returned object is a new
+  /// one, which is borrowed from [object], like a pointer that an instance
+  /// method returns.
+  static access$Recorder? castOrNull(access$Listener object) {
+    if (object is access$Recorder) return object;
+    return access$Recorder._borrowedOrNull(
+      _access_Recorder_castOrNull(object._alivePtr),
+      object._isAlive,
+    );
+  }
+
   int notify(int event) {
     return _access_Recorder_notify(_alivePtr, event);
   }
@@ -1330,6 +1366,13 @@ external ffi.Pointer<ffi.Void> _access_Recorder_asListener(
   symbol: 'access_Recorder_delete',
 )
 external void _access$Recorder_delete(ffi.Pointer<ffi.Void> self);
+
+@ffi.Native<ffi.Pointer<ffi.Void> Function(ffi.Pointer<ffi.Void>)>(
+  symbol: 'access_Recorder_castOrNull',
+)
+external ffi.Pointer<ffi.Void> _access_Recorder_castOrNull(
+  ffi.Pointer<ffi.Void> object,
+);
 
 class access$Registry implements ffi.Finalizable {
   ffi.Pointer<ffi.Void> _ptr;
@@ -1942,6 +1985,21 @@ class access$Square implements ffi.Finalizable, access$Polygon {
       takeOwnership: true,
     );
   }
+
+  /// Returns [object] as a [access$Square], or null if it isn't one, which C++'s
+  /// `dynamic_cast` checks.
+  ///
+  /// Unless [object] is already a [access$Square] object, the returned object is a new
+  /// one, which is borrowed from [object], like a pointer that an instance
+  /// method returns.
+  static access$Square? castOrNull(access$Shape object) {
+    if (object is access$Square) return object;
+    return access$Square._borrowedOrNull(
+      _access_Square_castOrNull(object._alivePtr),
+      object._isAlive,
+    );
+  }
+
   double area() {
     return _access_Square_area(_alivePtr);
   }
@@ -2015,6 +2073,13 @@ external int _access_Square_liveCount();
   symbol: 'access_Square_delete',
 )
 external void _access$Square_delete(ffi.Pointer<ffi.Void> self);
+
+@ffi.Native<ffi.Pointer<ffi.Void> Function(ffi.Pointer<ffi.Void>)>(
+  symbol: 'access_Square_castOrNull',
+)
+external ffi.Pointer<ffi.Void> _access_Square_castOrNull(
+  ffi.Pointer<ffi.Void> object,
+);
 
 class access$SubRegistry implements ffi.Finalizable, access$Registry {
   ffi.Pointer<ffi.Void> _ptr;
@@ -2382,6 +2447,21 @@ class access$Widget implements ffi.Finalizable, access$Drawable {
   factory access$Widget.new$1(access$Widget other) {
     return access$Widget.fromPointer(_access_Widget_new$1(other._alivePtr));
   }
+
+  /// Returns [object] as a [access$Widget], or null if it isn't one, which C++'s
+  /// `dynamic_cast` checks.
+  ///
+  /// Unless [object] is already a [access$Widget] object, the returned object is a new
+  /// one, which is borrowed from [object], like a pointer that an instance
+  /// method returns.
+  static access$Widget? castOrNull(access$Drawable object) {
+    if (object is access$Widget) return object;
+    return access$Widget._borrowedOrNull(
+      _access_Widget_castOrNull(object._alivePtr),
+      object._isAlive,
+    );
+  }
+
   int draw() {
     return _access_Widget_draw(_alivePtr);
   }
@@ -2446,3 +2526,10 @@ external void _access_Widget_destroy(ffi.Pointer<ffi.Void> widget);
   symbol: 'access_Widget_drawCopy',
 )
 external int _access_Widget_drawCopy(ffi.Pointer<ffi.Void> widget);
+
+@ffi.Native<ffi.Pointer<ffi.Void> Function(ffi.Pointer<ffi.Void>)>(
+  symbol: 'access_Widget_castOrNull',
+)
+external ffi.Pointer<ffi.Void> _access_Widget_castOrNull(
+  ffi.Pointer<ffi.Void> object,
+);

@@ -403,6 +403,21 @@ class farm$Creature implements ffi.Finalizable, zoo$Creature {
       takeOwnership: true,
     );
   }
+
+  /// Returns [object] as a [farm$Creature], or null if it isn't one, which C++'s
+  /// `dynamic_cast` checks.
+  ///
+  /// Unless [object] is already a [farm$Creature] object, the returned object is a new
+  /// one, which is borrowed from [object], like a pointer that an instance
+  /// method returns.
+  static farm$Creature? castOrNull(zoo$Creature object) {
+    if (object is farm$Creature) return object;
+    return farm$Creature._borrowedOrNull(
+      _farm_Creature_castOrNull(object._alivePtr),
+      object._isAlive,
+    );
+  }
+
   int getLegs() {
     return _farm_Creature_getLegs(_alivePtr);
   }
@@ -512,6 +527,13 @@ external ffi.Pointer<ffi.Void> _farm_Creature_create(int age);
   symbol: 'farm_Creature_delete',
 )
 external void _farm$Creature_delete(ffi.Pointer<ffi.Void> self);
+
+@ffi.Native<ffi.Pointer<ffi.Void> Function(ffi.Pointer<ffi.Void>)>(
+  symbol: 'farm_Creature_castOrNull',
+)
+external ffi.Pointer<ffi.Void> _farm_Creature_castOrNull(
+  ffi.Pointer<ffi.Void> object,
+);
 
 class zoo$Creature implements ffi.Finalizable {
   ffi.Pointer<ffi.Void> _ptr;
@@ -963,6 +985,21 @@ class zoo$Dog implements ffi.Finalizable, zoo$Creature {
   factory zoo$Dog(int age) {
     return zoo$Dog.fromPointer(_zoo_Dog_new(age), takeOwnership: true);
   }
+
+  /// Returns [object] as a [zoo$Dog], or null if it isn't one, which C++'s
+  /// `dynamic_cast` checks.
+  ///
+  /// Unless [object] is already a [zoo$Dog] object, the returned object is a new
+  /// one, which is borrowed from [object], like a pointer that an instance
+  /// method returns.
+  static zoo$Dog? castOrNull(zoo$Creature object) {
+    if (object is zoo$Dog) return object;
+    return zoo$Dog._borrowedOrNull(
+      _zoo_Dog_castOrNull(object._alivePtr),
+      object._isAlive,
+    );
+  }
+
   int bark() {
     return _zoo_Dog_bark(_alivePtr);
   }
@@ -1062,6 +1099,13 @@ external ffi.Pointer<ffi.Void> _zoo_Dog_create(int age);
 
 @ffi.Native<ffi.Void Function(ffi.Pointer<ffi.Void>)>(symbol: 'zoo_Dog_delete')
 external void _zoo$Dog_delete(ffi.Pointer<ffi.Void> self);
+
+@ffi.Native<ffi.Pointer<ffi.Void> Function(ffi.Pointer<ffi.Void>)>(
+  symbol: 'zoo_Dog_castOrNull',
+)
+external ffi.Pointer<ffi.Void> _zoo_Dog_castOrNull(
+  ffi.Pointer<ffi.Void> object,
+);
 
 class zoo$Keeper implements ffi.Finalizable {
   ffi.Pointer<ffi.Void> _ptr;
