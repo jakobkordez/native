@@ -379,8 +379,11 @@ Type _extractUniquePtrType(Context context, clang_types.CXType cxtype) {
 
 /// Returns the type for [cxtype], an lvalue reference.
 ///
-/// Only references to C++ classes are supported, and only by C++ methods and
-/// constructors, whose glue passes them as pointers.
+/// Only C++ methods and constructors support references, since their glue
+/// converts them. A reference to a C++ class is passed as a pointer to it. A
+/// reference to const anything else that the glue can copy, like a number, an
+/// enum or a struct, is passed by value, as a copy, and a mutable one as a
+/// [CppValueReferenceType], a pointer.
 Type _extractReference(
   Context context,
   clang_types.CXType cxtype, {
@@ -393,13 +396,52 @@ Type _extractReference(
   }
   final cxPointee = clang.clang_getPointeeType(cxtype);
   final pointee = getCodeGenType(context, cxPointee);
+  final canonicalPointee = clang.clang_getCanonicalType(cxPointee);
+  final isConst = canonicalPointee.isConstQualified;
   if (pointee.typealiasType case final CppClass cppClass) {
-    return CppClassReferenceType(
-      cppClass,
-      isConst: clang.clang_getCanonicalType(cxPointee).isConstQualified,
+    return CppClassReferenceType(cppClass, isConst: isConst);
+  }
+  if (_whyCantCopyReferent(pointee, canonicalPointee) case final reason?) {
+    return UnimplementedType('Reference to $reason');
+  }
+  if (isConst) return pointee;
+  // The glue converts the pointer that Dart passes back to the reference, so
+  // it spells the type exactly: an `int64_t*` for a `long&` wouldn't bind
+  // where `long` and `int64_t` are different types.
+  final spelling = _cppSpelling(cxPointee);
+  if (spelling == null) {
+    return UnimplementedType(
+      "Reference to a type that can't be spelled in the glue: "
+      '${cxPointee.spelling()}',
     );
   }
-  return UnimplementedType('Reference to $pointee');
+  return CppValueReferenceType(pointee, nativeSpelling: spelling);
+}
+
+/// Why the glue can't copy [pointee], whose canonical type is [canonical],
+/// out of a reference to it, or null if it can.
+///
+/// It copies numbers, `bool`s, enums, structs and unions. A pointer to const
+/// would lose its const in the copy, which Dart can't express, an array or a
+/// function can't be copied, and a `std::unique_ptr` can only be moved.
+String? _whyCantCopyReferent(Type pointee, clang_types.CXType canonical) {
+  switch (canonical.kind) {
+    case clang_types.CXTypeKind.CXType_Pointer:
+      return 'a pointer';
+    case clang_types.CXTypeKind.CXType_ConstantArray ||
+        clang_types.CXTypeKind.CXType_IncompleteArray ||
+        clang_types.CXTypeKind.CXType_VariableArray ||
+        clang_types.CXTypeKind.CXType_DependentSizedArray:
+      return 'an array';
+    case clang_types.CXTypeKind.CXType_FunctionProto ||
+        clang_types.CXTypeKind.CXType_FunctionNoProto:
+      return 'a function';
+  }
+  if (pointee.baseType is UnimplementedType) return '$pointee';
+  return switch (pointee.typealiasType) {
+    NativeType() || EnumClass() || Compound() || ImportedType() => null,
+    _ => '$pointee',
+  };
 }
 
 /// Returns the type for [cxtype] if it is a `std::string` or a `std::vector`,

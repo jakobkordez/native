@@ -121,8 +121,12 @@ FFIGEN_EXPORT lab::Experiment* lab_Experiment_operatorAssign(lab::Experiment* se
   return std::addressof(self->operator=(*other));
 }
 
-FFIGEN_EXPORT int32_t lab_Experiment_operatorSubscript(const lab::Experiment* self, int32_t index) {
+FFIGEN_EXPORT int32_t lab_Experiment_operatorSubscriptConst(const lab::Experiment* self, int32_t index) {
   return self->operator[](index);
+}
+
+FFIGEN_EXPORT int32_t* lab_Experiment_operatorSubscript(lab::Experiment* self, int32_t index) {
+  return std::addressof(self->operator[](index));
 }
 
 FFIGEN_EXPORT int32_t lab_Experiment_operatorCall(const lab::Experiment* self, int32_t value) {
@@ -265,8 +269,12 @@ FFIGEN_EXPORT lab::Experiment* lab_Refinement_operatorAssign(lab::Refinement* se
   return std::addressof(static_cast<lab::Experiment*>(self)->operator=(*other));
 }
 
-FFIGEN_EXPORT int32_t lab_Refinement_operatorSubscript(const lab::Refinement* self, int32_t index) {
+FFIGEN_EXPORT int32_t lab_Refinement_operatorSubscriptConst(const lab::Refinement* self, int32_t index) {
   return static_cast<const lab::Experiment*>(self)->operator[](index);
+}
+
+FFIGEN_EXPORT int32_t* lab_Refinement_operatorSubscript(lab::Refinement* self, int32_t index) {
+  return std::addressof(static_cast<lab::Experiment*>(self)->operator[](index));
 }
 
 FFIGEN_EXPORT int32_t lab_Refinement_operatorCall(const lab::Refinement* self, int32_t value) {
@@ -393,8 +401,12 @@ FFIGEN_EXPORT lab::Experiment* lab_Variant_operatorAssign(lab::Variant* self, la
   return std::addressof(static_cast<lab::Experiment*>(self)->operator=(*other));
 }
 
-FFIGEN_EXPORT int32_t lab_Variant_operatorSubscript(const lab::Variant* self, int32_t index) {
+FFIGEN_EXPORT int32_t lab_Variant_operatorSubscriptConst(const lab::Variant* self, int32_t index) {
   return static_cast<const lab::Experiment*>(self)->operator[](index);
+}
+
+FFIGEN_EXPORT int32_t* lab_Variant_operatorSubscript(lab::Variant* self, int32_t index) {
+  return std::addressof(static_cast<lab::Experiment*>(self)->operator[](index));
 }
 
 FFIGEN_EXPORT int32_t lab_Variant_operatorCall(const lab::Variant* self, int32_t value) {

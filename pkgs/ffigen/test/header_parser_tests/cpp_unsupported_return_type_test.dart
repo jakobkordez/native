@@ -93,11 +93,17 @@ void main() {
         reason: 'a defined class returned by value is supported',
       );
 
-      // Unsupported today: only references to classes have a Dart mapping.
+      expect(
+        methodNames,
+        contains('intRef'),
+        reason: 'a reference to a primitive is bindable',
+      );
+
+      // Unsupported today: a reference to a pointer has no Dart mapping.
       expect(
         methodNames,
         isNot(contains('badRef')),
-        reason: 'a reference to a primitive has no Dart mapping',
+        reason: 'a reference to a pointer has no Dart mapping',
       );
     });
 
@@ -145,11 +151,17 @@ void main() {
           reason: 'a forward-declared class cannot be passed by value',
         );
 
-        // Unsupported today: only references to classes have a Dart mapping.
+        expect(
+          methodNames,
+          contains('intRefParam'),
+          reason: 'a reference to a primitive is a bindable parameter type',
+        );
+
+        // Unsupported today: a reference to a pointer has no Dart mapping.
         expect(
           methodNames,
           isNot(contains('badRefParam')),
-          reason: 'a reference to a primitive has no Dart mapping',
+          reason: 'a reference to a pointer has no Dart mapping',
         );
 
         // The copy constructor takes a reference to a class, so it survives
@@ -173,6 +185,8 @@ void main() {
       expect(output, contains('Widget_badSelfParam'));
       expect(output, contains('Widget_constRef'));
       expect(output, contains('Widget_constRefParam'));
+      expect(output, contains('Widget_intRef'));
+      expect(output, contains('Widget_intRefParam'));
 
       // Unsupported returns:
       expect(output, isNot(contains('badUnionByValue')));

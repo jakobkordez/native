@@ -56,8 +56,8 @@ class Experiment {
   virtual int32_t describe() const;
   virtual int32_t describe(int32_t detail) const;
 
-  // Operators. The ones returning a reference to a primitive are skipped,
-  // since only references to classes are supported.
+  // Operators. The non-const operator[] returns a reference to a primitive,
+  // which Dart sees as a pointer, so the const one gets a `Const` suffix.
   bool operator==(const Experiment& other) const;
   bool operator==(int32_t id) const;
   bool operator!=(const Experiment& other) const;

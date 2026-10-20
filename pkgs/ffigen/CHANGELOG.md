@@ -158,6 +158,14 @@
 - Generate a [non-throwing `fromValueOrNull`](https://github.com/dart-lang/native/issues/3712)
   method on Dart enums, which returns `null` for unknown values. `fromValue`
   now delegates to it, and still throws an `ArgumentError`.
+- Support references to things other than C++ classes, like numbers, enums
+  and structs, in the parameters and return types of C++ methods and
+  constructors. A reference to const is passed by value, so Dart code passes,
+  and gets, a copy. A mutable reference is passed as a pointer, which for a
+  return value points into C++ memory that the bindings don't track.
+  References to pointers, arrays and functions are still unsupported. A method
+  that this used to skip, like `int& operator[](int)`, now takes the plain
+  name, so its const overload gets a `Const` suffix.
 
 ## 23.0.0
 

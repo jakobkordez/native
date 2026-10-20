@@ -453,6 +453,51 @@ class CppClassReferenceType extends CppClassPointerType {
   String cacheKey() => '${isConst ? 'const ' : ''}${cppClass.cacheKey()}&';
 }
 
+/// A mutable lvalue reference to something other than a C++ class, like
+/// `int&` or `Point&` for a struct `Point`, which Dart code sees as a pointer.
+///
+/// Only C++ methods and constructors can take or return one, because their
+/// glue passes it as a pointer. A reference to const is passed by value
+/// instead, as a copy.
+///
+/// A returned pointer points into C++ memory that the bindings don't track, so
+/// it's only valid as long as what it refers to, like a pointer that C++
+/// returns.
+class CppValueReferenceType extends PointerType {
+  /// How the glue spells the type of [child], which the pointer that Dart
+  /// passes has to have exactly, to bind the reference.
+  final String nativeSpelling;
+
+  CppValueReferenceType(super.child, {required this.nativeSpelling})
+    : super._();
+
+  @override
+  String getNativeType(Context context, {String varName = ''}) =>
+      '$nativeSpelling& $varName';
+
+  @override
+  String getExternCType(Context context, {String varName = ''}) =>
+      '$nativeSpelling* $varName';
+
+  @override
+  bool get sameNativeAndExternCType => false;
+
+  @override
+  String convertExternCTypeToNativeType(Context context, String value) =>
+      '*$value';
+
+  // std::addressof, because a struct could overload the unary operator&.
+  @override
+  String convertNativeTypeToExternCType(Context context, String value) =>
+      'std::addressof($value)';
+
+  @override
+  String toString() => '$child&';
+
+  @override
+  String cacheKey() => '${child.cacheKey()}&';
+}
+
 /// A pointer to a C++ class that a C++ method or a field getter returns, like
 /// `T*` or `std::unique_ptr<T>`, which can be null.
 ///

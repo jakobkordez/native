@@ -25,9 +25,11 @@ class Widget {
   void goodParams(int x, Widget* w, Blob* b);
   const Widget& constRef() const;
   void constRefParam(const Widget& w);
+  int& intRef();
+  void intRefParam(int& x);
 
-  // Only references to classes are supported.
-  int& badRef();
+  // A reference to a pointer is unsupported.
+  int*& badRef();
 
   // An incomplete compound returned by value, directly and via a typedef.
   Blob badUnionByValue();
@@ -39,7 +41,7 @@ class Widget {
   Widget badSelfByValue();
 
   // The same shapes as unsupported parameter types instead of return types.
-  void badRefParam(int& x);
+  void badRefParam(int*& x);
   void badUnionParam(Blob b);
   void badAliasParam(BlobAlias b);
   void badClassParam(Incomplete i);

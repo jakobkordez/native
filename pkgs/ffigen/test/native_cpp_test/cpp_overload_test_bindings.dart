@@ -347,7 +347,11 @@ class lab$Experiment implements ffi.Finalizable {
     );
   }
 
-  int operatorSubscript(int index) {
+  int operatorSubscriptConst(int index) {
+    return _lab_Experiment_operatorSubscriptConst(_alivePtr, index);
+  }
+
+  ffi.Pointer<ffi.Int32> operatorSubscript(int index) {
     return _lab_Experiment_operatorSubscript(_alivePtr, index);
   }
 
@@ -578,9 +582,17 @@ external ffi.Pointer<ffi.Void> _lab_Experiment_operatorAssign(
 );
 
 @ffi.Native<ffi.Int32 Function(ffi.Pointer<ffi.Void>, ffi.Int32)>(
+  symbol: 'lab_Experiment_operatorSubscriptConst',
+)
+external int _lab_Experiment_operatorSubscriptConst(
+  ffi.Pointer<ffi.Void> self,
+  int index,
+);
+
+@ffi.Native<ffi.Pointer<ffi.Int32> Function(ffi.Pointer<ffi.Void>, ffi.Int32)>(
   symbol: 'lab_Experiment_operatorSubscript',
 )
-external int _lab_Experiment_operatorSubscript(
+external ffi.Pointer<ffi.Int32> _lab_Experiment_operatorSubscript(
   ffi.Pointer<ffi.Void> self,
   int index,
 );
@@ -1159,7 +1171,11 @@ class lab$Refinement implements ffi.Finalizable, lab$Variant {
     );
   }
 
-  int operatorSubscript(int index) {
+  int operatorSubscriptConst(int index) {
+    return _lab_Refinement_operatorSubscriptConst(_alivePtr, index);
+  }
+
+  ffi.Pointer<ffi.Int32> operatorSubscript(int index) {
     return _lab_Refinement_operatorSubscript(_alivePtr, index);
   }
 
@@ -1383,9 +1399,17 @@ external ffi.Pointer<ffi.Void> _lab_Refinement_operatorAssign(
 );
 
 @ffi.Native<ffi.Int32 Function(ffi.Pointer<ffi.Void>, ffi.Int32)>(
+  symbol: 'lab_Refinement_operatorSubscriptConst',
+)
+external int _lab_Refinement_operatorSubscriptConst(
+  ffi.Pointer<ffi.Void> self,
+  int index,
+);
+
+@ffi.Native<ffi.Pointer<ffi.Int32> Function(ffi.Pointer<ffi.Void>, ffi.Int32)>(
   symbol: 'lab_Refinement_operatorSubscript',
 )
-external int _lab_Refinement_operatorSubscript(
+external ffi.Pointer<ffi.Int32> _lab_Refinement_operatorSubscript(
   ffi.Pointer<ffi.Void> self,
   int index,
 );
@@ -1733,7 +1757,11 @@ class lab$Variant implements ffi.Finalizable, lab$Experiment {
     );
   }
 
-  int operatorSubscript(int index) {
+  int operatorSubscriptConst(int index) {
+    return _lab_Variant_operatorSubscriptConst(_alivePtr, index);
+  }
+
+  ffi.Pointer<ffi.Int32> operatorSubscript(int index) {
     return _lab_Variant_operatorSubscript(_alivePtr, index);
   }
 
@@ -1952,9 +1980,17 @@ external ffi.Pointer<ffi.Void> _lab_Variant_operatorAssign(
 );
 
 @ffi.Native<ffi.Int32 Function(ffi.Pointer<ffi.Void>, ffi.Int32)>(
+  symbol: 'lab_Variant_operatorSubscriptConst',
+)
+external int _lab_Variant_operatorSubscriptConst(
+  ffi.Pointer<ffi.Void> self,
+  int index,
+);
+
+@ffi.Native<ffi.Pointer<ffi.Int32> Function(ffi.Pointer<ffi.Void>, ffi.Int32)>(
   symbol: 'lab_Variant_operatorSubscript',
 )
-external int _lab_Variant_operatorSubscript(
+external ffi.Pointer<ffi.Int32> _lab_Variant_operatorSubscript(
   ffi.Pointer<ffi.Void> self,
   int index,
 );

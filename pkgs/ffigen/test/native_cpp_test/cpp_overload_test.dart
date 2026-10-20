@@ -64,7 +64,11 @@ void main() {
     test('operators', () {
       final experiment = lab$Experiment.new$1(3);
 
-      expect(experiment.operatorSubscript(1), 2);
+      expect(experiment.operatorSubscriptConst(1), 2);
+      final result = experiment.operatorSubscript(1);
+      expect(result.value, 2);
+      result.value = 5;
+      expect(experiment.operatorSubscriptConst(1), 5);
       expect(experiment.operatorCall(4), 12);
       expect(experiment.operatorCall$1(4, 1), 13);
       expect(experiment.operatorLogicalNot(), isFalse);
