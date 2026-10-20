@@ -23,6 +23,19 @@ class Clang {
     ffi.Pointer<T> Function<T extends ffi.NativeType>(String symbolName) lookup,
   ) : _lookup = lookup;
 
+  /// Determine if a C++ constructor is the default constructor.
+  int clang_CXXConstructor_isDefaultConstructor(CXCursor C) {
+    return _clang_CXXConstructor_isDefaultConstructor(C);
+  }
+
+  late final _clang_CXXConstructor_isDefaultConstructorPtr =
+      _lookup<ffi.NativeFunction<ffi.UnsignedInt Function(CXCursor)>>(
+        'clang_CXXConstructor_isDefaultConstructor',
+      );
+  late final _clang_CXXConstructor_isDefaultConstructor =
+      _clang_CXXConstructor_isDefaultConstructorPtr
+          .asFunction<int Function(CXCursor)>();
+
   /// Determine if a C++ member function or member function template is
   /// declared 'const'.
   int clang_CXXMethod_isConst(CXCursor C) {
@@ -1511,6 +1524,19 @@ class Clang {
       );
   late final _clang_isPODType = _clang_isPODTypePtr
       .asFunction<int Function(CXType)>();
+
+  /// Returns 1 if the base class specified by the cursor with kind
+  /// CX_CXXBaseSpecifier is virtual.
+  int clang_isVirtualBase(CXCursor arg0) {
+    return _clang_isVirtualBase(arg0);
+  }
+
+  late final _clang_isVirtualBasePtr =
+      _lookup<ffi.NativeFunction<ffi.UnsignedInt Function(CXCursor)>>(
+        'clang_isVirtualBase',
+      );
+  late final _clang_isVirtualBase = _clang_isVirtualBasePtr
+      .asFunction<int Function(CXCursor)>();
 
   /// Same as \c clang_parseTranslationUnit2, but returns
   /// the \c CXTranslationUnit instead of an error code.  In case of an error this

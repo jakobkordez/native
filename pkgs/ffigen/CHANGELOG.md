@@ -169,9 +169,9 @@
 - Generate a constructor for a C++ class that declares none, calling its
   implicit default constructor, unless a base or a field can't be default
   constructed. Since libclang doesn't expose the implicit constructor, a const
-  or reference field, a class template instantiation other than the standard
-  library's containers, strings and smart pointers, and a default constructor
-  whose parameters all have default arguments count as ones that can't.
+  or reference field, and a class template instantiation other than the
+  standard library's containers, strings and smart pointers, count as ones
+  that can't.
 
 ## 23.0.0
 

@@ -31,5 +31,11 @@ void main() {
       expect(labelled.settings.retries, 3);
       labelled.dispose();
     });
+
+    test('a field can have a default constructor with default arguments', () {
+      final holder = HoldsDefaultArg();
+      expect(holder.inner.value, 7);
+      holder.dispose();
+    });
   });
 }

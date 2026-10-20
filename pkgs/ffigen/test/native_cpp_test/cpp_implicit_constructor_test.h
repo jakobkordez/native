@@ -27,6 +27,17 @@ struct LabelledSettings : public Labelled {
   Settings settings;
 };
 
+// A constructor whose parameters all have default arguments is a default
+// constructor.
+struct DefaultArg {
+  explicit DefaultArg(int value = 7);
+  int value;
+};
+
+struct HoldsDefaultArg {
+  DefaultArg inner;
+};
+
 // None of the following get a Dart constructor.
 
 struct NeedsArg {

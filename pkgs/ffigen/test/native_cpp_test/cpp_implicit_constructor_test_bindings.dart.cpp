@@ -25,6 +25,22 @@ FFIGEN_EXPORT void AbstractNamed_delete(AbstractNamed* self) {
   delete self;
 }
 
+FFIGEN_EXPORT DefaultArg* DefaultArg_new(int value) {
+  return new DefaultArg(value);
+}
+
+FFIGEN_EXPORT int DefaultArg_get_value(DefaultArg* self) {
+  return self->value;
+}
+
+FFIGEN_EXPORT void DefaultArg_set_value(DefaultArg* self, int value) {
+  self->value = value;
+}
+
+FFIGEN_EXPORT void DefaultArg_delete(DefaultArg* self) {
+  delete self;
+}
+
 
 
 FFIGEN_EXPORT std::string* DerivesHidden_get_other(DerivesHidden* self) {
@@ -76,6 +92,22 @@ FFIGEN_EXPORT void HoldsConst_set_name(HoldsConst* self, std::string* value) {
 }
 
 FFIGEN_EXPORT void HoldsConst_delete(HoldsConst* self) {
+  delete self;
+}
+
+FFIGEN_EXPORT HoldsDefaultArg* HoldsDefaultArg_new() {
+  return new HoldsDefaultArg();
+}
+
+FFIGEN_EXPORT DefaultArg* HoldsDefaultArg_get_inner(HoldsDefaultArg* self) {
+  return std::addressof(self->inner);
+}
+
+FFIGEN_EXPORT void HoldsDefaultArg_set_inner(HoldsDefaultArg* self, DefaultArg* value) {
+  self->inner = *value;
+}
+
+FFIGEN_EXPORT void HoldsDefaultArg_delete(HoldsDefaultArg* self) {
   delete self;
 }
 

@@ -146,11 +146,9 @@ bool _hasImplicitDefaultConstructor(clang_types.CXCursor cursor) =>
 
 /// Whether an object of the class at [cursor], a definition, can be default
 /// constructed, by a public default constructor, or a protected one if
-/// [isBase], since a derived class constructs it.
-///
-/// Only a constructor without parameters counts as a default constructor:
-/// libclang doesn't expose whether one with parameters has default arguments
-/// for all of them.
+/// [isBase], since a derived class constructs it. That's one that can be
+/// called without arguments, including one whose parameters all have default
+/// arguments.
 ///
 /// The implicit default constructor of a class that declares none is deleted
 /// if a base or a field can't be default constructed. A const field or a
@@ -181,7 +179,8 @@ bool _isDefaultConstructible(
   if (constructors.isNotEmpty) {
     return constructors.any((constructor) {
       final access = clang.clang_getCXXAccessSpecifier(constructor);
-      return clang.clang_Cursor_getNumArguments(constructor) == 0 &&
+      return clang.clang_CXXConstructor_isDefaultConstructor(constructor) !=
+              0 &&
           clang.clang_getCursorAvailability(constructor) !=
               clang_types.CXAvailabilityKind.CXAvailability_NotAvailable &&
           (access == clang_types.CX_CXXAccessSpecifier.CX_CXXPublic ||

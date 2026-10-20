@@ -149,6 +149,8 @@ FfiGenerator getConfig([Uri? packageRoot]) {
             'clang_CXXMethod_isStatic',
             'clang_CXXMethod_isVirtual',
             'clang_CXXRecord_isAbstract',
+            'clang_CXXConstructor_isDefaultConstructor',
+            'clang_isVirtualBase',
             'clang_getCXXAccessSpecifier',
             'clang_getCursorAvailability',
             'clang_getCursorPlatformAvailability',

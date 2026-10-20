@@ -27,6 +27,8 @@ FfiGenerator getConfig([Uri? packageRoot]) {
             'Settings',
             'Labelled',
             'LabelledSettings',
+            'DefaultArg',
+            'HoldsDefaultArg',
             'NeedsArg',
             'HoldsNeedsArg',
             'HoldsConst',

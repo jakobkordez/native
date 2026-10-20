@@ -6,6 +6,8 @@
 
 Labelled::Labelled() : label("unnamed") {}
 
+DefaultArg::DefaultArg(int value) : value(value) {}
+
 NeedsArg::NeedsArg(int value) : value(value) {}
 
 HiddenDefault::HiddenDefault() = default;
