@@ -216,7 +216,8 @@ enum EnumStyle {
   /// Useful when native code can return a value that the enum doesn't have,
   /// like an id read from a file written by another version, which the
   /// enum's `fromValue` would throw on. The caller maps the int to the enum,
-  /// and decides what to do with a value it doesn't have.
+  /// for example with `fromValueOrNull`, and decides what to do with a value
+  /// it doesn't have.
   dartEnumPassedAsInt,
 }
 

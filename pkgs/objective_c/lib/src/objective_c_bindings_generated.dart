@@ -4408,13 +4408,15 @@ enum NSCollectionChangeType {
   final int value;
   const NSCollectionChangeType(this.value);
 
-  static NSCollectionChangeType fromValue(int value) => switch (value) {
+  static NSCollectionChangeType? fromValueOrNull(int value) => switch (value) {
     0 => NSCollectionChangeInsert,
     1 => NSCollectionChangeRemove,
-    _ => throw ArgumentError(
-      'Unknown value for NSCollectionChangeType: $value',
-    ),
+    _ => null,
   };
+
+  static NSCollectionChangeType fromValue(int value) =>
+      fromValueOrNull(value) ??
+      (throw ArgumentError('Unknown value for NSCollectionChangeType: $value'));
 }
 
 enum NSComparisonResult {
@@ -4425,12 +4427,16 @@ enum NSComparisonResult {
   final int value;
   const NSComparisonResult(this.value);
 
-  static NSComparisonResult fromValue(int value) => switch (value) {
+  static NSComparisonResult? fromValueOrNull(int value) => switch (value) {
     -1 => NSOrderedAscending,
     0 => NSOrderedSame,
     1 => NSOrderedDescending,
-    _ => throw ArgumentError('Unknown value for NSComparisonResult: $value'),
+    _ => null,
   };
+
+  static NSComparisonResult fromValue(int value) =>
+      fromValueOrNull(value) ??
+      (throw ArgumentError('Unknown value for NSComparisonResult: $value'));
 }
 
 /// NSCopying
@@ -5084,15 +5090,20 @@ enum NSDataCompressionAlgorithm {
   final int value;
   const NSDataCompressionAlgorithm(this.value);
 
-  static NSDataCompressionAlgorithm fromValue(int value) => switch (value) {
-    0 => NSDataCompressionAlgorithmLZFSE,
-    1 => NSDataCompressionAlgorithmLZ4,
-    2 => NSDataCompressionAlgorithmLZMA,
-    3 => NSDataCompressionAlgorithmZlib,
-    _ => throw ArgumentError(
-      'Unknown value for NSDataCompressionAlgorithm: $value',
-    ),
-  };
+  static NSDataCompressionAlgorithm? fromValueOrNull(int value) =>
+      switch (value) {
+        0 => NSDataCompressionAlgorithmLZFSE,
+        1 => NSDataCompressionAlgorithmLZ4,
+        2 => NSDataCompressionAlgorithmLZMA,
+        3 => NSDataCompressionAlgorithmZlib,
+        _ => null,
+      };
+
+  static NSDataCompressionAlgorithm fromValue(int value) =>
+      fromValueOrNull(value) ??
+      (throw ArgumentError(
+        'Unknown value for NSDataCompressionAlgorithm: $value',
+      ));
 }
 
 /// NSDataCreation
@@ -5388,13 +5399,17 @@ enum NSDecodingFailurePolicy {
   final int value;
   const NSDecodingFailurePolicy(this.value);
 
-  static NSDecodingFailurePolicy fromValue(int value) => switch (value) {
+  static NSDecodingFailurePolicy? fromValueOrNull(int value) => switch (value) {
     0 => NSDecodingFailurePolicyRaiseException,
     1 => NSDecodingFailurePolicySetErrorAndReturn,
-    _ => throw ArgumentError(
-      'Unknown value for NSDecodingFailurePolicy: $value',
-    ),
+    _ => null,
   };
+
+  static NSDecodingFailurePolicy fromValue(int value) =>
+      fromValueOrNull(value) ??
+      (throw ArgumentError(
+        'Unknown value for NSDecodingFailurePolicy: $value',
+      ));
 }
 
 /// NSDictionary
@@ -11385,13 +11400,17 @@ enum NSKeyValueChange {
   final int value;
   const NSKeyValueChange(this.value);
 
-  static NSKeyValueChange fromValue(int value) => switch (value) {
+  static NSKeyValueChange? fromValueOrNull(int value) => switch (value) {
     1 => NSKeyValueChangeSetting,
     2 => NSKeyValueChangeInsertion,
     3 => NSKeyValueChangeRemoval,
     4 => NSKeyValueChangeReplacement,
-    _ => throw ArgumentError('Unknown value for NSKeyValueChange: $value'),
+    _ => null,
   };
+
+  static NSKeyValueChange fromValue(int value) =>
+      fromValueOrNull(value) ??
+      (throw ArgumentError('Unknown value for NSKeyValueChange: $value'));
 }
 
 sealed class NSKeyValueObservingOptions {
@@ -11410,15 +11429,20 @@ enum NSKeyValueSetMutationKind {
   final int value;
   const NSKeyValueSetMutationKind(this.value);
 
-  static NSKeyValueSetMutationKind fromValue(int value) => switch (value) {
-    1 => NSKeyValueUnionSetMutation,
-    2 => NSKeyValueMinusSetMutation,
-    3 => NSKeyValueIntersectSetMutation,
-    4 => NSKeyValueSetSetMutation,
-    _ => throw ArgumentError(
-      'Unknown value for NSKeyValueSetMutationKind: $value',
-    ),
-  };
+  static NSKeyValueSetMutationKind? fromValueOrNull(int value) =>
+      switch (value) {
+        1 => NSKeyValueUnionSetMutation,
+        2 => NSKeyValueMinusSetMutation,
+        3 => NSKeyValueIntersectSetMutation,
+        4 => NSKeyValueSetSetMutation,
+        _ => null,
+      };
+
+  static NSKeyValueSetMutationKind fromValue(int value) =>
+      fromValueOrNull(value) ??
+      (throw ArgumentError(
+        'Unknown value for NSKeyValueSetMutationKind: $value',
+      ));
 }
 
 sealed class NSLinguisticTaggerOptions {
@@ -11625,16 +11649,21 @@ enum NSLocaleLanguageDirection {
   final int value;
   const NSLocaleLanguageDirection(this.value);
 
-  static NSLocaleLanguageDirection fromValue(int value) => switch (value) {
-    0 => NSLocaleLanguageDirectionUnknown,
-    1 => NSLocaleLanguageDirectionLeftToRight,
-    2 => NSLocaleLanguageDirectionRightToLeft,
-    3 => NSLocaleLanguageDirectionTopToBottom,
-    4 => NSLocaleLanguageDirectionBottomToTop,
-    _ => throw ArgumentError(
-      'Unknown value for NSLocaleLanguageDirection: $value',
-    ),
-  };
+  static NSLocaleLanguageDirection? fromValueOrNull(int value) =>
+      switch (value) {
+        0 => NSLocaleLanguageDirectionUnknown,
+        1 => NSLocaleLanguageDirectionLeftToRight,
+        2 => NSLocaleLanguageDirectionRightToLeft,
+        3 => NSLocaleLanguageDirectionTopToBottom,
+        4 => NSLocaleLanguageDirectionBottomToTop,
+        _ => null,
+      };
+
+  static NSLocaleLanguageDirection fromValue(int value) =>
+      fromValueOrNull(value) ??
+      (throw ArgumentError(
+        'Unknown value for NSLocaleLanguageDirection: $value',
+      ));
 }
 
 /// NSMethodSignature
@@ -20278,12 +20307,16 @@ enum NSPropertyListFormat {
   final int value;
   const NSPropertyListFormat(this.value);
 
-  static NSPropertyListFormat fromValue(int value) => switch (value) {
+  static NSPropertyListFormat? fromValueOrNull(int value) => switch (value) {
     1 => NSPropertyListOpenStepFormat,
     100 => NSPropertyListXMLFormat_v1_0,
     200 => NSPropertyListBinaryFormat_v1_0,
-    _ => throw ArgumentError('Unknown value for NSPropertyListFormat: $value'),
+    _ => null,
   };
+
+  static NSPropertyListFormat fromValue(int value) =>
+      fromValueOrNull(value) ??
+      (throw ArgumentError('Unknown value for NSPropertyListFormat: $value'));
 }
 
 enum NSQualityOfService {
@@ -20296,14 +20329,18 @@ enum NSQualityOfService {
   final int value;
   const NSQualityOfService(this.value);
 
-  static NSQualityOfService fromValue(int value) => switch (value) {
+  static NSQualityOfService? fromValueOrNull(int value) => switch (value) {
     33 => NSQualityOfServiceUserInteractive,
     25 => NSQualityOfServiceUserInitiated,
     17 => NSQualityOfServiceUtility,
     9 => NSQualityOfServiceBackground,
     -1 => NSQualityOfServiceDefault,
-    _ => throw ArgumentError('Unknown value for NSQualityOfService: $value'),
+    _ => null,
   };
+
+  static NSQualityOfService fromValue(int value) =>
+      fromValueOrNull(value) ??
+      (throw ArgumentError('Unknown value for NSQualityOfService: $value'));
 }
 
 final class NSRange extends ffi.Struct {
@@ -21409,7 +21446,7 @@ enum NSStreamStatus {
   final int value;
   const NSStreamStatus(this.value);
 
-  static NSStreamStatus fromValue(int value) => switch (value) {
+  static NSStreamStatus? fromValueOrNull(int value) => switch (value) {
     0 => NSStreamStatusNotOpen,
     1 => NSStreamStatusOpening,
     2 => NSStreamStatusOpen,
@@ -21418,8 +21455,12 @@ enum NSStreamStatus {
     5 => NSStreamStatusAtEnd,
     6 => NSStreamStatusClosed,
     7 => NSStreamStatusError,
-    _ => throw ArgumentError('Unknown value for NSStreamStatus: $value'),
+    _ => null,
   };
+
+  static NSStreamStatus fromValue(int value) =>
+      fromValueOrNull(value) ??
+      (throw ArgumentError('Unknown value for NSStreamStatus: $value'));
 }
 
 /// NSString
@@ -24841,13 +24882,17 @@ enum NSURLHandleStatus {
   final int value;
   const NSURLHandleStatus(this.value);
 
-  static NSURLHandleStatus fromValue(int value) => switch (value) {
+  static NSURLHandleStatus? fromValueOrNull(int value) => switch (value) {
     0 => NSURLHandleNotLoaded,
     1 => NSURLHandleLoadSucceeded,
     2 => NSURLHandleLoadInProgress,
     3 => NSURLHandleLoadFailed,
-    _ => throw ArgumentError('Unknown value for NSURLHandleStatus: $value'),
+    _ => null,
   };
+
+  static NSURLHandleStatus fromValue(int value) =>
+      fromValueOrNull(value) ??
+      (throw ArgumentError('Unknown value for NSURLHandleStatus: $value'));
 }
 
 /// NSValue

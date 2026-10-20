@@ -155,6 +155,9 @@
   convert its arguments or return value, like one taking a Dart enum or a C++
   class: `addresses` passed the wrapper to `Native.addressOf`, which failed to
   compile.
+- Generate a [non-throwing `fromValueOrNull`](https://github.com/dart-lang/native/issues/3712)
+  method on Dart enums, which returns `null` for unknown values. `fromValue`
+  now delegates to it, and still throws an `ArgumentError`.
 
 ## 23.0.0
 

@@ -949,12 +949,16 @@ enum vec$Color {
   final int value;
   const vec$Color(this.value);
 
-  static vec$Color fromValue(int value) => switch (value) {
+  static vec$Color? fromValueOrNull(int value) => switch (value) {
     0 => red,
     1 => green,
     2 => blue,
-    _ => throw ArgumentError('Unknown value for vec\$Color: $value'),
+    _ => null,
   };
+
+  static vec$Color fromValue(int value) =>
+      fromValueOrNull(value) ??
+      (throw ArgumentError('Unknown value for vec\$Color: $value'));
 }
 
 class vec$Item implements ffi.Finalizable {

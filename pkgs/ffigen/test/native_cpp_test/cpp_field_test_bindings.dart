@@ -923,12 +923,16 @@ enum fld$Mode {
   final int value;
   const fld$Mode(this.value);
 
-  static fld$Mode fromValue(int value) => switch (value) {
+  static fld$Mode? fromValueOrNull(int value) => switch (value) {
     0 => kOff,
     1 => kOn,
     2 => kAuto,
-    _ => throw ArgumentError('Unknown value for fld\$Mode: $value'),
+    _ => null,
   };
+
+  static fld$Mode fromValue(int value) =>
+      fromValueOrNull(value) ??
+      (throw ArgumentError('Unknown value for fld\$Mode: $value'));
 }
 
 class fld$Sealed implements ffi.Finalizable {

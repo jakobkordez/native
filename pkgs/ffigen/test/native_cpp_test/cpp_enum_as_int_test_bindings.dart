@@ -234,9 +234,13 @@ enum eai$Level {
   final int value;
   const eai$Level(this.value);
 
-  static eai$Level fromValue(int value) => switch (value) {
+  static eai$Level? fromValueOrNull(int value) => switch (value) {
     1 => kLow,
     2 => kHigh,
-    _ => throw ArgumentError('Unknown value for eai\$Level: $value'),
+    _ => null,
   };
+
+  static eai$Level fromValue(int value) =>
+      fromValueOrNull(value) ??
+      (throw ArgumentError('Unknown value for eai\$Level: $value'));
 }
