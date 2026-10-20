@@ -107,11 +107,143 @@ CppClass? parseClassDeclaration(Context context, clang_types.CXCursor cursor) {
     }
   });
 
+  if (!cppClass.isAbstract && _hasImplicitDefaultConstructor(cursor)) {
+    logger.fine('  ++++ constructor: implicit default constructor');
+    cppClass.methods.add(
+      CppMethod(
+        name: Symbol('', SymbolKind.method),
+        cBindingSymbol: Symbol(
+          '${cppClass.cSymbolPrefix}_new',
+          SymbolKind.method,
+        ),
+        originalName: className,
+        returnType: voidType,
+        parameters: [],
+        isConstant: false,
+        isStatic: true,
+        kind: CppMethodKind.constructor,
+      ),
+    );
+  }
+
   // Parse public base classes (only public specifiers; non-public are ignored).
   cppClass.bases.addAll(_parsePublicBases(context, cursor));
 
   return cppClass;
 }
+
+/// Whether the class at [cursor], a definition, has an implicit default
+/// constructor that isn't deleted, which C++ declares for a class that
+/// declares no constructor at all.
+///
+/// libclang doesn't expose the implicit constructor, so whether it's deleted
+/// is derived from the class's bases and fields, see
+/// [_isDefaultConstructible].
+bool _hasImplicitDefaultConstructor(clang_types.CXCursor cursor) =>
+    cursor.findChildWithKind(clang_types.CXCursorKind.CXCursor_Constructor) ==
+        null &&
+    _isDefaultConstructible(cursor);
+
+/// Whether an object of the class at [cursor], a definition, can be default
+/// constructed, by a public default constructor, or a protected one if
+/// [isBase], since a derived class constructs it.
+///
+/// Only a constructor without parameters counts as a default constructor:
+/// libclang doesn't expose whether one with parameters has default arguments
+/// for all of them.
+///
+/// The implicit default constructor of a class that declares none is deleted
+/// if a base or a field can't be default constructed. A const field or a
+/// reference field, which would need a default member initializer, counts as
+/// one that can't.
+///
+/// [visited] holds the USRs of the classes already checked, or being checked,
+/// which count as constructible, see [_isCopyable].
+bool _isDefaultConstructible(
+  clang_types.CXCursor cursor, {
+  bool isBase = false,
+  Set<String>? visited,
+}) {
+  visited ??= {};
+  if (!visited.add(cursor.usr())) return true;
+
+  final constructors = <clang_types.CXCursor>[];
+  final fieldTypes = <clang_types.CXType>[];
+  cursor.visitChildren((child) {
+    switch (child.kind) {
+      case clang_types.CXCursorKind.CXCursor_Constructor:
+        constructors.add(child);
+      case clang_types.CXCursorKind.CXCursor_FieldDecl:
+        fieldTypes.add(clang.clang_getCursorType(child));
+    }
+  });
+
+  if (constructors.isNotEmpty) {
+    return constructors.any((constructor) {
+      final access = clang.clang_getCXXAccessSpecifier(constructor);
+      return clang.clang_Cursor_getNumArguments(constructor) == 0 &&
+          clang.clang_getCursorAvailability(constructor) !=
+              clang_types.CXAvailabilityKind.CXAvailability_NotAvailable &&
+          (access == clang_types.CX_CXXAccessSpecifier.CX_CXXPublic ||
+              isBase &&
+                  access == clang_types.CX_CXXAccessSpecifier.CX_CXXProtected);
+    });
+  }
+  return _baseDefinitions(cursor).every(
+        (base) => _isDefaultConstructible(base, isBase: true, visited: visited),
+      ) &&
+      fieldTypes.every((type) => _isTypeDefaultConstructible(type, visited!));
+}
+
+/// Whether a field of [type] can be default constructed, see
+/// [_isDefaultConstructible].
+///
+/// libclang doesn't expose the members of an implicit instantiation of a
+/// class template, so of those, only the standard library's containers,
+/// strings and smart pointers are known to be default constructible.
+bool _isTypeDefaultConstructible(clang_types.CXType type, Set<String> visited) {
+  var t = clang.clang_getCanonicalType(type);
+  while (t.kind == clang_types.CXTypeKind.CXType_ConstantArray) {
+    t = clang.clang_getCanonicalType(clang.clang_getArrayElementType(t));
+  }
+  if (t.isConstQualified ||
+      t.kind == clang_types.CXTypeKind.CXType_LValueReference ||
+      t.kind == clang_types.CXTypeKind.CXType_RValueReference) {
+    return false;
+  }
+  if (t.kind != clang_types.CXTypeKind.CXType_Record) return true;
+  if (clang.clang_Type_getNumTemplateArguments(t) != -1) {
+    return _defaultConstructibleStdTemplates.any((name) => isStdDecl(t, name));
+  }
+  final definition = clang.clang_getCursorDefinition(
+    clang.clang_getTypeDeclaration(t),
+  );
+  return !definition.isNull &&
+      _isDefaultConstructible(definition, visited: visited);
+}
+
+/// The standard library's class templates whose instantiations can always be
+/// default constructed.
+const _defaultConstructibleStdTemplates = [
+  'basic_string',
+  'vector',
+  'deque',
+  'list',
+  'forward_list',
+  'map',
+  'multimap',
+  'set',
+  'multiset',
+  'unordered_map',
+  'unordered_multimap',
+  'unordered_set',
+  'unordered_multiset',
+  'unique_ptr',
+  'shared_ptr',
+  'weak_ptr',
+  'function',
+  'optional',
+];
 
 /// Parses the direct public base classes of [cursor].
 List<CppClass> _parsePublicBases(Context context, clang_types.CXCursor cursor) {

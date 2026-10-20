@@ -13,6 +13,10 @@ FFIGEN_EXPORT int AccessBase_value(const AccessBase* self) {
   return self->value();
 }
 
+FFIGEN_EXPORT AccessBase* AccessBase_new() {
+  return new AccessBase();
+}
+
 FFIGEN_EXPORT void AccessBase_delete(AccessBase* self) {
   delete self;
 }

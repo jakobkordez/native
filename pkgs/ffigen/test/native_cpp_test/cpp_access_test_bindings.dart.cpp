@@ -37,6 +37,10 @@ FFIGEN_EXPORT int32_t access_Drawable_draw(const access::Drawable* self) {
   return self->draw();
 }
 
+FFIGEN_EXPORT access::Drawable* access_Drawable_new() {
+  return new access::Drawable();
+}
+
 FFIGEN_EXPORT access::Gate* access_Gate_new() {
   return new access::Gate();
 }

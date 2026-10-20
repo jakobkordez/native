@@ -380,6 +380,11 @@ class access$Drawable implements ffi.Finalizable {
     return rawPtr;
   }
 
+  /// The returned object doesn't own its pointer, since the bindings can't
+  /// delete it. See [retainOwnership].
+  factory access$Drawable() {
+    return access$Drawable.fromPointer(_access_Drawable_new());
+  }
   int draw() {
     return _access_Drawable_draw(_alivePtr);
   }
@@ -408,6 +413,9 @@ class access$Drawable implements ffi.Finalizable {
   symbol: 'access_Drawable_draw',
 )
 external int _access_Drawable_draw(ffi.Pointer<ffi.Void> self);
+
+@ffi.Native<ffi.Pointer<ffi.Void> Function()>(symbol: 'access_Drawable_new')
+external ffi.Pointer<ffi.Void> _access_Drawable_new();
 
 class access$Gate implements ffi.Finalizable {
   ffi.Pointer<ffi.Void> _ptr;

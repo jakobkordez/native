@@ -18,6 +18,8 @@ import 'cpp_extern_c_config.dart' as cpp_extern_c_config;
 import 'cpp_field_config.dart' as cpp_field_config;
 import 'cpp_filter_rename_config.dart' as cpp_filter_rename_config;
 import 'cpp_glue_hooks_config.dart' as cpp_glue_hooks_config;
+import 'cpp_implicit_constructor_config.dart'
+    as cpp_implicit_constructor_config;
 import 'cpp_inheritance_config.dart' as cpp_inheritance_config;
 import 'cpp_namespace_class_config.dart' as cpp_namespace_class_config;
 import 'cpp_namespace_enum_config.dart' as cpp_namespace_enum_config;
@@ -60,6 +62,9 @@ void main() {
       'cpp_field': cpp_field_config.getConfig(packageRoot),
       'cpp_filter_rename': cpp_filter_rename_config.getConfig(packageRoot),
       'cpp_glue_hooks': cpp_glue_hooks_config.getConfig(packageRoot),
+      'cpp_implicit_constructor': cpp_implicit_constructor_config.getConfig(
+        packageRoot,
+      ),
       'cpp_pod': cpp_pod_config.getConfig(packageRoot),
       'memory_edge_cases': memory_edge_cases_config.getConfig(packageRoot),
       'cpp_inheritance': cpp_inheritance_config.getConfig(packageRoot),

@@ -181,6 +181,9 @@ class AccessBase implements ffi.Finalizable {
     return rawPtr;
   }
 
+  factory AccessBase() {
+    return AccessBase.fromPointer(_AccessBase_new(), takeOwnership: true);
+  }
   int value() {
     return _AccessBase_value(_alivePtr);
   }
@@ -207,6 +210,9 @@ class AccessBase implements ffi.Finalizable {
 
 @ffi.Native<ffi.Int Function(ffi.Pointer<ffi.Void>)>(symbol: 'AccessBase_value')
 external int _AccessBase_value(ffi.Pointer<ffi.Void> self);
+
+@ffi.Native<ffi.Pointer<ffi.Void> Function()>(symbol: 'AccessBase_new')
+external ffi.Pointer<ffi.Void> _AccessBase_new();
 
 @ffi.Native<ffi.Void Function(ffi.Pointer<ffi.Void>)>(
   symbol: 'AccessBase_delete',

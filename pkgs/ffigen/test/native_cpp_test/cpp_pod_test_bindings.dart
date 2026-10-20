@@ -213,6 +213,9 @@ class NamedRange implements ffi.Finalizable {
     return rawPtr;
   }
 
+  factory NamedRange() {
+    return NamedRange.fromPointer(_NamedRange_new(), takeOwnership: true);
+  }
   String get name {
     return _stdStringToDart(_NamedRange_get_name(_alivePtr));
   }
@@ -253,6 +256,9 @@ class NamedRange implements ffi.Finalizable {
     _ptr = ffi.nullptr;
   }
 }
+
+@ffi.Native<ffi.Pointer<ffi.Void> Function()>(symbol: 'NamedRange_new')
+external ffi.Pointer<ffi.Void> _NamedRange_new();
 
 @ffi.Native<ffi.Pointer<ffi.Void> Function(ffi.Pointer<ffi.Void>)>(
   symbol: 'NamedRange_get_name',

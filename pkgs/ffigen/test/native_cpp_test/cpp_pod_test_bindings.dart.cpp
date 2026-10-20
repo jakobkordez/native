@@ -9,7 +9,9 @@
 
 extern "C" {
 
-
+FFIGEN_EXPORT NamedRange* NamedRange_new() {
+  return new NamedRange();
+}
 
 FFIGEN_EXPORT std::string* NamedRange_get_name(NamedRange* self) {
   return new std::string(self->name);
