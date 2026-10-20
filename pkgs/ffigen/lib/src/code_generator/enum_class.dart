@@ -58,6 +58,9 @@ class EnumClass extends BindingType with HasLocalScope {
   /// Effective style for this enum.
   EnumStyle get effectiveStyle => style ?? EnumStyle.dartEnum;
 
+  /// Whether the bindings pass this enum's values as ints.
+  bool get _isPassedAsInt => effectiveStyle != EnumStyle.dartEnum;
+
   /// Don't code gen this alias at all, just use the [nativeType] directly.
   bool isAnonymous;
 
@@ -256,7 +259,7 @@ class EnumClass extends BindingType with HasLocalScope {
 
   @override
   String getDartType(Context context) {
-    if (effectiveStyle == EnumStyle.intConstants) {
+    if (_isPassedAsInt) {
       return nativeType.getDartType(context);
     } else if (isObjCImport) {
       return '${context.libs.prefix(objcPkgImport)}.$name';
@@ -273,7 +276,7 @@ class EnumClass extends BindingType with HasLocalScope {
   bool get sameFfiDartAndCType => nativeType.sameFfiDartAndCType;
 
   @override
-  bool get sameDartAndFfiDartType => effectiveStyle == EnumStyle.intConstants;
+  bool get sameDartAndFfiDartType => _isPassedAsInt;
 
   @override
   String? getDefaultValue(Context context) => '0';

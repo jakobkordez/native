@@ -13,6 +13,7 @@ import 'cpp_access_config.dart' as cpp_access_config;
 import 'cpp_borrowed_ref_config.dart' as cpp_borrowed_ref_config;
 import 'cpp_class_config.dart' as cpp_class_config;
 import 'cpp_constexpr_config.dart' as cpp_constexpr_config;
+import 'cpp_enum_as_int_config.dart' as cpp_enum_as_int_config;
 import 'cpp_extern_c_config.dart' as cpp_extern_c_config;
 import 'cpp_field_config.dart' as cpp_field_config;
 import 'cpp_filter_rename_config.dart' as cpp_filter_rename_config;
@@ -53,6 +54,7 @@ void main() {
       'cpp_borrowed_ref': cpp_borrowed_ref_config.getConfig(packageRoot),
       'cpp_class': cpp_class_config.getConfig(packageRoot),
       'cpp_constexpr': cpp_constexpr_config.getConfig(packageRoot),
+      'cpp_enum_as_int': cpp_enum_as_int_config.getConfig(packageRoot),
       'cpp_extern_c': cpp_extern_c_config.getConfig(packageRoot),
       'cpp_field': cpp_field_config.getConfig(packageRoot),
       'cpp_filter_rename': cpp_filter_rename_config.getConfig(packageRoot),

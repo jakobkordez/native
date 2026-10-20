@@ -209,6 +209,15 @@ enum EnumStyle {
   ///
   /// Useful when enum values are also used as bit masks.
   intConstants,
+
+  /// Generate a real Dart enum, but pass its values to and from native code
+  /// as ints, like [intConstants].
+  ///
+  /// Useful when native code can return a value that the enum doesn't have,
+  /// like an id read from a file written by another version, which the
+  /// enum's `fromValue` would throw on. The caller maps the int to the enum,
+  /// and decides what to do with a value it doesn't have.
+  dartEnumPassedAsInt,
 }
 
 /// Configuration for C++.

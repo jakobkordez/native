@@ -147,6 +147,10 @@
   with a pointer to the object in its place, which broke the call. A struct or
   union holding one by value loses its members, like for any unsupported
   member type.
+- Add `EnumStyle.dartEnumPassedAsInt`, which generates a Dart enum, but passes
+  its values to and from native code as ints, like `EnumStyle.intConstants`.
+  For an enum that native code can return a value of that the enum doesn't
+  have, like an id read from a file, which `fromValue` would throw on.
 
 ## 23.0.0
 
