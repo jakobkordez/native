@@ -303,13 +303,15 @@ Type? _extractfromRecord(
     final seenCppClass = context.bindingsIndex.getSeenCppClass(cursor.usr());
     if (seenCppClass != null) return seenCppClass;
 
-    final hasDefinition =
-        clang.clang_Cursor_isNull(clang.clang_getCursorDefinition(cursor)) == 0;
-    final isPodType = clang.clang_isPODType(cxtype) == 1;
-    // Only non-POD records get the C++ class treatment; a POD record has a
-    // layout the plain struct parser models correctly, so it is parsed as a
-    // C struct below no matter which keyword declared it.
-    if (isClassOrStruct && hasDefinition && !isPodType) {
+    final definition = clang.clang_getCursorDefinition(cursor);
+    // Only records that aren't C structs get the C++ class treatment: a POD
+    // record, or a plain aggregate, has a layout the plain struct parser
+    // models correctly, so it is parsed as a C struct below no matter which
+    // keyword declared it.
+    if (isClassOrStruct &&
+        !definition.isNull &&
+        clang.clang_isPODType(cxtype) != 1 &&
+        !isPlainAggregate(definition)) {
       final cppClass = parseClassDeclaration(context, cursor);
       if (cppClass != null) return cppClass;
     }
@@ -700,14 +702,20 @@ Type _extractFromFunctionProto(
       );
     } else if (pt.baseType is UnimplementedType) {
       return UnimplementedType('Function parameter has an unsupported type.');
+    } else if (holdsCppClassByValue(pt)) {
+      return UnimplementedType('C++ class by value in function parameter.');
     }
 
     parameters.add(Parameter(name: '', type: pt, objCConsumed: false));
   }
 
+  final returnType = clang.clang_getResultType(cxtype).toCodeGenType(context);
+  if (holdsCppClassByValue(returnType)) {
+    return UnimplementedType('C++ class returned by value from function.');
+  }
   final functionType = FunctionType(
     parameters: parameters,
-    returnType: clang.clang_getResultType(cxtype).toCodeGenType(context),
+    returnType: returnType,
   );
   _parseAndMergeParamNames(context, functionType, cursor, maxRecursionDepth);
   return NativeFunc(functionType);

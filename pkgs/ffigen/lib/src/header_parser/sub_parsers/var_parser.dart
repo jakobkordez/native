@@ -86,7 +86,7 @@ Binding? parseVarDeclaration(
     // reading fields there's no way to turn a Pointer into an array.
     supportNonInlineArray: nativeOutputStyle,
   );
-  if (type.baseType is UnimplementedType) {
+  if (type.baseType is UnimplementedType || holdsCppClassByValue(type)) {
     logger.fine(
       '---- Removed Global, reason: unsupported type: '
       '${cursor.completeStringRepr()}',

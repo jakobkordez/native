@@ -228,6 +228,64 @@ bool _isPolymorphic(clang_types.CXCursor cursor) =>
         null ||
     _baseDefinitions(cursor).any(_isPolymorphic);
 
+/// Whether the record at [cursor], a definition, is a plain aggregate, like
+/// `struct Range { int lo = -1; int hi = -1; };`, which libclang doesn't
+/// report as POD only because a default member initializer makes its default
+/// constructor non-trivial.
+///
+/// It has the layout and the copy semantics of a C struct, so it's bound as
+/// one, which a C function can then take or return by value, unlike a C++
+/// class. Like a POD record, its methods aren't bound, and a struct that Dart
+/// allocates starts out zeroed, not with the default values.
+///
+/// It declares no constructor, destructor or assignment operator, no virtual
+/// method and no function template, has no base, and all of its fields are
+/// public and [_isPlainFieldType].
+bool isPlainAggregate(clang_types.CXCursor cursor) =>
+    cursor.findChildWhere(
+      (child) => switch (child.kind) {
+        clang_types.CXCursorKind.CXCursor_CXXBaseSpecifier ||
+        clang_types.CXCursorKind.CXCursor_Constructor ||
+        clang_types.CXCursorKind.CXCursor_Destructor ||
+        clang_types.CXCursorKind.CXCursor_FunctionTemplate => true,
+        clang_types.CXCursorKind.CXCursor_CXXMethod =>
+          child.spelling() == 'operator=' ||
+              clang.clang_CXXMethod_isVirtual(child) != 0,
+        clang_types.CXCursorKind.CXCursor_FieldDecl =>
+          clang.clang_getCXXAccessSpecifier(child) !=
+                  clang_types.CX_CXXAccessSpecifier.CX_CXXPublic ||
+              !_isPlainFieldType(clang.clang_getCursorType(child)),
+        _ => false,
+      },
+    ) ==
+    null;
+
+/// Whether a field of [type] keeps a record a plain aggregate, see
+/// [isPlainAggregate]: it's a mutable scalar, pointer, POD record or plain
+/// aggregate, or an array of them.
+bool _isPlainFieldType(clang_types.CXType type) {
+  var t = clang.clang_getCanonicalType(type);
+  while (t.kind == clang_types.CXTypeKind.CXType_ConstantArray) {
+    t = clang.clang_getCanonicalType(clang.clang_getArrayElementType(t));
+  }
+  // A struct field can always be assigned.
+  if (t.isConstQualified ||
+      t.kind == clang_types.CXTypeKind.CXType_LValueReference ||
+      t.kind == clang_types.CXTypeKind.CXType_RValueReference) {
+    return false;
+  }
+  if (t.kind != clang_types.CXTypeKind.CXType_Record) return true;
+  if (clang.clang_isPODType(t) != 0) return true;
+  // libclang doesn't expose the members of an implicit instantiation of a
+  // class template, like `std::string`, so it would look like an empty plain
+  // aggregate.
+  if (clang.clang_Type_getNumTemplateArguments(t) != -1) return false;
+  final definition = clang.clang_getCursorDefinition(
+    clang.clang_getTypeDeclaration(t),
+  );
+  return !definition.isNull && isPlainAggregate(definition);
+}
+
 /// The ways the glue copies an object.
 enum _Copy {
   /// Copy constructing a new object, to pass it by value.

@@ -42,5 +42,48 @@ void main() {
       expect(counter.next(), 6);
       counter.dispose();
     });
+
+    test('a plain aggregate is bound as a plain struct', () {
+      // Its default member initializers make it non-POD, but it's still an
+      // aggregate with the layout of a C struct.
+      expect(<AggregateRange>[], isA<List<ffi.Struct>>());
+      expect(<AggregateSpan>[], isA<List<ffi.Struct>>());
+    });
+
+    test('a C function takes and returns a plain aggregate by value', () {
+      final range = calloc<AggregateRange>();
+      range.ref
+        ..lo = 2
+        ..hi = 5;
+      final widened = widenRange(range.ref, 3);
+      expect(widened.lo, -1);
+      expect(widened.hi, 8);
+      calloc.free(range);
+    });
+
+    test('plain aggregate fields are modelled', () {
+      final span = calloc<AggregateSpan>();
+      span.ref.range.hi = 4;
+      span.ref.pairs[1].b = 7;
+      span.ref.weight = 0.5;
+      expect(span.ref.range.lo, 0);
+      expect(span.ref.range.hi, 4);
+      expect(span.ref.pairs[1].b, 7);
+      expect(span.ref.weight, 0.5);
+      calloc.free(span);
+    });
+
+    test('a record holding a std::string gets the C++ class treatment', () {
+      expect(<NamedRange>[], isA<List<ffi.Finalizable>>());
+    });
+
+    test('a record with a constructor gets the C++ class treatment', () {
+      // Unlike the struct, the class is constructed, with its default member
+      // initializers.
+      final range = NonAggregateRange();
+      expect(range.lo, -1);
+      expect(range.hi, -1);
+      range.dispose();
+    });
   });
 }

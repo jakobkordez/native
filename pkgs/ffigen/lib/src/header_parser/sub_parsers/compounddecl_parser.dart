@@ -287,7 +287,7 @@ void _compoundMembersVisitor(
         if (mt.isIncompleteCompound) {
           parsed.incompleteCompoundMember = true;
         }
-        if (mt.baseType is UnimplementedType) {
+        if (mt.baseType is UnimplementedType || holdsCppClassByValue(mt)) {
           parsed.unimplementedMemberType = true;
         }
         parsed.compound.members.add(

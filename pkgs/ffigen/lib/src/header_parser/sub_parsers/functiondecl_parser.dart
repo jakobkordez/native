@@ -69,10 +69,16 @@ Func? parseFunctionDeclaration(Context context, clang_types.CXCursor cursor) {
     return null;
   }
 
-  if (returnType.baseType is UnimplementedType || hasUnimplementedType) {
+  final returnsCppClass = holdsCppClassByValue(returnType);
+  if (returnType.baseType is UnimplementedType ||
+      returnsCppClass ||
+      hasUnimplementedType) {
     final unsupported = [
       if (returnType.baseType is UnimplementedType)
         "return type '${cursor.returnType().spelling()}'",
+      if (returnsCppClass)
+        "return type '${cursor.returnType().spelling()}' "
+            '(a C++ class by value)',
       ...unsupportedTypes,
     ].join(', ');
     logger.fine(
@@ -139,14 +145,17 @@ parseParameters(
     );
     final paramType = paramCursor.toCodeGenType(context, cppGlue: cppGlue);
     final spelling = paramCursor.spelling();
+    // The C++ glue converts it, but a C function would get a pointer.
+    final isCppClassByValue = !cppGlue && holdsCppClassByValue(paramType);
     if (paramType.isIncompleteCompound) {
       incompleteStructParameter = true;
-    } else if (paramType.baseType is UnimplementedType) {
+    } else if (paramType.baseType is UnimplementedType || isCppClassByValue) {
       context.logger.finer('Unimplemented type: ${paramType.baseType}');
       unimplementedParameterType = true;
       unsupportedTypes.add(
         "type '${paramCursor.type().spelling()}' of parameter "
-        '${spelling.isEmpty ? i : "'$spelling'"}',
+        '${spelling.isEmpty ? i : "'$spelling'"}'
+        '${isCppClassByValue ? ' (a C++ class by value)' : ''}',
       );
     }
     final name = spelling.isEmpty ? 'arg$i' : spelling;

@@ -841,3 +841,17 @@ bool isPointerToConst(clang_types.CXType type) {
   }
   return false;
 }
+
+/// Whether [type] holds a C++ class, or a `std::unique_ptr`, by value,
+/// directly or in an array.
+///
+/// Either is bound as a pointer to the object, so only the C++ glue, which
+/// takes and returns it as one, can pass it by value. In the signature of a C
+/// function or a function pointer, a struct field or a global variable, the
+/// pointer would stand in for the object itself.
+bool holdsCppClassByValue(Type type) => switch (type.typealiasType) {
+  CppClass() || CppUniquePtrType() => true,
+  ConstantArray(:final child) ||
+  IncompleteArray(:final child) => holdsCppClassByValue(child),
+  _ => false,
+};

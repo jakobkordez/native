@@ -20,15 +20,36 @@ FfiGenerator getConfig([Uri? packageRoot]) {
       Visitor(
         // Struct vs C++ class is decided by POD-ness, not by the
         // `class`/`struct` keyword: the POD records (one of them declared
-        // with `class`) must arrive as struct nodes, and the non-POD
-        // `struct` as a C++ class node.
+        // with `class`) and the plain aggregates must arrive as struct nodes,
+        // and the other non-POD records as C++ class nodes.
         struct: (node) {
-          const include = {'PodPoint', 'PodPair'};
+          const include = {
+            'PodPoint',
+            'PodPair',
+            'AggregateRange',
+            'AggregateSpan',
+          };
           node.isIncluded = include.contains(node.originalName);
         },
         cppClass: (node) {
-          node.isIncluded = node.originalName == 'NonPodCounter';
+          const include = {'NonPodCounter', 'NonAggregateRange', 'NamedRange'};
+          node.isIncluded = include.contains(node.originalName);
         },
+        // Of these, only widenRange is bound: the others hold a C++ class by
+        // value, so they're skipped, and the union loses its members.
+        func: (node) {
+          const include = {
+            'widenRange',
+            'counterNext',
+            'makeCounter',
+            'adoptCounter',
+            'callWithCounter',
+          };
+          node.isIncluded = include.contains(node.originalName);
+        },
+        global: (node) =>
+            node.isIncluded = node.originalName == 'sharedCounter',
+        union: (node) => node.isIncluded = node.originalName == 'CounterOrInt',
       ),
     ],
   );

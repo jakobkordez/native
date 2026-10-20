@@ -7,3 +7,9 @@
 NonPodCounter::NonPodCounter(int start) : value_(start) {}
 
 int NonPodCounter::next() { return value_++; }
+
+NonAggregateRange::NonAggregateRange() = default;
+
+AggregateRange widenRange(AggregateRange range, int by) {
+  return {range.lo - by, range.hi + by};
+}

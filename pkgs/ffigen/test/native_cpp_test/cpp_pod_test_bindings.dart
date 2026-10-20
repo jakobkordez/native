@@ -5,7 +5,528 @@
 @ffi.DefaultAsset('package:ffigen/cpp_test')
 library;
 
+import 'dart:convert' as convert;
 import 'dart:ffi' as ffi;
+
+@ffi.Native<AggregateRange Function(AggregateRange, ffi.Int)>()
+external AggregateRange widenRange(AggregateRange range, int by);
+
+final class AggregateRange extends ffi.Struct {
+  @ffi.Int()
+  external int lo;
+
+  @ffi.Int()
+  external int hi;
+
+  static ffi.Pointer<AggregateRange> $allocate(
+    ffi.Allocator $allocator, {
+    required int lo,
+    required int hi,
+  }) => $allocator<AggregateRange>()
+    ..ref.lo = lo
+    ..ref.hi = hi;
+}
+
+final class AggregateSpan extends ffi.Struct {
+  external AggregateRange range;
+
+  @ffi.Array.multi([2])
+  external ffi.Array<PodPair> pairs;
+
+  @ffi.Double()
+  external double weight;
+}
+
+final class CounterOrInt extends ffi.Opaque {}
+
+class NamedRange implements ffi.Finalizable {
+  ffi.Pointer<ffi.Void> _ptr;
+  static final _defaultFinalizer = ffi.NativeFinalizer(
+    ffi.Native.addressOf<
+      ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>
+    >(_NamedRange_delete),
+  );
+
+  /// The finalizer currently attached for this instance, or [null] if this
+  /// object does not own its pointer.
+  ffi.NativeFinalizer? _activeFinalizer;
+
+  /// The native function pointer used by [_activeFinalizer], stored so that
+  /// [dispose] can call the correct destructor directly.
+  ffi.Pointer<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>?
+  _activeFinalizerFn;
+
+  /// Whether the object that this one is borrowed from is still alive, or
+  /// null if this object isn't borrowed from another object.
+  ///
+  /// This is a tear-off of that object's [_isAlive], so it also keeps that
+  /// object, which owns the C++ object, from being garbage collected while
+  /// this one is reachable.
+  bool Function()? _isOwnerAlive;
+
+  /// Whether this object wraps a C++ reference, which it can't take
+  /// ownership of.
+  final bool _isReference;
+
+  NamedRange.fromPointer(this._ptr, {bool takeOwnership = false})
+    : _isReference = false {
+    if (takeOwnership) {
+      _defaultFinalizer.attach(this, _ptr.cast(), detach: this);
+      _activeFinalizer = _defaultFinalizer;
+      _activeFinalizerFn =
+          ffi.Native.addressOf<
+            ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>
+          >(_NamedRange_delete);
+    }
+  }
+
+  /// Attaches a finalizer so this object takes ownership of the underlying
+  /// C++ pointer. If [customFinalizer] is provided it is used instead of the
+  /// default `delete` finalizer, which is useful when the object was not
+  /// allocated with `new` (e.g. `malloc` or a custom allocator).
+  ///
+  /// Both [customFinalizer] and [customFinalizerFn] must be provided together.
+  ///
+  /// If this object is borrowed from another object, it no longer depends on
+  /// that object afterwards.
+  ///
+  /// Throws a [StateError] if the object, or the object it's borrowed from,
+  /// has already been disposed, if this object already owns the pointer, or
+  /// if it wraps a C++ reference.
+  void retainOwnership([
+    ffi.NativeFinalizer? customFinalizer,
+    ffi.Pointer<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>?
+    customFinalizerFn,
+  ]) {
+    final ptr = _alivePtr;
+    if (_activeFinalizer != null) {
+      throw StateError('This object already owns its pointer.');
+    }
+    if (_isReference) {
+      throw StateError(
+        "This object wraps a C++ reference, so it can't own its pointer.",
+      );
+    }
+    if ((customFinalizer == null) != (customFinalizerFn == null)) {
+      throw ArgumentError(
+        'Both customFinalizer and customFinalizerFn must be provided together.',
+      );
+    }
+    final fin = customFinalizer ?? _defaultFinalizer;
+    final fnPtr =
+        customFinalizerFn ??
+        ffi.Native.addressOf<
+          ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>
+        >(_NamedRange_delete);
+    fin.attach(this, ptr.cast(), detach: this);
+    _activeFinalizer = fin;
+    _activeFinalizerFn = fnPtr;
+    _isOwnerAlive = null;
+  }
+
+  /// Wraps [_ptr], which another object owns, without taking ownership of it.
+  ///
+  /// [_isOwnerAlive] is a tear-off of the [_isAlive] method of the object
+  /// that this one is borrowed from, or null if it isn't borrowed from an
+  /// object. [isReference] is whether [_ptr] comes from a C++ reference.
+  NamedRange._borrowed(
+    this._ptr,
+    this._isOwnerAlive, {
+    bool isReference = false,
+  }) : _isReference = isReference;
+
+  /// Wraps [ptr], a pointer that C++ returned, without taking ownership of
+  /// it, or returns null if [ptr] is null.
+  ///
+  /// See [NamedRange._borrowed] for [isOwnerAlive].
+  static NamedRange? _borrowedOrNull(
+    ffi.Pointer<ffi.Void> ptr,
+    bool Function()? isOwnerAlive,
+  ) => ptr == ffi.nullptr ? null : NamedRange._borrowed(ptr, isOwnerAlive);
+
+  /// Wraps [ptr], the pointer of a `std::unique_ptr` that C++ returned, and
+  /// takes ownership of it, or returns null if [ptr] is null.
+  static NamedRange? _ownedOrNull(ffi.Pointer<ffi.Void> ptr) =>
+      ptr == ffi.nullptr
+      ? null
+      : NamedRange.fromPointer(ptr, takeOwnership: true);
+
+  /// Whether neither this object, nor the object it's borrowed from, if any,
+  /// has been disposed.
+  bool _isAlive() => _ptr != ffi.nullptr && (_isOwnerAlive?.call() ?? true);
+
+  /// [_ptr], for passing to C++.
+  ///
+  /// Throws a [StateError] if this object, or the object it's borrowed from,
+  /// has been disposed, rather than letting C++ use a dangling pointer.
+  ffi.Pointer<ffi.Void> get _alivePtr {
+    if (_ptr == ffi.nullptr) {
+      throw StateError('This object has already been disposed.');
+    }
+    if (_isOwnerAlive?.call() == false) {
+      throw StateError(
+        'The object that this object is borrowed from has been disposed.',
+      );
+    }
+    return _ptr;
+  }
+
+  /// The address of the C++ object, for passing to native code that these
+  /// bindings don't cover.
+  ///
+  /// This object keeps its ownership: the address stays valid only while
+  /// this object, and the object it's borrowed from, if any, are alive. A
+  /// local variable holding this object keeps it alive until the end of its
+  /// scope, since the class is [ffi.Finalizable].
+  ///
+  /// Throws a [StateError] if this object, or the object it's borrowed from,
+  /// has been disposed.
+  ffi.Pointer<ffi.Void> get pointer => _alivePtr;
+
+  /// Detaches the finalizer so this object releases ownership of the
+  /// underlying C++ pointer. The caller becomes responsible for freeing
+  /// the memory.
+  ///
+  /// Throws a [StateError] if the object has already been disposed, or if
+  /// this object does not own the pointer.
+  void releaseOwnership() {
+    if (_ptr == ffi.nullptr) {
+      throw StateError('This object has already been disposed.');
+    }
+    if (_activeFinalizer == null) {
+      throw StateError('This object does not own its pointer.');
+    }
+    _activeFinalizer!.detach(this);
+    _activeFinalizer = null;
+    _activeFinalizerFn = null;
+  }
+
+  /// Detaches the finalizer and invalidates this object, returning the
+  /// underlying C++ pointer.
+  ///
+  /// Throws a [StateError] if the object has already been disposed, or if
+  /// this object does not own the pointer.
+  ffi.Pointer<ffi.Void> detachPointer() {
+    final rawPtr = _ptr;
+    releaseOwnership();
+    _ptr = ffi.nullptr;
+    return rawPtr;
+  }
+
+  String get name {
+    return _stdStringToDart(_NamedRange_get_name(_alivePtr));
+  }
+
+  set name(String value) {
+    final _$$value = _stdStringFromDart(value);
+    try {
+      _NamedRange_set_name(_alivePtr, _$$value);
+    } finally {
+      _stdStringDelete(_$$value);
+    }
+  }
+
+  int get lo {
+    return _NamedRange_get_lo(_alivePtr);
+  }
+
+  set lo(int value) {
+    _NamedRange_set_lo(_alivePtr, value);
+  }
+
+  void dispose() {
+    if (_ptr == ffi.nullptr) {
+      throw StateError('This object has already been disposed.');
+    }
+    if (_activeFinalizer == null) {
+      throw StateError(
+        'Cannot dispose a non-owning wrapper. '
+        'Call retainOwnership() first to take ownership.',
+      );
+    }
+    _activeFinalizer!.detach(this);
+    _activeFinalizer = null;
+    _activeFinalizerFn?.asFunction<void Function(ffi.Pointer<ffi.Void>)>()(
+      _ptr,
+    );
+    _activeFinalizerFn = null;
+    _ptr = ffi.nullptr;
+  }
+}
+
+@ffi.Native<ffi.Pointer<ffi.Void> Function(ffi.Pointer<ffi.Void>)>(
+  symbol: 'NamedRange_get_name',
+)
+external ffi.Pointer<ffi.Void> _NamedRange_get_name(ffi.Pointer<ffi.Void> self);
+
+@ffi.Native<ffi.Void Function(ffi.Pointer<ffi.Void>, ffi.Pointer<ffi.Void>)>(
+  symbol: 'NamedRange_set_name',
+)
+external void _NamedRange_set_name(
+  ffi.Pointer<ffi.Void> self,
+  ffi.Pointer<ffi.Void> value,
+);
+
+@ffi.Native<ffi.Int Function(ffi.Pointer<ffi.Void>)>(
+  symbol: 'NamedRange_get_lo',
+)
+external int _NamedRange_get_lo(ffi.Pointer<ffi.Void> self);
+
+@ffi.Native<ffi.Void Function(ffi.Pointer<ffi.Void>, ffi.Int)>(
+  symbol: 'NamedRange_set_lo',
+)
+external void _NamedRange_set_lo(ffi.Pointer<ffi.Void> self, int value);
+
+@ffi.Native<ffi.Void Function(ffi.Pointer<ffi.Void>)>(
+  symbol: 'NamedRange_delete',
+)
+external void _NamedRange_delete(ffi.Pointer<ffi.Void> self);
+
+class NonAggregateRange implements ffi.Finalizable {
+  ffi.Pointer<ffi.Void> _ptr;
+  static final _defaultFinalizer = ffi.NativeFinalizer(
+    ffi.Native.addressOf<
+      ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>
+    >(_NonAggregateRange_delete),
+  );
+
+  /// The finalizer currently attached for this instance, or [null] if this
+  /// object does not own its pointer.
+  ffi.NativeFinalizer? _activeFinalizer;
+
+  /// The native function pointer used by [_activeFinalizer], stored so that
+  /// [dispose] can call the correct destructor directly.
+  ffi.Pointer<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>?
+  _activeFinalizerFn;
+
+  /// Whether the object that this one is borrowed from is still alive, or
+  /// null if this object isn't borrowed from another object.
+  ///
+  /// This is a tear-off of that object's [_isAlive], so it also keeps that
+  /// object, which owns the C++ object, from being garbage collected while
+  /// this one is reachable.
+  bool Function()? _isOwnerAlive;
+
+  /// Whether this object wraps a C++ reference, which it can't take
+  /// ownership of.
+  final bool _isReference;
+
+  NonAggregateRange.fromPointer(this._ptr, {bool takeOwnership = false})
+    : _isReference = false {
+    if (takeOwnership) {
+      _defaultFinalizer.attach(this, _ptr.cast(), detach: this);
+      _activeFinalizer = _defaultFinalizer;
+      _activeFinalizerFn =
+          ffi.Native.addressOf<
+            ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>
+          >(_NonAggregateRange_delete);
+    }
+  }
+
+  /// Attaches a finalizer so this object takes ownership of the underlying
+  /// C++ pointer. If [customFinalizer] is provided it is used instead of the
+  /// default `delete` finalizer, which is useful when the object was not
+  /// allocated with `new` (e.g. `malloc` or a custom allocator).
+  ///
+  /// Both [customFinalizer] and [customFinalizerFn] must be provided together.
+  ///
+  /// If this object is borrowed from another object, it no longer depends on
+  /// that object afterwards.
+  ///
+  /// Throws a [StateError] if the object, or the object it's borrowed from,
+  /// has already been disposed, if this object already owns the pointer, or
+  /// if it wraps a C++ reference.
+  void retainOwnership([
+    ffi.NativeFinalizer? customFinalizer,
+    ffi.Pointer<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>?
+    customFinalizerFn,
+  ]) {
+    final ptr = _alivePtr;
+    if (_activeFinalizer != null) {
+      throw StateError('This object already owns its pointer.');
+    }
+    if (_isReference) {
+      throw StateError(
+        "This object wraps a C++ reference, so it can't own its pointer.",
+      );
+    }
+    if ((customFinalizer == null) != (customFinalizerFn == null)) {
+      throw ArgumentError(
+        'Both customFinalizer and customFinalizerFn must be provided together.',
+      );
+    }
+    final fin = customFinalizer ?? _defaultFinalizer;
+    final fnPtr =
+        customFinalizerFn ??
+        ffi.Native.addressOf<
+          ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>
+        >(_NonAggregateRange_delete);
+    fin.attach(this, ptr.cast(), detach: this);
+    _activeFinalizer = fin;
+    _activeFinalizerFn = fnPtr;
+    _isOwnerAlive = null;
+  }
+
+  /// Wraps [_ptr], which another object owns, without taking ownership of it.
+  ///
+  /// [_isOwnerAlive] is a tear-off of the [_isAlive] method of the object
+  /// that this one is borrowed from, or null if it isn't borrowed from an
+  /// object. [isReference] is whether [_ptr] comes from a C++ reference.
+  NonAggregateRange._borrowed(
+    this._ptr,
+    this._isOwnerAlive, {
+    bool isReference = false,
+  }) : _isReference = isReference;
+
+  /// Wraps [ptr], a pointer that C++ returned, without taking ownership of
+  /// it, or returns null if [ptr] is null.
+  ///
+  /// See [NonAggregateRange._borrowed] for [isOwnerAlive].
+  static NonAggregateRange? _borrowedOrNull(
+    ffi.Pointer<ffi.Void> ptr,
+    bool Function()? isOwnerAlive,
+  ) => ptr == ffi.nullptr
+      ? null
+      : NonAggregateRange._borrowed(ptr, isOwnerAlive);
+
+  /// Wraps [ptr], the pointer of a `std::unique_ptr` that C++ returned, and
+  /// takes ownership of it, or returns null if [ptr] is null.
+  static NonAggregateRange? _ownedOrNull(ffi.Pointer<ffi.Void> ptr) =>
+      ptr == ffi.nullptr
+      ? null
+      : NonAggregateRange.fromPointer(ptr, takeOwnership: true);
+
+  /// Whether neither this object, nor the object it's borrowed from, if any,
+  /// has been disposed.
+  bool _isAlive() => _ptr != ffi.nullptr && (_isOwnerAlive?.call() ?? true);
+
+  /// [_ptr], for passing to C++.
+  ///
+  /// Throws a [StateError] if this object, or the object it's borrowed from,
+  /// has been disposed, rather than letting C++ use a dangling pointer.
+  ffi.Pointer<ffi.Void> get _alivePtr {
+    if (_ptr == ffi.nullptr) {
+      throw StateError('This object has already been disposed.');
+    }
+    if (_isOwnerAlive?.call() == false) {
+      throw StateError(
+        'The object that this object is borrowed from has been disposed.',
+      );
+    }
+    return _ptr;
+  }
+
+  /// The address of the C++ object, for passing to native code that these
+  /// bindings don't cover.
+  ///
+  /// This object keeps its ownership: the address stays valid only while
+  /// this object, and the object it's borrowed from, if any, are alive. A
+  /// local variable holding this object keeps it alive until the end of its
+  /// scope, since the class is [ffi.Finalizable].
+  ///
+  /// Throws a [StateError] if this object, or the object it's borrowed from,
+  /// has been disposed.
+  ffi.Pointer<ffi.Void> get pointer => _alivePtr;
+
+  /// Detaches the finalizer so this object releases ownership of the
+  /// underlying C++ pointer. The caller becomes responsible for freeing
+  /// the memory.
+  ///
+  /// Throws a [StateError] if the object has already been disposed, or if
+  /// this object does not own the pointer.
+  void releaseOwnership() {
+    if (_ptr == ffi.nullptr) {
+      throw StateError('This object has already been disposed.');
+    }
+    if (_activeFinalizer == null) {
+      throw StateError('This object does not own its pointer.');
+    }
+    _activeFinalizer!.detach(this);
+    _activeFinalizer = null;
+    _activeFinalizerFn = null;
+  }
+
+  /// Detaches the finalizer and invalidates this object, returning the
+  /// underlying C++ pointer.
+  ///
+  /// Throws a [StateError] if the object has already been disposed, or if
+  /// this object does not own the pointer.
+  ffi.Pointer<ffi.Void> detachPointer() {
+    final rawPtr = _ptr;
+    releaseOwnership();
+    _ptr = ffi.nullptr;
+    return rawPtr;
+  }
+
+  factory NonAggregateRange() {
+    return NonAggregateRange.fromPointer(
+      _NonAggregateRange_new(),
+      takeOwnership: true,
+    );
+  }
+  int get lo {
+    return _NonAggregateRange_get_lo(_alivePtr);
+  }
+
+  set lo(int value) {
+    _NonAggregateRange_set_lo(_alivePtr, value);
+  }
+
+  int get hi {
+    return _NonAggregateRange_get_hi(_alivePtr);
+  }
+
+  set hi(int value) {
+    _NonAggregateRange_set_hi(_alivePtr, value);
+  }
+
+  void dispose() {
+    if (_ptr == ffi.nullptr) {
+      throw StateError('This object has already been disposed.');
+    }
+    if (_activeFinalizer == null) {
+      throw StateError(
+        'Cannot dispose a non-owning wrapper. '
+        'Call retainOwnership() first to take ownership.',
+      );
+    }
+    _activeFinalizer!.detach(this);
+    _activeFinalizer = null;
+    _activeFinalizerFn?.asFunction<void Function(ffi.Pointer<ffi.Void>)>()(
+      _ptr,
+    );
+    _activeFinalizerFn = null;
+    _ptr = ffi.nullptr;
+  }
+}
+
+@ffi.Native<ffi.Pointer<ffi.Void> Function()>(symbol: 'NonAggregateRange_new')
+external ffi.Pointer<ffi.Void> _NonAggregateRange_new();
+
+@ffi.Native<ffi.Int Function(ffi.Pointer<ffi.Void>)>(
+  symbol: 'NonAggregateRange_get_lo',
+)
+external int _NonAggregateRange_get_lo(ffi.Pointer<ffi.Void> self);
+
+@ffi.Native<ffi.Void Function(ffi.Pointer<ffi.Void>, ffi.Int)>(
+  symbol: 'NonAggregateRange_set_lo',
+)
+external void _NonAggregateRange_set_lo(ffi.Pointer<ffi.Void> self, int value);
+
+@ffi.Native<ffi.Int Function(ffi.Pointer<ffi.Void>)>(
+  symbol: 'NonAggregateRange_get_hi',
+)
+external int _NonAggregateRange_get_hi(ffi.Pointer<ffi.Void> self);
+
+@ffi.Native<ffi.Void Function(ffi.Pointer<ffi.Void>, ffi.Int)>(
+  symbol: 'NonAggregateRange_set_hi',
+)
+external void _NonAggregateRange_set_hi(ffi.Pointer<ffi.Void> self, int value);
+
+@ffi.Native<ffi.Void Function(ffi.Pointer<ffi.Void>)>(
+  symbol: 'NonAggregateRange_delete',
+)
+external void _NonAggregateRange_delete(ffi.Pointer<ffi.Void> self);
 
 class NonPodCounter implements ffi.Finalizable {
   ffi.Pointer<ffi.Void> _ptr;
@@ -257,3 +778,49 @@ final class PodPoint extends ffi.Struct {
     ..ref.x = x
     ..ref.y = y;
 }
+
+/// Copies [value] into a new `std::string`, encoded as UTF-8.
+///
+/// The `std::string` must be deleted with [_stdStringDelete].
+ffi.Pointer<ffi.Void> _stdStringFromDart(String value) {
+  final bytes = convert.utf8.encode(value);
+  return _stdStringNew(bytes.address, bytes.length);
+}
+
+/// Copies the `std::string` [value] into a [String], decoding it as UTF-8, and
+/// deletes [value].
+String _stdStringToDart(ffi.Pointer<ffi.Void> value) {
+  try {
+    final bytes = _stdStringData(value).asTypedList(_stdStringSize(value));
+    return convert.utf8.decode(bytes);
+  } finally {
+    _stdStringDelete(value);
+  }
+}
+
+@ffi.Native<ffi.Pointer<ffi.Void> Function(ffi.Pointer<ffi.Uint8>, ffi.Size)>(
+  symbol: 'ffigen_rg5f62_std_string_new',
+  isLeaf: true,
+)
+external ffi.Pointer<ffi.Void> _stdStringNew(
+  ffi.Pointer<ffi.Uint8> data,
+  int size,
+);
+
+@ffi.Native<ffi.Pointer<ffi.Uint8> Function(ffi.Pointer<ffi.Void>)>(
+  symbol: 'ffigen_rg5f62_std_string_data',
+  isLeaf: true,
+)
+external ffi.Pointer<ffi.Uint8> _stdStringData(ffi.Pointer<ffi.Void> value);
+
+@ffi.Native<ffi.Size Function(ffi.Pointer<ffi.Void>)>(
+  symbol: 'ffigen_rg5f62_std_string_size',
+  isLeaf: true,
+)
+external int _stdStringSize(ffi.Pointer<ffi.Void> value);
+
+@ffi.Native<ffi.Void Function(ffi.Pointer<ffi.Void>)>(
+  symbol: 'ffigen_rg5f62_std_string_delete',
+  isLeaf: true,
+)
+external void _stdStringDelete(ffi.Pointer<ffi.Void> value);

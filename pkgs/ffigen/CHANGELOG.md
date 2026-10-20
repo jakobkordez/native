@@ -134,6 +134,18 @@
   while the callback waits for that garbage collection. The hook can instead
   queue the deletion for a thread that can take the lock. `dispose` still
   deletes the object right away.
+- Bind a record that isn't POD only because of default member initializers,
+  like `struct Range { int lo = -1; int hi = -1; };`, as a plain struct
+  instead of a C++ class, since it has the layout and the copy semantics of a
+  C struct, so that a C function can take and return it by value. Like a POD
+  struct, its methods aren't bound, and Dart allocates it zeroed, not with the
+  default values. A record with a field of a class template's instantiation,
+  like a `std::string`, is still a C++ class.
+- Skip C functions and function pointers that take or return a C++ class, or
+  a `std::unique_ptr`, by value, and global variables of one. They were bound
+  with a pointer to the object in its place, which broke the call. A struct or
+  union holding one by value loses its members, like for any unsupported
+  member type.
 
 ## 23.0.0
 
