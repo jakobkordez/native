@@ -490,8 +490,15 @@ class SymbolAddressWriter {
     _addresses.add(_SymbolAddressUnit(type, name, ptrName, false));
   }
 
-  void addNativeSymbol({required String type, required String name}) {
-    _addresses.add(_SymbolAddressUnit(type, name, '', true));
+  /// Adds the address getter [name] of a symbol declared with `@Native`, whose
+  /// Dart declaration is [nativeName] if it differs, like a function's when
+  /// the bindings wrap it to convert its arguments.
+  void addNativeSymbol({
+    required String type,
+    required String name,
+    String? nativeName,
+  }) {
+    _addresses.add(_SymbolAddressUnit(type, name, nativeName ?? name, true));
   }
 
   String writeObject(Writer w) {
@@ -527,8 +534,12 @@ class SymbolAddressWriter {
         // For native fields and functions, we can use Native.addressOf to look
         // up their address.
         // The name of address getter shadows the actual element in the library,
-        // so we need to use a self-import.
-        final arg = '${context.libs.prefix(selfImport)}.${address.name}';
+        // so we need to use a self-import. A private declaration, like the
+        // native binding of a wrapped function, isn't shadowed, and the
+        // self-import doesn't import it.
+        final arg = address.ptrName == address.name
+            ? '${context.libs.prefix(selfImport)}.${address.name}'
+            : address.ptrName;
         sb.writeln('${context.libs.prefix(ffiImport)}.Native.addressOf($arg);');
       } else {
         // For other elements, the generator will write a private field of type
@@ -543,7 +554,11 @@ class SymbolAddressWriter {
 
 /// Holds the data for a single symbol address.
 class _SymbolAddressUnit {
-  final String type, name, ptrName;
+  final String type, name;
+
+  /// The private field holding the pointer, or for a [native] symbol, its
+  /// Dart declaration.
+  final String ptrName;
 
   /// Whether the symbol we're looking up has been declared with `@Native`.
   final bool native;

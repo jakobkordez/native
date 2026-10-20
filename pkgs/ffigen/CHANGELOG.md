@@ -151,6 +151,10 @@
   its values to and from native code as ints, like `EnumStyle.intConstants`.
   For an enum that native code can return a value of that the enum doesn't
   have, like an id read from a file, which `fromValue` would throw on.
+- Fix the symbol address of a native function that the bindings wrap to
+  convert its arguments or return value, like one taking a Dart enum or a C++
+  class: `addresses` passed the wrapper to `Native.addressOf`, which failed to
+  compile.
 
 ## 23.0.0
 

@@ -6,6 +6,7 @@
 library;
 
 import 'dart:ffi' as ffi;
+import '' as self;
 
 @ffi.Native<
   ffi.Pointer<ffi.Void> Function(ffi.Pointer<ffi.Void>, ffi.Pointer<ffi.Void>)
@@ -17,6 +18,21 @@ external ffi.Pointer<ffi.Void> _olderAnimal(
 
 Animal? olderAnimal(Animal a, Animal b) {
   return Animal._borrowedOrNull(_olderAnimal(a._alivePtr, b._alivePtr), null);
+}
+
+const addresses = _SymbolAddresses();
+
+class _SymbolAddresses {
+  const _SymbolAddresses();
+  ffi.Pointer<
+    ffi.NativeFunction<
+      ffi.Pointer<ffi.Void> Function(
+        ffi.Pointer<ffi.Void>,
+        ffi.Pointer<ffi.Void>,
+      )
+    >
+  >
+  get olderAnimal => ffi.Native.addressOf(_olderAnimal);
 }
 
 class Animal implements ffi.Finalizable {

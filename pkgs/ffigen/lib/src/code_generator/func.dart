@@ -252,6 +252,7 @@ $dartReturnType $enclosingFuncName($dartArgDeclString) {
               '${context.libs.prefix(ffiImport)}.Pointer<'
               '${context.libs.prefix(ffiImport)}.NativeFunction<$cType>>',
           name: name,
+          nativeName: nativeFuncName,
         );
       }
     } else {

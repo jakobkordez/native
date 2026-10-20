@@ -75,6 +75,10 @@ void main() {
       puppy.dispose();
     });
 
+    test('a wrapped C function exposes its native symbol address', () {
+      expect(addresses.olderAnimal.address, isNonZero);
+    });
+
     @pragma('vm:never-inline')
     void gcTestSubjectInner(Pointer<Int32> counter) {
       final _ = FinalizerTestSubject(counter.cast());

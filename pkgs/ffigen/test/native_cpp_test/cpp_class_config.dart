@@ -27,7 +27,12 @@ FfiGenerator getConfig([Uri? packageRoot]) {
           const include = {'Animal', 'FinalizerTestSubject'};
           node.isIncluded = include.contains(node.originalName);
         },
-        func: (node) => node.isIncluded = node.originalName == 'olderAnimal',
+        // Its symbol address is that of its native binding, not of the Dart
+        // wrapper converting its arguments.
+        func: (node) {
+          node.isIncluded = node.originalName == 'olderAnimal';
+          node.exposeSymbolAddress = true;
+        },
       ),
     ],
   );
