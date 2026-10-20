@@ -61,6 +61,20 @@ void main() {
       cat.dispose();
     });
 
+    test('C function returning a pointer to Animal returns null for null', () {
+      final dog = Animal(10);
+      final cat = Animal(20);
+      final puppy = Animal(10);
+
+      final older = olderAnimal(dog, cat);
+      expect(older?.getAge(), 20);
+      expect(olderAnimal(dog, puppy), isNull);
+
+      dog.dispose();
+      cat.dispose();
+      puppy.dispose();
+    });
+
     @pragma('vm:never-inline')
     void gcTestSubjectInner(Pointer<Int32> counter) {
       final _ = FinalizerTestSubject(counter.cast());

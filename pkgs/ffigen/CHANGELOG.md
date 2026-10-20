@@ -86,9 +86,10 @@
   with `retainOwnership` ends the borrow. A returned reference can never take
   ownership: `retainOwnership` throws a `StateError`.
 - C++ methods and field getters that return a pointer to a C++ class, or a
-  `std::unique_ptr` to one, now return a nullable wrapper, which is `null`
-  when C++ returns a null pointer, instead of a wrapper that throws a
-  `StateError` as if it had been disposed. A returned reference stays
+  `std::unique_ptr` to one, and C functions that return a pointer to a C++
+  class, now return a nullable wrapper, which is `null` when C++ returns a
+  null pointer, instead of a wrapper that throws a `StateError` as if it had
+  been disposed. A returned reference stays
   non-nullable. The elements of a returned `std::vector` of pointers are
   still non-nullable.
 - Passing a disposed C++ class wrapper, or one borrowed from a disposed object,

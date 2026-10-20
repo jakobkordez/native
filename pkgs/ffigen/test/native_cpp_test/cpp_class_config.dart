@@ -27,6 +27,7 @@ FfiGenerator getConfig([Uri? packageRoot]) {
           const include = {'Animal', 'FinalizerTestSubject'};
           node.isIncluded = include.contains(node.originalName);
         },
+        func: (node) => node.isIncluded = node.originalName == 'olderAnimal',
       ),
     ],
   );

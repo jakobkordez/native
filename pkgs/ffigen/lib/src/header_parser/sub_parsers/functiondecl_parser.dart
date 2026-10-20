@@ -108,7 +108,7 @@ Func? parseFunctionDeclaration(Context context, clang_types.CXCursor cursor) {
     usr: funcUsr,
     name: funcName,
     originalName: funcName,
-    returnType: returnType,
+    returnType: nullableIfPointer(returnType),
     parameters: parameters.map((p) => p.clone()).toList(),
     varArgParameters: const [],
     objCReturnsRetained: objCReturnsRetained,

@@ -20,3 +20,15 @@ public:
     Animal copyAndAddAge(Animal other) const;
     static bool haveSameAge(Animal a, Animal b);
 };
+
+#if defined(_WIN32)
+#define ANIMAL_EXPORT __declspec(dllexport)
+#else
+#define ANIMAL_EXPORT
+#endif
+
+extern "C" {
+// The older of a and b, or null if they're the same age. Like a C++ method, a
+// C function returning a pointer to a C++ class can return a null one.
+ANIMAL_EXPORT Animal* olderAnimal(Animal* a, Animal* b);
+}

@@ -7,6 +7,18 @@ library;
 
 import 'dart:ffi' as ffi;
 
+@ffi.Native<
+  ffi.Pointer<ffi.Void> Function(ffi.Pointer<ffi.Void>, ffi.Pointer<ffi.Void>)
+>(symbol: 'olderAnimal')
+external ffi.Pointer<ffi.Void> _olderAnimal(
+  ffi.Pointer<ffi.Void> a,
+  ffi.Pointer<ffi.Void> b,
+);
+
+Animal? olderAnimal(Animal a, Animal b) {
+  return Animal._borrowedOrNull(_olderAnimal(a._alivePtr, b._alivePtr), null);
+}
+
 class Animal implements ffi.Finalizable {
   ffi.Pointer<ffi.Void> _ptr;
   static final _defaultFinalizer = ffi.NativeFinalizer(

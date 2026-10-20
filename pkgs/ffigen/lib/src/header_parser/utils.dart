@@ -842,6 +842,17 @@ bool isPointerToConst(clang_types.CXType type) {
   return false;
 }
 
+/// [type], which a C++ method, a field getter or a C function returns, as
+/// nullable if it's a pointer to a C++ class, or a `std::unique_ptr` to one,
+/// since C++ can return a null one.
+///
+/// A reference can't be null.
+Type nullableIfPointer(Type type) => switch (type.typealiasType) {
+  CppClassReferenceType() => type,
+  CppClassPointerType() => CppNullablePointerType(type),
+  _ => type,
+};
+
 /// Whether [type] holds a C++ class, or a `std::unique_ptr`, by value,
 /// directly or in an array.
 ///

@@ -37,3 +37,8 @@ Animal Animal::copyAndAddAge(Animal other) const {
 bool Animal::haveSameAge(Animal a, Animal b) {
   return a.age == b.age;
 }
+
+Animal* olderAnimal(Animal* a, Animal* b) {
+  if (a->age == b->age) return nullptr;
+  return a->age > b->age ? a : b;
+}
