@@ -7,6 +7,7 @@ import '../visitor/ast.dart';
 import 'binding.dart';
 import 'binding_string.dart';
 import 'compound.dart';
+import 'cpp_class.dart';
 import 'imports.dart';
 import 'local_variables.dart';
 import 'pointer.dart';
@@ -37,6 +38,9 @@ class Global extends LookUpBinding with HasLocalScope {
 
   /// Whether this variable has C++ linkage, so it's accessed through the
   /// pointer returned by an `extern "C"` accessor named [cppWrapperName].
+  ///
+  /// A C++ class held by value is always accessed this way, whatever its
+  /// linkage, since `@Native` fields can't hold one.
   final bool hasCppLinkage;
 
   bool isIncluded = false;
@@ -84,9 +88,12 @@ class Global extends LookUpBinding with HasLocalScope {
     final viaPointer = !loadFromNativeAsset || hasCppLinkage;
 
     // Removing pointer reference for ConstantArray cType since we always wrap
-    // globals with pointer below.
+    // globals with pointer below. A C++ class held by value is opaque, so the
+    // pointer below points at the object itself.
     final cType = (type is ConstantArray && viaPointer)
         ? (type as ConstantArray).child.getCType(context)
+        : type.typealiasType is CppClass
+        ? '${context.libs.prefix(ffiImport)}.Void'
         : type.getCType(context);
 
     final ptrType = '${context.libs.prefix(ffiImport)}.Pointer<$cType>';
@@ -200,6 +207,13 @@ class Global extends LookUpBinding with HasLocalScope {
         }
       } else if (baseTypealiasType is ConstantArray) {
         s.write('$ffiDartType get $globalVarName => $pointerName;\n\n');
+      } else if (baseTypealiasType is CppClass) {
+        // The variable owns the object, so the wrapper must not. Assigning to
+        // it needs C++ copy assignment, so there's no setter.
+        s.write(
+          '$dartType get $globalVarName => '
+          '${baseTypealiasType.name}.fromPointer($pointerName);\n\n',
+        );
       } else if (type.sameDartAndFfiDartType) {
         s.write('$dartType get $globalVarName => $pointerName.value;\n\n');
         if (!constant) {

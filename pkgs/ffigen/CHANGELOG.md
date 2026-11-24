@@ -18,6 +18,12 @@
   is logged for every such declaration.
 - Fix the C++ spelling of function pointer parameters in generated wrappers,
   which was emitted with an extra `*`.
+- Fix a bug where, with C++ support enabled, a global variable holding a C++
+  class by value was read as if it held a pointer to the class: the getter
+  took ownership of a pointer read from the object's own bytes, and the setter
+  overwrote those bytes. The getter now wraps the object itself without taking
+  ownership, and no setter is generated, since assignment needs C++ copy
+  assignment.
 
 ## 23.0.0
 

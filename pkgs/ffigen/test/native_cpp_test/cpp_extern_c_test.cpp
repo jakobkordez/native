@@ -15,6 +15,7 @@ int nestedCpp(int x) { return x * 2; }
 void reset(void) {
   counter = 0;
   outsideCounter = 0;
+  gauge.setLevel(7);
 }
 
 int outside(double d) { return outsideCounter + static_cast<int>(d); }
@@ -22,3 +23,13 @@ int outside(double d) { return outsideCounter + static_cast<int>(d); }
 int outsideCounter = 100;
 
 int applyTwice(int (*fn)(int), int x) { return fn(fn(x)); }
+
+Gauge gauge(7);
+
+const Gauge constGauge(8);
+
+GaugeAlias aliasedGauge(9);
+
+Gauge cGauge(10);
+
+int gaugeLevel(void) { return gauge.level(); }

@@ -59,3 +59,29 @@ extern int outsideCounter;
 
 // A function pointer parameter in a wrapper.
 int applyTwice(int (*fn)(int), int x);
+
+// Globals holding a C++ class by value. Even with C linkage they're read
+// through accessors, which return the objects themselves, so the bindings must
+// neither own nor overwrite them.
+class Gauge {
+ public:
+  explicit Gauge(int level) : level_(level) {}
+  int level() const { return level_; }
+  void setLevel(int level) { level_ = level; }
+
+ private:
+  int level_;
+};
+
+extern Gauge gauge;
+
+extern const Gauge constGauge;
+
+using GaugeAlias = Gauge;
+extern GaugeAlias aliasedGauge;
+
+extern "C" {
+extern Gauge cGauge;
+}
+
+int gaugeLevel(void);

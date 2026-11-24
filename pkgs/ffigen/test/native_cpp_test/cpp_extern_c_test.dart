@@ -6,6 +6,7 @@ import 'dart:ffi' as ffi;
 
 import 'package:test/test.dart';
 
+import '../test_utils.dart';
 import 'cpp_extern_c_test_bindings.dart';
 
 void main() {
@@ -79,7 +80,36 @@ void main() {
       );
       expect(applyTwice(fn, 5), 7);
     });
+
+    test('global holding a C++ class by value wraps the object', () {
+      expect(gauge.level(), 7);
+      gauge.setLevel(11);
+      expect(gaugeLevel(), 11);
+      expect(gauge.level(), 11);
+      // The global owns the object, so the wrapper must not.
+      expect(gauge.dispose, throwsStateError);
+    });
+
+    test('const, aliased and extern "C" globals of a C++ class by value', () {
+      expect(constGauge.level(), 8);
+      expect(aliasedGauge.level(), 9);
+      expect(cGauge.level(), 10);
+    });
+
+    test('collecting wrappers of a by-value global keeps the object', () {
+      _readGauges();
+      doGC();
+      expect(gaugeLevel(), 7);
+      expect(gauge.level(), 7);
+    }, skip: !canDoGC);
   });
 }
 
 int _addOne(int x) => x + 1;
+
+@pragma('vm:never-inline')
+void _readGauges() {
+  expect(gauge.level(), 7);
+  expect(constGauge.level(), 8);
+  expect(cGauge.level(), 10);
+}

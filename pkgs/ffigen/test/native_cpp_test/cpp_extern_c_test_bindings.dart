@@ -10,6 +10,16 @@ import 'dart:ffi' as ffi;
 @ffi.Native<ffi.Int Function(ffi.Int, ffi.Int)>()
 external int add(int a, int b);
 
+@ffi.Native<ffi.Pointer<ffi.Void> Function()>(
+  symbol: 'ffigen_aliasedGauge',
+  isLeaf: true,
+)
+external ffi.Pointer<ffi.Void> _aliasedGaugeAddress();
+
+late final ffi.Pointer<ffi.Void> _aliasedGauge = _aliasedGaugeAddress();
+
+Gauge get aliasedGauge => Gauge.fromPointer(_aliasedGauge);
+
 @ffi.Native<
   ffi.Int Function(
     ffi.Pointer<ffi.NativeFunction<ffi.Int Function(ffi.Int)>>,
@@ -21,11 +31,44 @@ external int applyTwice(
   int x,
 );
 
+@ffi.Native<ffi.Pointer<ffi.Void> Function()>(
+  symbol: 'ffigen_cGauge',
+  isLeaf: true,
+)
+external ffi.Pointer<ffi.Void> _cGaugeAddress();
+
+late final ffi.Pointer<ffi.Void> _cGauge = _cGaugeAddress();
+
+Gauge get cGauge => Gauge.fromPointer(_cGauge);
+
+@ffi.Native<ffi.Pointer<ffi.Void> Function()>(
+  symbol: 'ffigen_constGauge',
+  isLeaf: true,
+)
+external ffi.Pointer<ffi.Void> _constGaugeAddress();
+
+late final ffi.Pointer<ffi.Void> _constGauge = _constGaugeAddress();
+
+Gauge get constGauge => Gauge.fromPointer(_constGauge);
+
 @ffi.Native<ffi.Int>()
 external int counter;
 
 @ffi.Native<ffi.Int Function()>()
 external int deep();
+
+@ffi.Native<ffi.Pointer<ffi.Void> Function()>(
+  symbol: 'ffigen_gauge',
+  isLeaf: true,
+)
+external ffi.Pointer<ffi.Void> _gaugeAddress();
+
+late final ffi.Pointer<ffi.Void> _gauge = _gaugeAddress();
+
+Gauge get gauge => Gauge.fromPointer(_gauge);
+
+@ffi.Native<ffi.Int Function()>(symbol: 'ffigen_gaugeLevel')
+external int gaugeLevel();
 
 @ffi.Native<ffi.Int Function(ffi.Int)>(symbol: 'ffigen_nestedCpp')
 external int nestedCpp(int x);
@@ -72,6 +115,153 @@ enum Fruit {
       fromValueOrNull(value) ??
       (throw ArgumentError('Unknown value for Fruit: $value'));
 }
+
+class Gauge implements ffi.Finalizable {
+  ffi.Pointer<ffi.Void> _ptr;
+  static final _defaultFinalizer = ffi.NativeFinalizer(
+    ffi.Native.addressOf<
+      ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>
+    >(_Gauge_delete),
+  );
+
+  /// The finalizer currently attached for this instance, or [null] if this
+  /// object does not own its pointer.
+  ffi.NativeFinalizer? _activeFinalizer;
+
+  /// The native function pointer used by [_activeFinalizer], stored so that
+  /// [dispose] can call the correct destructor directly.
+  ffi.Pointer<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>?
+  _activeFinalizerFn;
+
+  Gauge.fromPointer(this._ptr, {bool takeOwnership = false}) {
+    if (takeOwnership) {
+      _defaultFinalizer.attach(this, _ptr.cast(), detach: this);
+      _activeFinalizer = _defaultFinalizer;
+      _activeFinalizerFn =
+          ffi.Native.addressOf<
+            ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>
+          >(_Gauge_delete);
+    }
+  }
+
+  /// Attaches a finalizer so this object takes ownership of the underlying
+  /// C++ pointer. If [customFinalizer] is provided it is used instead of the
+  /// default `delete` finalizer, which is useful when the object was not
+  /// allocated with `new` (e.g. `malloc` or a custom allocator).
+  ///
+  /// Both [customFinalizer] and [customFinalizerFn] must be provided together.
+  ///
+  /// Throws a [StateError] if the object has already been disposed, or if
+  /// this object already owns the pointer.
+  void retainOwnership([
+    ffi.NativeFinalizer? customFinalizer,
+    ffi.Pointer<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>?
+    customFinalizerFn,
+  ]) {
+    if (_ptr == ffi.nullptr) {
+      throw StateError('This object has already been disposed.');
+    }
+    if (_activeFinalizer != null) {
+      throw StateError('This object already owns its pointer.');
+    }
+    if ((customFinalizer == null) != (customFinalizerFn == null)) {
+      throw ArgumentError(
+        'Both customFinalizer and customFinalizerFn must be provided together.',
+      );
+    }
+    final fin = customFinalizer ?? _defaultFinalizer;
+    final fnPtr =
+        customFinalizerFn ??
+        ffi.Native.addressOf<
+          ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>
+        >(_Gauge_delete);
+    fin.attach(this, _ptr.cast(), detach: this);
+    _activeFinalizer = fin;
+    _activeFinalizerFn = fnPtr;
+  }
+
+  /// Detaches the finalizer so this object releases ownership of the
+  /// underlying C++ pointer. The caller becomes responsible for freeing
+  /// the memory.
+  ///
+  /// Throws a [StateError] if the object has already been disposed, or if
+  /// this object does not own the pointer.
+  void releaseOwnership() {
+    if (_ptr == ffi.nullptr) {
+      throw StateError('This object has already been disposed.');
+    }
+    if (_activeFinalizer == null) {
+      throw StateError('This object does not own its pointer.');
+    }
+    _activeFinalizer!.detach(this);
+    _activeFinalizer = null;
+    _activeFinalizerFn = null;
+  }
+
+  /// Detaches the finalizer and invalidates this object, returning the
+  /// underlying C++ pointer.
+  ///
+  /// Throws a [StateError] if the object has already been disposed, or if
+  /// this object does not own the pointer.
+  ffi.Pointer<ffi.Void> detachPointer() {
+    final rawPtr = _ptr;
+    releaseOwnership();
+    _ptr = ffi.nullptr;
+    return rawPtr;
+  }
+
+  factory Gauge(int level) {
+    return Gauge.fromPointer(_Gauge_new(level), takeOwnership: true);
+  }
+  int level() {
+    if (_ptr == ffi.nullptr) {
+      throw StateError('This object has already been disposed.');
+    }
+
+    return _Gauge_level(_ptr);
+  }
+
+  void setLevel(int level) {
+    if (_ptr == ffi.nullptr) {
+      throw StateError('This object has already been disposed.');
+    }
+
+    _Gauge_setLevel(_ptr, level);
+  }
+
+  void dispose() {
+    if (_ptr == ffi.nullptr) {
+      throw StateError('This object has already been disposed.');
+    }
+    if (_activeFinalizer == null) {
+      throw StateError(
+        'Cannot dispose a non-owning wrapper. '
+        'Call retainOwnership() first to take ownership.',
+      );
+    }
+    _activeFinalizer!.detach(this);
+    _activeFinalizer = null;
+    _activeFinalizerFn?.asFunction<void Function(ffi.Pointer<ffi.Void>)>()(
+      _ptr,
+    );
+    _activeFinalizerFn = null;
+    _ptr = ffi.nullptr;
+  }
+}
+
+@ffi.Native<ffi.Pointer<ffi.Void> Function(ffi.Int)>(symbol: 'Gauge_new')
+external ffi.Pointer<ffi.Void> _Gauge_new(int level);
+
+@ffi.Native<ffi.Int Function(ffi.Pointer<ffi.Void>)>(symbol: 'Gauge_level')
+external int _Gauge_level(ffi.Pointer<ffi.Void> self);
+
+@ffi.Native<ffi.Void Function(ffi.Pointer<ffi.Void>, ffi.Int)>(
+  symbol: 'Gauge_setLevel',
+)
+external void _Gauge_setLevel(ffi.Pointer<ffi.Void> self, int level);
+
+@ffi.Native<ffi.Void Function(ffi.Pointer<ffi.Void>)>(symbol: 'Gauge_delete')
+external void _Gauge_delete(ffi.Pointer<ffi.Void> self);
 
 final class Number extends ffi.Union {
   @ffi.Int()

@@ -90,7 +90,9 @@ Binding? parseVarDeclaration(
     constant: cType.isConstQualified,
     constantValue: constantValue,
     loadFromNativeAsset: nativeOutputStyle,
-    hasCppLinkage: useCppWrapper,
+    // `@Native` fields can't hold a C++ class by value, so it's always read
+    // through an accessor, which returns the object's address.
+    hasCppLinkage: useCppWrapper || type.typealiasType is CppClass,
   );
   bindingsIndex.addGlobalVarToSeen(usr, global);
 

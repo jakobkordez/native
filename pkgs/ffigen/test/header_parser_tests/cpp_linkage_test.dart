@@ -90,6 +90,47 @@ void main() {
       });
     });
 
+    group('globals holding a C++ class by value', () {
+      const byValueGlobals = {'gauge', 'constGauge', 'aliasedGauge', 'cGauge'};
+
+      for (final style in const <BindingStyle>[
+        NativeExternalBindings(assetId: 'test'),
+        DynamicLibraryBindings(wrapperName: 'Bindings'),
+      ]) {
+        test('are read in place with ${style.runtimeType}', () {
+          final output = _parse(
+            FfiGenerator(
+              output: Output(
+                dart: DartOutput(path: Uri.file('unused')),
+                style: style,
+              ),
+              input: Input(entryPoints: [_header]),
+              cpp: const Cpp(),
+              visitors: [
+                Visitor(
+                  global: (node) => node.isIncluded = byValueGlobals.contains(
+                    node.originalName,
+                  ),
+                ),
+              ],
+            ),
+          ).generate();
+          for (final name in byValueGlobals) {
+            // Even with C linkage, the accessor gives the object's address,
+            // and the getter wraps it without taking ownership.
+            expect(output, contains("'ffigen_$name'"));
+            expect(output, contains('ffi.Pointer<ffi.Void> _$name ='));
+            expect(
+              output,
+              contains('Gauge get $name => Gauge.fromPointer(_$name);'),
+            );
+            // Assigning to it would need C++ copy assignment.
+            expect(output, isNot(contains('set $name(')));
+          }
+        });
+      }
+    });
+
     group('without C++ support', () {
       late cg.Library library;
       final warnings = <String>[];

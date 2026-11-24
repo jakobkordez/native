@@ -27,15 +27,21 @@ FfiGenerator getConfig([Uri? packageRoot]) {
           'outside',
           'nestedCpp',
           'applyTwice',
+          'gaugeLevel',
         }.contains(node.originalName),
         struct: (node) => node.isIncluded = node.originalName == 'Pair',
         union: (node) => node.isIncluded = node.originalName == 'Number',
         enumClass: (node) =>
             node.isIncluded = {'Fruit', 'ns::Flag'}.contains(node.originalName),
+        cppClass: (node) => node.isIncluded = node.originalName == 'Gauge',
         global: (node) {
           node.isIncluded = {
             'counter',
             'outsideCounter',
+            'gauge',
+            'constGauge',
+            'aliasedGauge',
+            'cGauge',
           }.contains(node.originalName);
           if (node.originalName == 'outsideCounter') {
             node.exposeSymbolAddress = true;
