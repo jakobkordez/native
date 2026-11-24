@@ -21,6 +21,14 @@ class Bindings {
     ffi.Pointer<T> Function<T extends ffi.NativeType>(String symbolName) lookup,
   ) : _lookup = lookup;
 
+  late final ffi.Pointer<ffi.Int> _globalEnum = _lookup<ffi.Int>('globalEnum');
+
+  Axis get globalEnum => Axis.fromValue(_globalEnum.value);
+
+  set globalEnum(Axis value) {
+    _globalEnum.value = value.value;
+  }
+
   late final ffi.Pointer<EmptyStruct> _globalStruct = _lookup<EmptyStruct>(
     'globalStruct',
   );
@@ -49,6 +57,24 @@ class Bindings {
   ffi.Pointer<Some> get test5 => _test5.value;
 
   set test5(ffi.Pointer<Some> value) => _test5.value = value;
+}
+
+enum Axis {
+  x(0),
+  y(1);
+
+  final int value;
+  const Axis(this.value);
+
+  static Axis? fromValueOrNull(int value) => switch (value) {
+    0 => x,
+    1 => y,
+    _ => null,
+  };
+
+  static Axis fromValue(int value) =>
+      fromValueOrNull(value) ??
+      (throw ArgumentError('Unknown value for Axis: $value'));
 }
 
 final class EmptyStruct extends ffi.Opaque {}

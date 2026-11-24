@@ -18,6 +18,10 @@
   is logged for every such declaration.
 - Fix the C++ spelling of function pointer parameters in generated wrappers,
   which was emitted with an extra `*`.
+- Fix a bug where the setter of a mutable global variable whose type is a Dart
+  enum or a pointer to a C++ class called `.ref.release()` on the old value,
+  which failed analysis. Only Objective-C object globals release the old value
+  now.
 
 ## 23.0.0
 

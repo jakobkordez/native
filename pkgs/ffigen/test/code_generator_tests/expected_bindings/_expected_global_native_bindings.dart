@@ -11,6 +11,15 @@ library;
 
 import 'dart:ffi' as ffi;
 
+@ffi.Native<ffi.Int>(symbol: 'globalEnum')
+external int _globalEnum;
+
+Axis get globalEnum => Axis.fromValue(_globalEnum);
+
+set globalEnum(Axis value) {
+  _globalEnum = value.value;
+}
+
 @ffi.Native<EmptyStruct>()
 external EmptyStruct globalStruct;
 
@@ -26,6 +35,24 @@ external final ffi.Array<ffi.Float> test3;
 
 @ffi.Native<ffi.Pointer<Some>>()
 external ffi.Pointer<Some> test5;
+
+enum Axis {
+  x(0),
+  y(1);
+
+  final int value;
+  const Axis(this.value);
+
+  static Axis? fromValueOrNull(int value) => switch (value) {
+    0 => x,
+    1 => y,
+    _ => null,
+  };
+
+  static Axis fromValue(int value) =>
+      fromValueOrNull(value) ??
+      (throw ArgumentError('Unknown value for Axis: $value'));
+}
 
 final class EmptyStruct extends ffi.Opaque {}
 

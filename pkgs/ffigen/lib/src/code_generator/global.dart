@@ -104,6 +104,11 @@ class Global extends LookUpBinding with HasLocalScope {
           pointerValue,
           objCRetain: false,
         );
+        // Only ObjC objects are reference counted. Other converted types, like
+        // enums and C++ classes, have no `.ref` to release.
+        final releaseStatement = type.generateRetain('') == null
+            ? ''
+            : '$releaseOldValue.ref.release();';
         final localVars = LocalVariables(localScope);
         final newValue = type.convertDartTypeToFfiDartType(
           context,
@@ -113,7 +118,7 @@ class Global extends LookUpBinding with HasLocalScope {
           localVariables: localVars,
         );
         s.write('''set $globalVarName($dartType value) {
-  $releaseOldValue.ref.release();
+  $releaseStatement
   ${localVars.generateDeclarations()}
   $pointerValue = $newValue;
 }''');

@@ -291,6 +291,15 @@ void main() {
         context: nativeContext,
         name: 'EmptyStruct',
       );
+      final axis = EnumClass(
+        context: nativeContext,
+        name: 'Axis',
+        silenceWarning: true,
+        enumConstants: [
+          EnumConstant(name: 'x', value: 0),
+          EnumConstant(name: 'y', value: 1),
+        ],
+      );
 
       final library = Library(
         context: nativeContext,
@@ -329,6 +338,12 @@ void main() {
             name: 'globalStruct',
             type: emptyGlobalStruct,
           ),
+          axis,
+          Global(
+            loadFromNativeAsset: loadFromNativeAsset,
+            name: 'globalEnum',
+            type: axis,
+          ),
         ], nativeContext),
       );
       await _matchLib(
@@ -347,6 +362,12 @@ void main() {
               ? const NativeExternalBindings(assetId: 'test')
               : const DynamicLibraryBindings(wrapperName: 'Bindings'),
         ),
+      );
+      final widget = CppClass(
+        context: nativeContext,
+        name: 'Widget',
+        methods: [],
+        fields: [],
       );
 
       final library = Library(
@@ -369,6 +390,13 @@ void main() {
               useArrayType: false,
             ),
             constant: true,
+            hasCppLinkage: true,
+          ),
+          widget,
+          Global(
+            loadFromNativeAsset: loadFromNativeAsset,
+            name: 'cppWidget',
+            type: PointerType(widget),
             hasCppLinkage: true,
           ),
         ], nativeContext),
